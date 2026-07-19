@@ -544,67 +544,77 @@ async function initFaceDetection() {
 async function runDetection() {
     if (!isWebcamActive) return;
 
-    // Detect face landmarks
-    const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+    // Guard against zero dimensions during initial webcam spin-up
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        setTimeout(runDetection, 100);
+        return;
+    }
 
-    if (detections) {
-        const landmarks = detections.landmarks;
-        
-        // Find left and right eye coordinates
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        
-        // Calculate center of eyes
-        const leftEyeCenter = getFeatureCenter(leftEye);
-        const rightEyeCenter = getFeatureCenter(rightEye);
-        
-        // Calculate crop factor just like in cameraLoop
-        const videoWidth = video.videoWidth;
-        const videoHeight = video.videoHeight;
-        const videoRatio = videoWidth / videoHeight;
-        const canvasRatio = canvas.width / canvas.height;
-        
-        let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
-        if (videoRatio > canvasRatio) {
-            sWidth = videoHeight * canvasRatio;
-            sx = (videoWidth - sWidth) / 2;
-        } else {
-            sHeight = videoWidth / canvasRatio;
-            sy = (videoHeight - sHeight) / 2;
+    try {
+        // Detect face landmarks
+        const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+
+        if (detections) {
+            const landmarks = detections.landmarks;
+            
+            // Find left and right eye coordinates
+            const leftEye = landmarks.getLeftEye();
+            const rightEye = landmarks.getRightEye();
+            
+            // Calculate center of eyes
+            const leftEyeCenter = getFeatureCenter(leftEye);
+            const rightEyeCenter = getFeatureCenter(rightEye);
+            
+            // Calculate crop factor just like in cameraLoop
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const videoRatio = videoWidth / videoHeight;
+            const canvasRatio = canvas.width / canvas.height;
+            
+            let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
+            if (videoRatio > canvasRatio) {
+                sWidth = videoHeight * canvasRatio;
+                sx = (videoWidth - sWidth) / 2;
+            } else {
+                sHeight = videoWidth / canvasRatio;
+                sy = (videoHeight - sHeight) / 2;
+            }
+            
+            const scaleX = canvas.width / sWidth;
+            const scaleY = canvas.height / sHeight;
+            
+            // Calculate eye center coordinates in video space
+            const rawEyeX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
+            const rawEyeY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+            
+            // Mapped positions directly (no inversion since CSS scales/mirrors the canvas)
+            const eyeX = (rawEyeX - sx) * scaleX;
+            const eyeY = (rawEyeY - sy) * scaleY;
+            
+            // Calculate distance between eyes to scale glasses
+            const dx = rightEyeCenter.x - leftEyeCenter.x;
+            const dy = rightEyeCenter.y - leftEyeCenter.y;
+            const eyeDist = Math.sqrt(dx*dx + dy*dy);
+            
+            // Calculate tilt rotation angle in degrees
+            const angleRad = Math.atan2(dy, dx);
+            const angleDeg = angleRad * (180 / Math.PI);
+            
+            // Autoupdate states and sliders directly
+            // We set glasses width to roughly 2.2 times the eye distance
+            document.getElementById('scale-slider').value = Math.round(eyeDist * 2.2 * scaleX);
+            document.getElementById('rotation-slider').value = Math.round(-angleDeg); // negative due to canvas mirroring
+            
+            // Directly map position coordinates
+            glassesState.x = eyeX;
+            glassesState.y = eyeY;
+            
+            // Set manual offsets to 0 since tracking handles it
+            document.getElementById('x-slider').value = 0;
+            document.getElementById('y-slider').value = 0;
         }
-        
-        const scaleX = canvas.width / sWidth;
-        const scaleY = canvas.height / sHeight;
-        
-        // Calculate eye center coordinates in video space
-        const rawEyeX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
-        const rawEyeY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
-        
-        // Mapped positions directly (no inversion since CSS scales/mirrors the canvas)
-        const eyeX = (rawEyeX - sx) * scaleX;
-        const eyeY = (rawEyeY - sy) * scaleY;
-        
-        // Calculate distance between eyes to scale glasses
-        const dx = rightEyeCenter.x - leftEyeCenter.x;
-        const dy = rightEyeCenter.y - leftEyeCenter.y;
-        const eyeDist = Math.sqrt(dx*dx + dy*dy);
-        
-        // Calculate tilt rotation angle in degrees
-        const angleRad = Math.atan2(dy, dx);
-        const angleDeg = angleRad * (180 / Math.PI);
-        
-        // Autoupdate states and sliders directly
-        // We set glasses width to roughly 2.2 times the eye distance
-        document.getElementById('scale-slider').value = Math.round(eyeDist * 2.2 * scaleX);
-        document.getElementById('rotation-slider').value = Math.round(-angleDeg); // negative due to canvas mirroring
-        
-        // Directly map position coordinates
-        glassesState.x = eyeX;
-        glassesState.y = eyeY;
-        
-        // Set manual offsets to 0 since tracking handles it
-        document.getElementById('x-slider').value = 0;
-        document.getElementById('y-slider').value = 0;
+    } catch (error) {
+        console.error("Face detection loop error:", error);
     }
 
     setTimeout(runDetection, 100); // Check every 100ms
