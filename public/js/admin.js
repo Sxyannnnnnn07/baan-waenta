@@ -239,11 +239,21 @@ async function addNewProduct(e) {
     const price = parseFloat(document.getElementById('prod-price').value);
     const stock = parseInt(document.getElementById('prod-stock').value);
 
-    // Map shape to realistic product image URL
-    let imgUrl = '/assets/p1.jpg'; // Default: Round
-    if (frame_shape === 'Square') imgUrl = '/assets/p5.jpg';
-    if (frame_shape === 'CatEye') imgUrl = '/assets/p3.jpg';
-    if (frame_shape === 'Oval') imgUrl = '/assets/p2.jpg';
+    // Read the uploaded image file and convert to Base64
+    const imageFileInput = document.getElementById('prod-image');
+    let imgUrl = '';
+
+    if (imageFileInput.files.length > 0) {
+        const file = imageFileInput.files[0];
+        imgUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.readAsDataURL(file);
+        });
+    } else {
+        alert('กรุณาเลือกรูปภาพของแว่นตาด้วยครับ');
+        return;
+    }
 
     const payload = {
         name, brand, category, frame_shape,

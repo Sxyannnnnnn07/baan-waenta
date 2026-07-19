@@ -195,6 +195,12 @@ async function setupTables() {
         await dbPool.query("ALTER TABLE users MODIFY COLUMN avatar_url LONGTEXT DEFAULT NULL");
     } catch (err) {}
     try {
+        await dbPool.query("ALTER TABLE products MODIFY COLUMN image_url LONGTEXT NOT NULL");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE products MODIFY COLUMN tryon_image_url LONGTEXT NOT NULL");
+    } catch (err) {}
+    try {
         await dbPool.query("ALTER TABLE users ADD COLUMN username VARCHAR(255) DEFAULT NULL");
         await dbPool.query("UPDATE users SET username = name WHERE username IS NULL OR username = ''");
     } catch (err) {}
