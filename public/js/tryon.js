@@ -194,6 +194,9 @@ function adjustCanvasSize() {
 function resetToUploadPanel() {
     uploadedImage = null;
     const wrapper = document.getElementById('video-wrapper');
+    
+    // Reset canvas to normal when resetting panels
+    canvas.style.transform = 'none';
     wrapper.style.aspectRatio = '4/3';
     wrapper.style.height = 'auto';
     
@@ -223,6 +226,9 @@ async function startWebcam() {
         video.style.display = 'block';
         document.getElementById('upload-panel').style.display = 'none';
         document.getElementById('clear-photo-btn').style.display = 'none';
+        
+        // Mirror the canvas for natural webcam view
+        canvas.style.transform = 'scaleX(-1)';
         
         isWebcamActive = true;
         cameraBtn.innerHTML = `<ion-icon name="videocam-off-outline"></ion-icon> ปิดกล้องเว็บแคม`;
@@ -264,6 +270,9 @@ function stopWebcam() {
     video.style.display = 'none';
     isWebcamActive = false;
     
+    // Reset canvas to normal for uploaded photos
+    canvas.style.transform = 'none';
+    
     cameraBtn.innerHTML = `<ion-icon name="videocam-outline"></ion-icon> เปิดใช้งานกล้องสด`;
     cameraBtn.className = 'btn btn-primary';
 
@@ -281,11 +290,7 @@ function cameraLoop() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw mirrored video stream frame
-    ctx.save();
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-    
+    // Draw video stream frame normally (no mirroring here; CSS handles it)
     const videoWidth = video.videoWidth;
     const videoHeight = video.videoHeight;
     if (videoWidth > 0 && videoHeight > 0) {
@@ -308,7 +313,6 @@ function cameraLoop() {
     } else {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
-    ctx.restore();
 
     // Draw the glasses frame on top
     if (isGlassesLoaded && selectedProduct) {
@@ -576,8 +580,8 @@ async function runDetection() {
         const rawEyeX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
         const rawEyeY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
         
-        // Mapped positions (taking mirror image into account since canvas is flipped)
-        const eyeX = canvas.width - (rawEyeX - sx) * scaleX;
+        // Mapped positions directly (no inversion since CSS scales/mirrors the canvas)
+        const eyeX = (rawEyeX - sx) * scaleX;
         const eyeY = (rawEyeY - sy) * scaleY;
         
         // Calculate distance between eyes to scale glasses
