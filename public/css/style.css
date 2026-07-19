@@ -1468,3 +1468,61 @@ input, select, textarea {
 [data-theme="dark"] .footer-icon-badge.line-btn:hover {
     color: white !important;
 }
+
+/* ==========================================
+   11. IPAD / TABLET NAVBAR RESPONSIVENESS (769px - 1024px)
+   ========================================== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .navbar {
+        padding: 0 1.25rem !important;
+        height: 70px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+    .logo {
+        font-size: 1.3rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        gap: 0.25rem !important;
+    }
+    .nav-links {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 1rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        width: auto !important;
+    }
+    .nav-links a {
+        font-size: 0.85rem !important;
+        white-space: nowrap !important;
+    }
+    .nav-buttons {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        flex-shrink: 0 !important;
+    }
+    .nav-buttons .btn {
+        padding: 0.5rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        white-space: nowrap !important;
+        border-radius: 20px !important;
+    }
+    .user-nav-profile {
+        margin-right: 0.25rem !important;
+        padding: 0.25rem 0.5rem !important;
+        gap: 0.4rem !important;
+    }
+    .user-nav-profile span {
+        font-size: 0.8rem !important;
+        display: inline !important; /* Keep username visible on iPad */
+        white-space: nowrap !important;
+    }
+}
+
