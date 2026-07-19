@@ -717,6 +717,25 @@ a {
         font-weight: 600 !important;
         display: inline-block !important;
     }
+    
+    /* Responsive Catalog Filter Buttons */
+    .filters-container .filter-btn {
+        padding: 0.35rem 0.7rem !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Responsive Modal Action Buttons */
+    .modal-actions {
+        flex-direction: column-reverse !important;
+        gap: 0.5rem !important;
+        margin-top: 1.5rem !important;
+    }
+    .modal-actions .btn {
+        width: 100% !important;
+        flex: none !important;
+        padding: 0.55rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
 }
 
 .dashboard-panel {
