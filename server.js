@@ -263,7 +263,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "Round",
             image_url: "/assets/p1.jpg",
-            tryon_image_url: "/assets/p1.jpg", // Kept fallback since not sent yet
+            tryon_image_url: "/assets/vto_p1.png", // Real transparent VTO image
             price: 1490.00,
             stock: 15
         },
