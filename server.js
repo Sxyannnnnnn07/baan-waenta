@@ -263,7 +263,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "Round",
             image_url: "/assets/p1.jpg",
-            tryon_image_url: "/assets/p1.jpg",
+            tryon_image_url: "/assets/p1.jpg", // Kept fallback since not sent yet
             price: 1490.00,
             stock: 15
         },
@@ -273,7 +273,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "Round",
             image_url: "/assets/p2.jpg",
-            tryon_image_url: "/assets/p2.jpg",
+            tryon_image_url: "/assets/vto_p2.png", // Real transparent VTO image
             price: 1990.00,
             stock: 4
         },
@@ -283,7 +283,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "Square",
             image_url: "/assets/p3.jpg",
-            tryon_image_url: "/assets/p3.jpg",
+            tryon_image_url: "/assets/vto_p3.png", // Real transparent VTO image
             price: 2490.00,
             stock: 20
         },
@@ -293,7 +293,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "CatEye",
             image_url: "/assets/p4.jpg",
-            tryon_image_url: "/assets/p4.jpg",
+            tryon_image_url: "/assets/vto_p4.png", // Real transparent VTO image
             price: 3490.00,
             stock: 10
         },
@@ -303,7 +303,7 @@ async function seedData() {
             category: "Sunglasses",
             frame_shape: "Square",
             image_url: "/assets/p5.jpg",
-            tryon_image_url: "/assets/p5.jpg",
+            tryon_image_url: "/assets/vto_p5.png", // Real transparent VTO image
             price: 2290.00,
             stock: 3
         },
@@ -313,7 +313,7 @@ async function seedData() {
             category: "Optical",
             frame_shape: "Oval",
             image_url: "/assets/p6.jpg",
-            tryon_image_url: "/assets/p6.jpg",
+            tryon_image_url: "/assets/vto_p6.png", // Real transparent VTO image
             price: 1300.00,
             stock: 12
         }
@@ -326,7 +326,7 @@ async function seedData() {
     let seededCount = 0;
     let updatedCount = 0;
     for (const prod of defaultProducts) {
-        const [existing] = await dbPool.query('SELECT id, image_url FROM products WHERE name = ?', [prod.name]);
+        const [existing] = await dbPool.query('SELECT id, image_url, tryon_image_url FROM products WHERE name = ?', [prod.name]);
         if (existing.length === 0) {
             await dbPool.query(
                 `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
@@ -335,8 +335,8 @@ async function seedData() {
             );
             seededCount++;
         } else {
-            // Update image URLs back to original /assets/pX.jpg
-            if (existing[0].image_url !== prod.image_url) {
+            // Update image URLs if they changed (to support transparent PNG paths)
+            if (existing[0].image_url !== prod.image_url || existing[0].tryon_image_url !== prod.tryon_image_url) {
                 await dbPool.query(
                     'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
                     [prod.image_url, prod.tryon_image_url, existing[0].id]

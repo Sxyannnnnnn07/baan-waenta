@@ -399,37 +399,40 @@ function drawGlasses() {
     offscreenCtx.drawImage(glassesImage, 0, 0, scale, glassesHeight);
 
     // Apply soft color keying: loop through pixels and feather white background borders
-    try {
-        const imgData = offscreenCtx.getImageData(0, 0, scale, glassesHeight);
-        const data = imgData.data;
-        
-        // Define soft-keying white thresholds
-        const minWhite = 200; // start fading out transparency here
-        const maxWhite = 248; // fully transparent here
-        
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i+1];
-            const b = data[i+2];
-            const a = data[i+3];
+    const isPNG = selectedProduct.tryon_image_url.toLowerCase().endsWith('.png');
+    if (!isPNG) {
+        try {
+            const imgData = offscreenCtx.getImageData(0, 0, scale, glassesHeight);
+            const data = imgData.data;
             
-            const avg = (r + g + b) / 3;
-            // Ensure the pixel is a neutral color (gray/white) and not a vibrant frame color
-            const isNeutral = Math.max(r, g, b) - Math.min(r, g, b) < 30;
+            // Define soft-keying white thresholds
+            const minWhite = 200; // start fading out transparency here
+            const maxWhite = 248; // fully transparent here
             
-            if (isNeutral && avg > minWhite) {
-                if (avg >= maxWhite) {
-                    data[i+3] = 0; // Completely transparent
-                } else {
-                    // Smoothly interpolate alpha to feather the edge
-                    const factor = (avg - minWhite) / (maxWhite - minWhite);
-                    data[i+3] = Math.min(a, a * (1 - factor));
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                const a = data[i+3];
+                
+                const avg = (r + g + b) / 3;
+                // Ensure the pixel is a neutral color (gray/white) and not a vibrant frame color
+                const isNeutral = Math.max(r, g, b) - Math.min(r, g, b) < 30;
+                
+                if (isNeutral && avg > minWhite) {
+                    if (avg >= maxWhite) {
+                        data[i+3] = 0; // Completely transparent
+                    } else {
+                        // Smoothly interpolate alpha to feather the edge
+                        const factor = (avg - minWhite) / (maxWhite - minWhite);
+                        data[i+3] = Math.min(a, a * (1 - factor));
+                    }
                 }
             }
+            offscreenCtx.putImageData(imgData, 0, 0);
+        } catch (e) {
+            console.error("Canvas pixel manipulation error (possibly CORS issue):", e);
         }
-        offscreenCtx.putImageData(imgData, 0, 0);
-    } catch (e) {
-        console.error("Canvas pixel manipulation error (possibly CORS issue):", e);
     }
 
     // Draw the keyed offscreen image onto the main canvas with rotation
