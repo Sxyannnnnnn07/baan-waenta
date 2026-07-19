@@ -431,6 +431,8 @@ a {
 }
 
 .form-group select, .form-group input {
+    width: 100%;
+    box-sizing: border-box;
     padding: 0.6rem;
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -672,9 +674,21 @@ a {
         max-width: 300px;
     }
     
-    /* Responsive Prescription Form */
+    /* Responsive Prescription Form & Modals */
     .presc-form {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+    .presc-form .form-group {
+        grid-column: span 1 !important;
+    }
+    #prescription-fields {
+        padding: 0.8rem !important;
+    }
+    .modal {
+        padding: 0.8rem !important;
+    }
+    .modal-content {
+        padding: 1.5rem 1rem !important;
     }
     
     /* Responsive Contact Banner */

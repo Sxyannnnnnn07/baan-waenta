@@ -595,8 +595,10 @@
             <div class="modal-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
                 <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('lens-modal')">ยกเลิก</button>
                 <button class="btn btn-primary" style="flex: 2;" id="confirm-add-cart-btn">
-                    <ion-icon name="cart-outline"></ion-icon> ใส่ตะกร้าสินค้า - ยอดรวม <span id="lens-total-price">0</span> บาท
+                    <ion-icon name="cart-outline"></ion-icon> ใส่ตะกร้าสินค้า
                 </button>
+                <!-- Hidden total price tracker to prevent JS crash -->
+                <span id="lens-total-price" style="display: none;">0</span>
             </div>
         </div>
     </div>
