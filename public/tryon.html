@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บ้านแว่นตา | ลองแว่นตาเสมือนจริง (Virtual Try-On)</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="/" class="logo">
+            บ้านแว่นตา<span>.store</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">หน้าแรก</a></li>
+            <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
+            <li><a href="/tryon.html" class="active">ลองแว่นเสมือนจริง (VTO)</a></li>
+            <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; margin-right: 0.5rem;" title="สลับโหมดมืด-สว่าง">
+                <ion-icon id="theme-icon" name="moon-outline" style="font-size: 1.25rem;"></ion-icon>
+            </button>
+            <a href="/" class="btn btn-outline">
+                <ion-icon name="arrow-back-outline"></ion-icon> กลับหน้าหลัก
+            </a>
+        </div>
+    </nav>
+
+    <!-- Try-On Workspace -->
+    <section class="tryon-workspace">
+        <div>
+            <h2 style="margin-bottom: 0.5rem;">ลองแว่นตาอัจฉริยะ (VTO)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem;">
+                เปิดใช้งานกล้องเว็บแคม หรืออัปโหลดรูปภาพใบหน้าของคุณ จากนั้นเลือกแว่นตาในแผงด้านข้างเพื่อลองสวมใส่แบบเรียลไทม์
+            </p>
+
+            <div class="video-container" id="video-wrapper">
+                <!-- Camera Viewfinder Overlay (Active when camera is on) -->
+                <div class="viewfinder-overlay" id="viewfinder-overlay" style="display: none;">
+                    <div class="rec-badge"><span class="rec-dot"></span> LIVE</div>
+                    <div class="bracket top-left"></div>
+                    <div class="bracket top-right"></div>
+                    <div class="bracket bottom-left"></div>
+                    <div class="bracket bottom-right"></div>
+                </div>
+
+                <!-- Fallback: Upload Photo Panel -->
+                <div class="fallback-upload" id="upload-panel">
+                    <ion-icon name="image-outline" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></ion-icon>
+                    <h3>ใช้รูปถ่ายจำลองใบหน้า</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem; text-align: center;">
+                        อัปโหลดรูปภาพครึ่งตัวหน้าตรงเพื่อทดลอง หรือสลับไปใช้กล้องเว็บแคมเพื่อลองสวมสด
+                    </p>
+                    <input type="file" id="photo-input" accept="image/*" style="display: none;" onchange="loadUploadedImage(event)">
+                    <button class="btn btn-outline" onclick="document.getElementById('photo-input').click()">
+                        <ion-icon name="cloud-upload-outline"></ion-icon> อัปโหลดรูปภาพของคุณ
+                    </button>
+                </div>
+
+                <!-- Live Stream Video -->
+                <video id="webcam-video" autoplay playsinline muted style="display: none;"></video>
+                <!-- Interactive Draw Layer -->
+                <canvas id="tryon-canvas"></canvas>
+            </div>
+
+            <!-- Controls -->
+            <div class="camera-controls">
+                <button class="btn btn-primary" id="toggle-camera-btn" onclick="startWebcam()">
+                    <ion-icon name="videocam-outline"></ion-icon> เปิดใช้งานกล้องสด
+                </button>
+                <button class="btn btn-secondary" id="clear-photo-btn" onclick="resetToUploadPanel()" style="display: none;">
+                    <ion-icon name="refresh-outline"></ion-icon> รีเซ็ตภาพอัปโหลด
+                </button>
+            </div>
+
+            <!-- Manual Controls (for photo adjustment) -->
+            <div id="manual-controls" style="display: none; margin-top: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; background-color: var(--bg-secondary);">
+                <h4 style="margin-bottom: 0.8rem; font-size: 0.95rem;">เครื่องมือปรับพิกัดแว่นตาตาด้วยมือ</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">ขนาดแว่นตา (Scale)</label>
+                        <input type="range" id="scale-slider" min="50" max="600" value="150" oninput="drawCanvas()" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">ตำแหน่งบน-ล่าง (Y Offset)</label>
+                        <input type="range" id="y-slider" min="-400" max="400" value="0" oninput="drawCanvas()" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">ตำแหน่งซ้าย-ขวา (X Offset)</label>
+                        <input type="range" id="x-slider" min="-400" max="400" value="0" oninput="drawCanvas()" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">มุมเอียง (Rotation)</label>
+                        <input type="range" id="rotation-slider" min="-45" max="45" value="0" oninput="drawCanvas()" style="width: 100%;">
+                    </div>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.8rem; text-align: center;">
+                    💡 หรือใช้เม้าส์ **คลิกค้างแล้วลากแว่นตา** บนรูปเพื่อเลื่อนตำแหน่งได้อย่างอิสระ
+                </p>
+            </div>
+        </div>
+
+        <!-- Product Selector Panel -->
+        <div class="dashboard-panel" style="display: flex; flex-direction: column; height: fit-content;">
+            <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">เลือกกรอบแว่นตา</h3>
+            <div id="tryon-products-list" style="display: flex; flex-direction: column; gap: 1rem; max-height: 500px; overflow-y: auto;">
+                <!-- Loaded dynamically via JS -->
+                <p style="text-align: center; color: var(--text-secondary);">กำลังดาวน์โหลดข้อมูลแว่นตา...</p>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); margin-top: 1.5rem; padding-top: 1.5rem;">
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;" id="selected-frame-title">ยังไม่ได้เลือกแว่นตา</h4>
+                <p style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem; font-family: var(--font-heading);" id="selected-frame-price">- ฿</p>
+                <button class="btn btn-primary" id="vto-order-btn" style="width: 100%;" disabled onclick="orderFromVTO()">
+                    <ion-icon name="cart-outline"></ion-icon> สั่งซื้อแว่นตาชิ้นนี้
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" style="margin-top: 4rem;">
+        <div class="footer-bottom" style="margin-top: 0; padding-top: 0; border: none;">
+            <p>&copy; 2026 บ้านแว่นตา Store. All rights reserved. จัดทำโดย นายซาฮีรัม เจ๊ะหะ (6003)</p>
+        </div>
+    </footer>
+
+    <!-- Script loading face-api.js for automatic tracking from CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <!-- Back to Top Button -->
+    <button id="back-to-top-btn" class="back-to-top-btn" onclick="scrollToTop()" title="เลื่อนกลับขึ้นบนสุด">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+    </button>
+
+    <script src="/js/tryon.js"></script>
+</body>
+</html>

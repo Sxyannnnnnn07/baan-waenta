@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บ้านแว่นตา | Smart Eyewear Store & VTO</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- AOS CSS for smooth scroll animations -->
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <!-- Ionicons for clean minimalist icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress-bar" id="scroll-progress"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="/" class="logo">
+            บ้านแว่นตา<span>.store</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/" class="active">หน้าแรก</a></li>
+            <li><a href="#catalog">กรอบแว่นตาแนะนำ</a></li>
+            <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
+            <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;" title="สลับโหมดมืด-สว่าง">
+                <ion-icon id="theme-icon" name="moon-outline" style="font-size: 1.25rem;"></ion-icon>
+            </button>
+            <button class="btn btn-outline" id="orders-history-btn" onclick="openOrdersModal()" style="display: none; margin-right: 0.5rem; border-radius: 30px;">
+                <ion-icon name="list-outline"></ion-icon> ประวัติการสั่งซื้อ
+            </button>
+            <button class="btn btn-outline" id="cart-btn" onclick="openCartModal()" style="border-radius: 30px;">
+                <ion-icon name="cart-outline"></ion-icon>
+                ตะกร้า (<span id="cart-count">0</span>)
+            </button>
+            <div id="auth-status">
+                <button class="btn btn-primary" onclick="openAuthModal('login')">เข้าสู่ระบบ</button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-logo-container" style="margin-bottom: 0.5rem; display: flex; justify-content: center; align-items: center;" data-aos="fade-down" data-aos-duration="1000">
+            <img src="/assets/logo.png" alt="บ้านแว่นตา Logo" style="max-width: 200px; height: auto; mix-blend-mode: multiply; filter: contrast(180%) brightness(105%);">
+        </div>
+        <h1 style="margin-top: 0; margin-bottom: 1rem;" data-aos="fade-down" data-aos-delay="200" data-aos-duration="1000">บ้านแว่นตา</h1>
+        <p data-aos="fade-up" data-aos-delay="400" data-aos-duration="1000">ร้านแว่นตายุคใหม่ที่ผสานเทคโนโลยีสั่งตัดเลนส์และการลองแว่นตาออนไลน์อัจฉริยะ ค้นหาแว่นคู่ใจที่เข้ากับใบหน้าคุณที่สุดได้แล้ววันนี้</p>
+        <div class="hero-actions" data-aos="fade-up" data-aos-delay="600" data-aos-duration="1000">
+            <a href="/tryon.html" class="btn btn-primary btn-lg" style="border-radius: 30px;">
+                <ion-icon name="camera-outline"></ion-icon>
+                ทดลองสวมใส่เสมือนจริง (VTO)
+            </a>
+            <a href="#catalog" class="btn btn-secondary btn-lg" style="margin-left: 1rem; border-radius: 30px;">เลือกซื้อแว่นตา</a>
+        </div>
+    </header>
+
+    <!-- Slideshow Carousel Section (Auto slides to give dimension) -->
+    <section class="slideshow-section" style="max-width: 1000px; margin: -40px auto 4rem auto; position: relative; z-index: 10; border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); aspect-ratio: 16/9; background-color: var(--bg-secondary);" data-aos="zoom-in" data-aos-duration="1000">
+        <div class="slides-container" style="display: flex; width: 300%; height: 100%; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(0);">
+            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
+                <img src="/assets/model1.jpg" alt="Model 1" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
+                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">ค้นหาตัวตนของคุณ</h3>
+                    <p style="opacity: 0.9; font-size: 0.95rem;">กรอบแว่นตาที่คัดสรรเพื่อรับกับรูปหน้าคนเอเชียโดยเฉพาะ</p>
+                </div>
+            </div>
+            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
+                <img src="/assets/model2.jpg" alt="Model 2" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
+                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">ความมินิมอลที่เหนือระดับ</h3>
+                    <p style="opacity: 0.9; font-size: 0.95rem;">เบาสบาย แข็งแรง ทนทาน ใส่ได้ตลอดทั้งวัน</p>
+                </div>
+            </div>
+            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
+                <img src="/assets/model3.jpg" alt="Model 3" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
+                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">เลนส์สั่งตัดคุณภาพระดับพรีเมียม</h3>
+                    <p style="opacity: 0.9; font-size: 0.95rem;">ปกป้องดวงตาของคุณจากแสงสีฟ้าและแสงแดดจัด</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls Indicators -->
+        <div style="position: absolute; bottom: 1.5rem; right: 2rem; display: flex; gap: 0.5rem; z-index: 20;">
+            <div class="dot active" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 1;" onclick="setSlide(0)"></div>
+            <div class="dot" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 0.5;" onclick="setSlide(1)"></div>
+            <div class="dot" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 0.5;" onclick="setSlide(2)"></div>
+        </div>
+    </section>
+
+    <!-- Main Catalog Section -->
+    <main class="catalog-container" id="catalog">
+        <h2 class="section-title" data-aos="fade-up">กรอบแว่นตาแนะนำ</h2>
+        
+        <!-- Multi-Criteria Filters Container -->
+        <div class="filters-container" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; box-shadow: var(--shadow-sm);" data-aos="fade-up" data-aos-delay="100">
+            <!-- Row 1: Category & Search Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div class="filter-group" style="display: flex; gap: 0.5rem;">
+                    <button class="filter-btn category-filter-btn active" onclick="filterCategory('All', this)">ทั้งหมด</button>
+                    <button class="filter-btn category-filter-btn" onclick="filterCategory('Optical', this)">กรอบแว่นสายตา</button>
+                    <button class="filter-btn category-filter-btn" onclick="filterCategory('Sunglasses', this)">แว่นตากันแดด</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--border-color); border-radius: 30px; padding: 0.4rem 1rem; background-color: var(--bg-primary); max-width: 320px; width: 100%;">
+                    <ion-icon name="search-outline" style="color: var(--text-secondary); font-size: 1.1rem;"></ion-icon>
+                    <input type="text" id="search-input" placeholder="ค้นหาชื่อแว่น ทรง ยี่ห้อ..." oninput="handleSearchInput(event)" style="border: none; background: transparent; outline: none; width: 100%; font-size: 0.85rem; font-family: var(--font-body);">
+                </div>
+            </div>
+            
+            <!-- Divider Line -->
+            <div style="height: 1px; background-color: var(--border-color); width: 100%;"></div>
+
+            <!-- Row 2: Frame Shape Filters -->
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <ion-icon name="funnel-outline"></ion-icon> คัดกรองตามรูปทรงแว่นตา:
+                </span>
+                <div class="filter-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="filter-btn shape-filter-btn active" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="filterShape('All', this)">ทรงทั้งหมด</button>
+                    <button class="filter-btn shape-filter-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="filterShape('Round', this)">ทรงกลม (Round)</button>
+                    <button class="filter-btn shape-filter-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="filterShape('Square', this)">ทรงเหลี่ยม (Square)</button>
+                    <button class="filter-btn shape-filter-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="filterShape('CatEye', this)">ทรงแคทอาย (CatEye)</button>
+                    <button class="filter-btn shape-filter-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="filterShape('Oval', this)">ทรงรี (Oval)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="products-grid" id="products-list">
+            <!-- Products will be loaded dynamically via JS -->
+            <div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 3rem 0;">
+                กำลังโหลดสินค้าแว่นตา...
+            </div>
+        </div>
+    </main>
+
+    <!-- SECTION 3: Virtual Try-On Showcase (VTO Feature Block) -->
+    <section class="vto-showcase" id="vto-showcase">
+        <div class="vto-mockup-wrapper" data-aos="fade-right">
+            <!-- Simulated Phone Frame -->
+            <div class="phone-mockup">
+                <div class="phone-screen">
+                    <img src="/assets/vto_model.jpg" alt="VTO Scanning Demo" class="phone-bg-image">
+                    <!-- Laser Scan Line -->
+                    <div class="scan-line"></div>
+                    <!-- AI Facial landmarks -->
+                    <div class="face-point eye-l"></div>
+                    <div class="face-point eye-r"></div>
+                    <div class="face-point nose"></div>
+                    <div class="face-point chin"></div>
+                    <!-- Glasses overlay mockup -->
+                    <img src="/assets/p2.jpg" alt="Glasses overlay demo" class="glasses-overlay-mockup" style="mix-blend-mode: multiply;">
+                </div>
+            </div>
+        </div>
+        
+        <div class="vto-content" data-aos="fade-left" data-aos-delay="200">
+            <span style="text-transform: uppercase; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">
+                <ion-icon name="sparkles-outline"></ion-icon> สัมผัสประสบการณ์ใหม่
+            </span>
+            <h2 style="font-size: 2.2rem; line-height: 1.2; margin-bottom: 1.5rem; font-family: var(--font-heading);">
+                ทดลองสวมแว่นตาอัจฉริยะ (Virtual Try-On)
+            </h2>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 1rem; line-height: 1.7;">
+                ไม่ต้องเดินทางมาถึงหน้าร้าน! บ้านแว่นตาขอเสนอนวัตกรรมระบบสแกนใบหน้าจำลองแบบเรียลไทม์ และวางกรอบแว่นตาลงบนพิกเซลพิกัดดวงตาแบบอัตโนมัติ ให้คุณเลือกดูทรงแว่นคู่ใจที่เหมาะสมที่สุดได้เองใน 3 ขั้นตอนง่ายๆ
+            </p>
+            
+            <div class="steps-list">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <h4>เลือกสไตล์แว่นตาที่คุณชอบ</h4>
+                        <p>เลือกกรอบแว่นสายตาหรือแว่นตากันแดดที่สนใจผ่านหน้าแคตตาล็อกแนะนำของร้านค้า</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <h4>เปิดใช้งานกล้องสด หรือ อัปโหลดรูปภาพ</h4>
+                        <p>สแกนสัดส่วนรูปทรงใบหน้าของคุณผ่านกล้องหน้า หรืออัปโหลดไฟล์ภาพหน้าตรงครึ่งตัว</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <h4>ปรับตำแหน่งและเทียบสัดส่วน</h4>
+                        <p>ระบบ AI จะทาบกรอบแว่นและปรับขนาดเข้ากับสัดส่วนใบหน้าอัตโนมัติ หรือจะปรับขนาดเอียงด้วยตัวคุณเองได้ทันที</p>
+                    </div>
+                </div>
+            </div>
+            
+            <a href="/tryon.html" class="btn btn-primary btn-lg" style="border-radius: 30px; display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                <ion-icon name="camera-outline" style="font-size: 1.3rem;"></ion-icon> 
+                ทดลองสวมใส่แว่นตาเสมือนจริงเลย
+            </a>
+        </div>
+    </section>
+
+    <!-- SECTION 4: Customer Reviews (3D Tilt reviews grid) -->
+    <section class="reviews-container" id="reviews-section">
+        <span style="text-transform: uppercase; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; color: var(--text-secondary); display: block; text-align: center; margin-bottom: 0.5rem;" data-aos="fade-up">
+            <ion-icon name="heart-outline"></ion-icon> ความคิดเห็นจากผู้ใช้งานจริง
+        </span>
+        <h2 style="font-size: 2.2rem; text-align: center; margin-bottom: 3rem; font-family: var(--font-heading);" data-aos="fade-up" data-aos-delay="100">
+            เสียงตอบรับจากลูกค้าของเรา
+        </h2>
+        
+        <div class="reviews-grid" id="reviews-list-grid">
+            <!-- Dynamically populated from API -->
+        </div>
+
+        <!-- Review Submission Form (Only active/visible if logged in) -->
+        <div id="add-review-section" style="max-width: 600px; margin: 4rem auto 0 auto; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem; box-shadow: var(--shadow-sm);" data-aos="fade-up">
+            <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem; text-align: center; font-family: var(--font-heading);">แบ่งปันประสบการณ์ของคุณ</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; text-align: center; margin-bottom: 1.5rem;">ความคิดเห็นของคุณมีความหมายต่อเราเพื่อพัฒนาบริการที่ดียิ่งขึ้น</p>
+            
+            <div id="review-auth-prompt" style="text-align: center; display: block; padding: 1rem 0;">
+                <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                    กรุณา <a href="#" onclick="openAuthModal('login')" style="color: var(--accent); font-weight: 600; text-decoration: underline;">เข้าสู่ระบบ</a> เพื่อเขียนรีวิวสินค้า
+                </span>
+            </div>
+            
+            <form id="review-form" onsubmit="submitReview(event)" style="display: none; flex-direction: column; gap: 1rem;">
+                <!-- Star Rating selector -->
+                <div style="display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.9rem; font-weight: 600; margin-right: 0.5rem;">คะแนนความพึงพอใจ:</span>
+                    <div class="star-rating-selector" style="display: flex; gap: 0.3rem;">
+                        <ion-icon name="star" class="form-star" onclick="setFormRating(1)" style="font-size: 1.6rem; cursor: pointer; color: #f6ad55; transition: color 0.2s ease;"></ion-icon>
+                        <ion-icon name="star" class="form-star" onclick="setFormRating(2)" style="font-size: 1.6rem; cursor: pointer; color: #f6ad55; transition: color 0.2s ease;"></ion-icon>
+                        <ion-icon name="star" class="form-star" onclick="setFormRating(3)" style="font-size: 1.6rem; cursor: pointer; color: #f6ad55; transition: color 0.2s ease;"></ion-icon>
+                        <ion-icon name="star" class="form-star" onclick="setFormRating(4)" style="font-size: 1.6rem; cursor: pointer; color: #f6ad55; transition: color 0.2s ease;"></ion-icon>
+                        <ion-icon name="star" class="form-star" onclick="setFormRating(5)" style="font-size: 1.6rem; cursor: pointer; color: #f6ad55; transition: color 0.2s ease;"></ion-icon>
+                    </div>
+                    <input type="hidden" id="review-rating-value" value="5">
+                </div>
+
+                <!-- Select product purchased -->
+                <div class="form-group" style="margin-bottom: 0.2rem;">
+                    <label for="review-product-select" style="font-size: 0.82rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem; display: block;">สินค้าที่เลือกซื้อ</label>
+                    <select id="review-product-select" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer;">
+                        <!-- Populate dynamically via JS -->
+                    </select>
+                </div>
+                
+                <!-- Comment field -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="review-comment" style="font-size: 0.82rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem; display: block;">ข้อความรีวิว</label>
+                    <textarea id="review-comment" required placeholder="บอกเล่าความรู้สึกของคุณ เช่น การบริการ ความใส่ใจ สไตล์ความเท่แว่น..." style="width: 100%; min-height: 80px; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; resize: none; font-family: inherit; font-size: 0.9rem; background-color: var(--bg-primary); color: var(--text-primary);"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 30px; padding: 0.7rem 1.5rem; font-size: 0.9rem;">
+                    ส่งคำวิจารณ์รีวิว
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- SECTION 5: FAQ Accordion -->
+    <section class="faq-container" id="faq-section">
+        <span style="text-transform: uppercase; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; color: var(--text-secondary); display: block; text-align: center; margin-bottom: 0.5rem;" data-aos="fade-up">
+            <ion-icon name="help-circle-outline"></ion-icon> มีคำถามเพิ่มเติมใช่ไหม
+        </span>
+        <h2 style="font-size: 2.2rem; text-align: center; margin-bottom: 3rem; font-family: var(--font-heading);" data-aos="fade-up" data-aos-delay="100">
+            คำถามที่พบบ่อย (FAQ)
+        </h2>
+        
+        <div class="faq-list">
+            <!-- FAQ 1 -->
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <span>1. ระบบลองแว่นตาเสมือนจริง (VTO) ทำงานอย่างไร?</span>
+                    <ion-icon name="chevron-down-outline" class="faq-icon"></ion-icon>
+                </div>
+                <div class="faq-answer">
+                    <p>ระบบ VTO ใช้เทคโนโลยี AI ตรวจจับใบหน้า โดยประมวลผลผ่านเว็บแคมสดของคอมพิวเตอร์และมือถือ หรือใช้ภาพถ่ายหน้าตรงที่คุณอัปโหลดขึ้นมา จากนั้นระบบจะทาบกรอบแว่นลงบนตำแหน่งสายตา และทำการปรับขนาดกับมุมเอียงให้เข้ากับรูปหน้าโดยอัตโนมัติ เพื่อจำลองการสวมใส่เสมือนจริง</p>
+                </div>
+            </div>
+            
+            <!-- FAQ 2 -->
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="250">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <span>2. ฉันสามารถสั่งตัดเลนส์สายตาเอียง หรือค่าสายตาแบบอื่นได้ไหม?</span>
+                    <ion-icon name="chevron-down-outline" class="faq-icon"></ion-icon>
+                </div>
+                <div class="faq-answer">
+                    <p>ได้ครับ ทางร้านรองรับการสั่งตัดเลนส์หลากหลายประเภท ได้แก่ เลนส์ธรรมดา เลนส์กรองแสงสีฟ้า (Blue Block) และเลนส์เปลี่ยนสีอัตโนมัติตามสภาพแดด (Photochromic) เมื่อคุณกด "ซื้อเลย" สามารถกดติ๊กเลือก "ระบุค่าสายตาสำหรับตัดเลนส์" เพื่อกรอกค่าสายตาสั้น-ยาว (SPH), เอียง (CYL), องศา (AXIS) และระยะห่างรูม่านตา (PD) ได้อย่างครบถ้วน</p>
+                </div>
+            </div>
+            
+            <!-- FAQ 3 -->
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <span>3. สั่งซื้อแล้วใช้เวลาจัดส่งกี่วัน และเช็คพัสดุอย่างไร?</span>
+                    <ion-icon name="chevron-down-outline" class="faq-icon"></ion-icon>
+                </div>
+                <div class="faq-answer">
+                    <p>โดยปกติหลังจากยืนยันชำระเงินเรียบร้อยแล้ว ร้านค้าจะใช้เวลาประกอบแว่นและตัดเลนส์ภายใน 1-2 วันทำการ และจัดส่งพัสดุทันที เมื่อร้านค้าส่งสินค้าแล้ว แอดมินจะกรอก "หมายเลขพัสดุ (Tracking Number)" เข้าสู่ระบบ ซึ่งคุณสามารถเปิดดูประวัติการสั่งซื้อเพื่อเช็คหมายเลขดังกล่าว และนำไปตรวจสอบสถานะการจัดส่งได้เองอย่างง่ายดาย</p>
+                </div>
+            </div>
+            
+            <!-- FAQ 4 -->
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="350">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <span>4. ทางร้านมีการรับประกันสินค้าหลังจากรับของอย่างไร?</span>
+                    <ion-icon name="chevron-down-outline" class="faq-icon"></ion-icon>
+                </div>
+                <div class="faq-answer">
+                    <p>แว่นตาทุกชิ้นที่ซื้อจาก "บ้านแว่นตา" มีการรับประกันความพึงพอใจและรับประกันความเสียหายจากการตัดประกอบเลนส์ผิดพลาดเป็นเวลา 7 วันหลังจากที่ผู้ซื้อเซ็นรับพัสดุ หากพบลายฝ้า รอยแตกหัก หรือค่าเลนส์ไม่ตรงตามที่สั่งซื้อ สามารถแจ้งทางหน้าน้านหรือติดต่อแอดมินตามเบอร์ติดต่อที่ระบุได้ทันทีครับ</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer class="footer">
+        <div class="footer-grid">
+            <div>
+                <div class="footer-logo" style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+                    <img src="/assets/logo.png" alt="Logo" style="height: 60px; width: auto; filter: contrast(180%) brightness(105%) invert(1); mix-blend-mode: screen;">
+                    <span style="color: white; font-size: 1.5rem; font-weight: 700;">บ้านแว่นตา.</span>
+                </div>
+                <p style="font-size: 0.9rem; line-height: 1.6;">เรามุ่งมั่นให้บริการแว่นตาและเลนส์คุณภาพสูง พร้อมอำนวยความสะดวกด้วยเทคโนโลยี VTO ที่ล้ำสมัย</p>
+            </div>
+            <div>
+                <h4 class="footer-title">ข้อมูลติดต่อร้าน</h4>
+                <ul class="footer-links" style="display: flex; flex-direction: column; gap: 0.8rem; padding: 0; list-style: none;">
+                    <li style="display: flex; align-items: center; gap: 0.8rem; color: #a0aec0;">
+                        <div class="footer-icon-badge">
+                            <ion-icon name="location-outline"></ion-icon>
+                        </div>
+                        <span style="font-size: 0.9rem; line-height: 1.4;">บ้านยานิง 34 ม.4 ต.จวบ อ.เจาะไอร้อง จ.นราธิวาส 96130</span>
+                    </li>
+                    <li style="display: flex; align-items: center; gap: 0.8rem; color: #a0aec0;">
+                        <div class="footer-icon-badge">
+                            <ion-icon name="call-outline"></ion-icon>
+                        </div>
+                        <span style="font-size: 0.9rem;"><a href="tel:098-968-7435" style="color: inherit; text-decoration: none;">098-968-7435</a></span>
+                    </li>
+                    <li style="display: flex; align-items: center; gap: 0.8rem; color: #a0aec0;">
+                        <div class="footer-icon-badge">
+                            <ion-icon name="mail-outline"></ion-icon>
+                        </div>
+                        <span style="font-size: 0.9rem;"><a href="mailto:sahiramm12345@gmail.com" style="color: inherit; text-decoration: none;">sahiramm12345@gmail.com</a></span>
+                    </li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-title">การติดตาม</h4>
+                <div style="display: flex; gap: 0.8rem; align-items: center; margin-bottom: 0.8rem; margin-top: 0.5rem;">
+                    <!-- Facebook Button -->
+                    <a href="https://www.facebook.com/sahiram.jehha/" target="_blank" rel="noopener noreferrer" class="footer-social-btn fb-btn" title="Facebook">
+                        <ion-icon name="logo-facebook"></ion-icon>
+                    </a>
+                    <!-- Instagram Button -->
+                    <a href="https://www.instagram.com/sii.yannnngxd__/" target="_blank" rel="noopener noreferrer" class="footer-social-btn ig-btn" title="Instagram">
+                        <ion-icon name="logo-instagram"></ion-icon>
+                    </a>
+                </div>
+                <ul class="footer-links" style="display: flex; flex-direction: column; gap: 0.8rem; padding: 0; list-style: none;">
+                    <li style="display: flex; align-items: center; gap: 0.8rem; color: #a0aec0;">
+                        <a href="https://line.me/ti/p/~yang_exe" target="_blank" rel="noopener noreferrer" class="footer-icon-badge line-btn" title="LINE">
+                            <ion-icon name="chatbubble-outline"></ion-icon>
+                        </a>
+                        <span style="font-size: 0.9rem;">LINE ID: <a href="https://line.me/ti/p/~yang_exe" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; font-weight: 500;">yang_exe</a></span>
+                    </li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-title">พิกัดร้าน (Google Maps)</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 0.6rem; color: #a0aec0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="footer-icon-badge" style="width: 24px; height: 24px; font-size: 0.85rem;">
+                        <ion-icon name="navigate-outline"></ion-icon>
+                    </span>
+                    <span>พิกัด: 6°14'45.2"N 101°49'28.7"E</span>
+                </p>
+                <div style="width: 100%; height: 130px; border-radius: 8px; overflow: hidden; border: 1px solid #4a5568; background-color: #2d3748;">
+                    <iframe 
+                        src="https://maps.google.com/maps?q=6.245889,101.824639&hl=th&z=14&output=embed" 
+                        width="100%" 
+                        height="100%" 
+                        style="border:0; filter: grayscale(10%) invert(90%) contrast(120%);" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 บ้านแว่นตา Store. All rights reserved. จัดทำโดย นายซาฮีรัม เจ๊ะหะ (6003)</p>
+        </div>
+    </footer>
+
+    <!-- MODAL: LOGIN / REGISTER -->
+    <div class="modal" id="auth-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('auth-modal')">&times;</span>
+            <h3 id="auth-title" style="margin-bottom: 1.5rem;">เข้าสู่ระบบ</h3>
+            
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+                <div class="form-group">
+                    <label for="auth-username">ชื่อผู้ใช้งาน</label>
+                    <input type="text" id="auth-username" required placeholder="เช่น Yang12345">
+                </div>
+                <div class="form-group" id="email-group" style="display: none;">
+                    <label for="auth-email">อีเมล</label>
+                    <input type="email" id="auth-email" placeholder="example@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">รหัสผ่าน</label>
+                    <input type="password" id="auth-password" required placeholder="•••••">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="auth-submit-btn">เข้าสู่ระบบ</button>
+            </form>
+
+            <!-- Divider -->
+            <div style="display: flex; align-items: center; justify-content: center; margin: 1.2rem 0; gap: 0.8rem;" id="auth-google-divider">
+                <span style="height: 1px; background-color: var(--border-color); flex-grow: 1;"></span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">หรือ</span>
+                <span style="height: 1px; background-color: var(--border-color); flex-grow: 1;"></span>
+            </div>
+
+            <!-- Google Login Button -->
+            <button type="button" id="auth-google-btn" class="btn btn-outline" onclick="loginWithGoogle()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.6rem; border-radius: 30px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; font-weight: 600; padding: 0.65rem; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                </svg>
+                <span>เข้าสู่ระบบด้วย Google</span>
+            </button>
+            
+            <p style="margin-top: 1.5rem; font-size: 0.85rem; text-align: center; color: var(--text-secondary);" id="auth-toggle-text">
+                ยังไม่มีบัญชีผู้ใช้งาน? <a href="#" onclick="toggleAuthMode()">สมัครสมาชิกที่นี่</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- MODAL: USER PROFILE / ACCOUNT DETAILS -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content" style="max-width: 480px; text-align: center; padding: 2.5rem 2rem;">
+            <span class="modal-close" onclick="closeModal('profile-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading);">โปรไฟล์ผู้ใช้งาน</h3>
+            
+            <!-- Large Avatar (Clickable to change) -->
+            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                <div id="profile-avatar-container" onclick="triggerAvatarUpload()" style="width: 90px; height: 90px; border-radius: 50%; background-color: var(--text-primary); color: var(--bg-primary); display: flex; align-items: center; justify-content: center; font-size: 2.8rem; border: 3px solid var(--border-color); overflow: hidden; box-shadow: var(--shadow-sm); flex-shrink: 0; cursor: pointer; position: relative;" title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์">
+                    <!-- Dynamic -->
+                </div>
+                <!-- Hidden file input -->
+                <input type="file" id="avatar-file-input" style="display: none;" accept="image/*" onchange="handleAvatarFileChange(event)">
+            </div>
+            
+            <!-- Account details -->
+            <div style="background-color: var(--bg-primary); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: left; display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">ชื่อบัญชี:</span>
+                    <span id="profile-name" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                    <input type="text" id="edit-profile-name" style="display: none; font-size: 0.9rem; font-weight: 600; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; width: 60%; background-color: var(--bg-secondary); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">ชื่อผู้ใช้งาน:</span>
+                    <span id="profile-username" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                    <input type="text" id="edit-profile-username" style="display: none; font-size: 0.9rem; font-weight: 600; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; width: 60%; background-color: var(--bg-secondary); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">อีเมล:</span>
+                    <span id="profile-email" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-bottom: 0.2rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">สถานะบัญชี:</span>
+                    <span id="profile-role" style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; border-radius: 4px; padding: 0.15rem 0.5rem;"></span>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                <div style="display: flex; gap: 0.8rem;" id="profile-view-actions">
+                    <button type="button" class="btn btn-outline" onclick="toggleProfileEdit(true)" style="flex: 1; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: var(--accent); color: var(--accent); background-color: transparent;">
+                        <ion-icon name="create-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> แก้ไขข้อมูล
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="closeModal('profile-modal'); openOrdersModal();" style="flex: 1.2; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem;">
+                        <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> ประวัติการสั่งซื้อ
+                    </button>
+                </div>
+                
+                <div style="display: none; gap: 0.8rem;" id="profile-edit-actions">
+                    <button type="button" class="btn btn-outline" onclick="toggleProfileEdit(false)" style="flex: 1; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: var(--border-color); background-color: transparent;">
+                        ยกเลิก
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveProfileChanges()" style="flex: 1.5; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; background-color: #2f855a; border-color: #2f855a;">
+                        <ion-icon name="save-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> บันทึก
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-outline" id="profile-logout-btn" onclick="closeModal('profile-modal'); handleLogout();" style="width: 100%; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: #feb2b2; color: #e53e3e; background-color: transparent;">
+                    <ion-icon name="log-out-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIGURE LENS & ADD TO CART -->
+    <div class="modal" id="lens-modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <span class="modal-close" onclick="closeModal('lens-modal')">&times;</span>
+            <h3 style="margin-bottom: 0.5rem;" id="lens-prod-name">ปรับแต่งเลนส์ของคุณ</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;" id="lens-prod-price"></p>
+            
+            <div class="form-group" id="lens-type-group">
+                <label for="lens-type-select">เลือกประเภทเลนส์</label>
+                <select id="lens-type-select" onchange="updateLensPricing()">
+                    <option value="1" data-addon="0">เลนส์ธรรมดา (Normal Lens) +0 บาท</option>
+                    <option value="2" data-addon="500">เลนส์กรองแสงสีฟ้า (Blue Block) +500 บาท</option>
+                    <option value="3" data-addon="1000">เลนส์ปรับแสงออโต้ตามแดด (Photochromic) +1000 บาท</option>
+                </select>
+            </div>
+
+            <!-- Interactive Lens Simulator -->
+            <div id="lens-simulator-container" style="border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; margin: 1.2rem 0; background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.8rem;">
+                <h4 style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; color: var(--accent); margin: 0;">
+                    <ion-icon name="eye-outline" style="font-size: 1.1rem; color: #3182ce;"></ion-icon> 
+                    ระบบจำลองเลนส์อัจฉริยะ (Lens Simulator)
+                </h4>
+                
+                <div style="position: relative; width: 100%; height: 230px; border-radius: 8px; overflow: hidden; background-color: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                    <!-- Lens background image -->
+                    <img src="/assets/model3.jpg" id="lens-sim-bg" style="width: 100%; height: 100%; object-fit: cover; object-position: center 12%; filter: brightness(1.05);">
+                    
+                    <!-- Lens tint filter overlay -->
+                    <div id="lens-sim-tint" style="position: absolute; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0); pointer-events: none; transition: background-color 0.4s ease, backdrop-filter 0.4s ease; top: 0; left: 0;"></div>
+                    
+                    <!-- Blue light ray simulation overlay (for Blue Block lens) -->
+                    <div id="lens-sim-blue-beam" style="position: absolute; top: 50%; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #3182ce, transparent); transform: translateY(-50%); opacity: 0; transition: opacity 0.4s ease; box-shadow: 0 0 10px #3182ce; z-index: 2;"></div>
+                    <div id="lens-sim-blocked-label" style="position: absolute; top: 50%; right: 2rem; transform: translateY(-50%); background-color: #2f855a; color: #fff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; opacity: 0; transition: opacity 0.4s ease; z-index: 3;">บล็อกแสงสีฟ้า 95%</div>
+                    
+                    <!-- Simulator HUD text -->
+                    <div id="lens-sim-text" style="position: absolute; bottom: 0.6rem; right: 0.6rem; background-color: rgba(0, 0, 0, 0.65); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; font-family: var(--font-heading);">
+                        เลนส์ธรรมดา (Normal Lens)
+                    </div>
+                </div>
+
+                <!-- UV Sunlight Slider controls (for Photochromic lens simulation) -->
+                <div id="lens-sim-slider-group" style="display: none; align-items: center; gap: 0.8rem; margin-top: 0.2rem;">
+                    <span style="font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; font-weight: 600;">จำลองปริมาณแดด / แสง UV:</span>
+                    <input type="range" id="lens-uv-slider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;" oninput="updateLensSimulationSlider(this.value)">
+                </div>
+            </div>
+
+            <div style="margin: 1.5rem 0;" id="prescription-toggle-group">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem; cursor: pointer;">
+                    <input type="checkbox" id="enter-presc-check" onchange="togglePrescriptionFields()">
+                    ระบุค่าสายตาสำหรับตัดเลนส์ (หากต้องการ)
+                </label>
+            </div>
+
+            <!-- Prescription Input fields (Initially collapsed) -->
+            <div id="prescription-fields" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; background-color: var(--bg-primary);">
+                <h4 style="font-size: 0.95rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">ใบสั่งค่าสายตา</h4>
+                <div class="presc-form">
+                    <div class="form-group">
+                        <label>ค่าสายตาซ้าย (SPH L)</label>
+                        <input type="number" step="0.25" id="sph-left" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>ค่าสายตาขวา (SPH R)</label>
+                        <input type="number" step="0.25" id="sph-right" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>เอียงซ้าย (CYL L)</label>
+                        <input type="number" step="0.25" id="cyl-left" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>เอียงขวา (CYL R)</label>
+                        <input type="number" step="0.25" id="cyl-right" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>องศาซ้าย (AXIS L)</label>
+                        <input type="number" id="axis-left" value="0" min="0" max="180">
+                    </div>
+                    <div class="form-group">
+                        <label>องศาขวา (AXIS R)</label>
+                        <input type="number" id="axis-right" value="0" min="0" max="180">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>ระยะห่างรูม่านตา (PD) มิลลิเมตร</label>
+                        <input type="number" step="0.5" id="pd-value" value="62" min="40" max="80">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('lens-modal')">ยกเลิก</button>
+                <button class="btn btn-primary" style="flex: 2;" id="confirm-add-cart-btn">
+                    <ion-icon name="cart-outline"></ion-icon> ใส่ตะกร้าสินค้า - ยอดรวม <span id="lens-total-price">0</span> บาท
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SHOPPING CART -->
+    <div class="modal" id="cart-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="modal-close" onclick="closeModal('cart-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem;">ตะกร้าสินค้าของคุณ</h3>
+            
+            <div id="cart-items-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 1.5rem;">
+                <!-- Loaded dynamically via JS -->
+            </div>
+
+            <!-- Shipping Address Form (Initially Hidden, shown on checkout step) -->
+            <div id="shipping-info-form" style="display: none; border-top: 1px dashed var(--border-color); padding-top: 1.5rem; margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--accent); display: flex; align-items: center; gap: 0.4rem;">
+                    <ion-icon name="location-outline"></ion-icon> ข้อมูลที่อยู่จัดส่งและผู้รับสินค้า
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="ship-name" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">ชื่อผู้รับสินค้า</label>
+                        <input type="text" id="ship-name" required placeholder="เช่น นายสมศักดิ์ รักดี" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="ship-phone" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">เบอร์โทรศัพท์ติดต่อ</label>
+                        <input type="text" id="ship-phone" required placeholder="เช่น 089968xxxx" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit;">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="ship-address" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">ที่อยู่จัดส่งรายละเอียด (บ้านเลขที่ หมู่ ซอย ถนน ตำบล อำเภอ จังหวัด)</label>
+                    <textarea id="ship-address" required placeholder="ระบุรายละเอียดที่อยู่ในการจัดส่งให้ครบถ้วนเพื่อป้องกันการขนส่งผิดพลาด..." style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; height: 80px; resize: none; font-family: inherit;"></textarea>
+                </div>
+                
+                <!-- Payment Method Section -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; text-align: left;">
+                    <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--accent);">ช่องทางการชำระเงิน</label>
+                    <div style="display: flex; gap: 1.2rem; margin-bottom: 0.8rem; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                            <input type="radio" name="payment-method" value="COD" checked onchange="togglePaymentDetails()">
+                            เก็บเงินปลายทาง (COD)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                            <input type="radio" name="payment-method" value="BankTransfer" onchange="togglePaymentDetails()">
+                            โอนผ่านบัญชีธนาคาร
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
+                            <input type="radio" name="payment-method" value="QRCode" onchange="togglePaymentDetails()">
+                            สแกน QR-code (PromptPay)
+                        </label>
+                    </div>
+                    
+                    <!-- Bank Details Box -->
+                    <div id="bank-transfer-details" style="display: none; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.8rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-primary); margin-bottom: 0.8rem;">
+                        <div style="font-weight: 700; color: #1a202c; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;">
+                            <ion-icon name="business-outline" style="color: #2b6cb0;"></ion-icon> ข้อมูลบัญชีธนาคารของทางร้าน
+                        </div>
+                        <div>ธนาคาร: <strong>กสิกรไทย (KBANK)</strong></div>
+                        <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong></div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                            <span>เลขที่บัญชี: <strong style="font-size: 0.95rem; color: #1a202c;" id="bank-acc-no">157-1-2-6845-7</strong></span>
+                            <button onclick="copyBankAccount()" type="button" style="background-color: var(--accent-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
+                                <ion-icon name="copy-outline"></ion-icon> คัดลอกเลขบัญชี
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Details Box -->
+                    <div id="qr-code-details" style="display: none; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-primary); text-align: center; margin-bottom: 0.8rem;">
+                        <div style="font-weight: 700; color: #1a202c; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                            <ion-icon name="qr-code-outline" style="color: #2f855a; font-size: 1.1rem;"></ion-icon> สแกน QR เพื่อโอนเข้าบัญชี
+                        </div>
+                        <div style="width: 160px; margin: 0 auto 0.5rem auto; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: #fff; padding: 0.4rem;">
+                            <img src="/assets/qr_payment.jpg" alt="PromptPay QR Code" style="width: 100%; display: block; height: auto;">
+                        </div>
+                        <div style="font-weight: 600; color: var(--text-primary);">ชื่อบัญชี: นาย ซาฮีรัม เจ๊ะหะ</div>
+                    </div>
+
+                    <!-- Unified Slip Upload Field -->
+                    <div id="slip-upload-section" style="display: none; margin-top: 0.8rem; border-top: 1px dashed var(--border-color); padding-top: 0.8rem;">
+                        <label for="slip-file-input" style="font-weight: 600; display: block; margin-bottom: 0.3rem; color: #2d3748; font-size: 0.8rem;">
+                            <ion-icon name="image-outline"></ion-icon> แนบสลิปหลักฐานการชำระเงิน
+                        </label>
+                        <input type="file" id="slip-file-input" accept="image/*" onchange="previewSlipImage(event)" style="font-family: inherit; font-size: 0.8rem; width: 100%;">
+                        <div id="slip-preview-container" style="display: none; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; max-width: 150px;">
+                            <img id="slip-preview" src="" alt="Slip Preview" style="width: 100%; display: block; height: auto;">
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.6rem;">*กรุณาโอนเงินตามยอดรวมแล้วกดยืนยันการสั่งซื้อ ทางร้านจะจัดส่งแว่นตาให้โดยเร็วที่สุดครับ</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.25rem;">
+                    <span>ราคารวมทั้งหมด:</span>
+                    <span><span id="cart-total-price">0</span> บาท</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('cart-modal')">เลือกซื้อของต่อ</button>
+                <button class="btn btn-primary" id="checkout-action-btn" style="flex: 2; border-radius: 30px;" onclick="handleCheckoutClick()">
+                    <ion-icon name="cash-outline"></ion-icon> ดำเนินการสั่งซื้อสินค้า
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ORDER HISTORY -->
+    <div class="modal" id="orders-modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <span class="modal-close" onclick="closeModal('orders-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem;"><ion-icon name="list-outline"></ion-icon> ประวัติการสั่งซื้อของคุณ</h3>
+            
+            <div id="orders-history-list" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; text-align: left;">
+                <!-- Loaded dynamically via JS -->
+            </div>
+            
+            <button class="btn btn-secondary" onclick="closeModal('orders-modal')" style="width: 100%; margin-top: 1.5rem; border-radius: 30px;">ปิดหน้านี้</button>
+        </div>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button id="back-to-top-btn" class="back-to-top-btn" onclick="scrollToTop()" title="เลื่อนกลับขึ้นบนสุด">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+    </button>
+
+    <script src="/js/main.js"></script>
+    <!-- AOS JS for scroll animations -->
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            AOS.init({
+                duration: 800,
+                once: true,
+                offset: 100
+            });
+        });
+    </script>
+</body>
+</html>

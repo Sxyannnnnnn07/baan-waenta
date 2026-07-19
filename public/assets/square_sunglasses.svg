@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="100%" height="100%">
+  <!-- Left lens (filled) -->
+  <rect x="65" y="20" width="90" height="80" rx="10" fill="rgba(30,30,30,0.75)" stroke="#111111" stroke-width="8"/>
+  <!-- Right lens (filled) -->
+  <rect x="245" y="20" width="90" height="80" rx="10" fill="rgba(30,30,30,0.75)" stroke="#111111" stroke-width="8"/>
+  <!-- Bridge -->
+  <path d="M 155 55 Q 200 45 245 55" fill="none" stroke="#111111" stroke-width="8"/>
+  <!-- Left arm -->
+  <path d="M 65 50 C 40 50 20 35 20 20" fill="none" stroke="#111111" stroke-width="6"/>
+  <!-- Right arm -->
+  <path d="M 335 50 C 360 50 380 35 380 20" fill="none" stroke="#111111" stroke-width="6"/>
+</svg>

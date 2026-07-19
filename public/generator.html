@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Baan Waenta - White Background Image Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7fafc;
+            margin: 0;
+            padding: 2rem;
+            color: #2d3748;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-top: 0;
+            color: #1a202c;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 1rem;
+        }
+        button {
+            background-color: #48bb78;
+            color: #fff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #38a169;
+        }
+        #progress-bar {
+            width: 100%;
+            background-color: #edf2f7;
+            height: 20px;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+            display: none;
+        }
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #3182ce;
+            transition: width 0.1s;
+        }
+        #status-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #1a202c;
+            color: #a0aec0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-top: 1.5rem;
+        }
+        .log-item {
+            margin-bottom: 0.25rem;
+        }
+        .log-success {
+            color: #48bb78;
+        }
+        .log-error {
+            color: #f56565;
+        }
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ เครื่องมือปั่นรูปภาพแว่นตาทรงกลม 10 ชิ้น + รูปออริจินัล (พื้นหลังขาว 100%)</h1>
+        <p>หน้านี้จะทำการโหลดรูปภาพต้นแบบแว่นตา จากนั้นจะนำมาวาดและแต่งฟิลเตอร์ใน Canvas พร้อมทั้งรัน <strong>Pixel Whitening Shader</strong> เพื่อคัดกรองพิกเซลที่เป็นพื้นหลังสีเทาอ่อน/สีโทนอื่นออก แล้วแทนที่ด้วย <strong>สีขาวบริสุทธิ์ (#ffffff) 100%</strong> เพื่อให้พื้นหลังสว่าง สะอาด และกลมกลืนกันทุกภาพครับ</p>
+        
+        <button id="start-btn" onclick="startGeneration()">เริ่มประมวลผลรูปภาพ (16 รูป)</button>
+        
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        
+        <div id="status-log">
+            <div class="log-item">พร้อมใช้งาน... กดปุ่มเพื่อเริ่มต้นปั่นภาพแว่นตาพื้นหลังขาวครับ</div>
+        </div>
+    </div>
+
+    <canvas id="gen-canvas" width="600" height="600"></canvas>
+
+    <script>
+        const items = [
+            // Original 6
+            { filename: 'glasses_round_tortoise.png', base: 'base_round_tortoise.jpg', filter: 'none' },
+            { filename: 'glasses_round_black_metal.png', base: 'base_round_metal_black.jpg', filter: 'none' },
+            { filename: 'glasses_square_clear.png', base: 'base_square_clear.jpg', filter: 'none' },
+            { filename: 'glasses_cateye_rose_gold.png', base: 'base_cateye_gold.jpg', filter: 'hue-rotate(335deg) saturate(1.2) contrast(1.05)' },
+            { filename: 'glasses_sunglasses_black.png', base: 'base_sunglasses_black.jpg', filter: 'none' },
+            { filename: 'glasses_oval_silver.png', base: 'base_oval_silver.jpg', filter: 'none' },
+            
+            // ROUND (10 new variations)
+            { filename: 'round_gold.png', base: 'base_round_metal_black.jpg', filter: 'invert(1) sepia(1) saturate(5) hue-rotate(5deg) brightness(0.95) contrast(1.1)' },
+            { filename: 'round_sunglasses_black.png', base: 'base_round_metal_black.jpg', filter: 'brightness(0.3) grayscale(0.5)' },
+            { filename: 'round_rosegold.png', base: 'base_round_metal_black.jpg', filter: 'invert(1) sepia(1) saturate(3.5) hue-rotate(330deg) brightness(0.92)' },
+            { filename: 'round_sunglasses_tea.png', base: 'base_round_tortoise.jpg', filter: 'contrast(1.1) brightness(0.7) sepia(0.5) saturate(1.2)' },
+            { filename: 'round_carbon.png', base: 'base_round_metal_black.jpg', filter: 'brightness(0.4) contrast(1.2)' },
+            { filename: 'round_clear.png', base: 'base_round_tortoise.jpg', filter: 'grayscale(1) brightness(1.4) opacity(0.85) contrast(0.9)' },
+            { filename: 'round_sunglasses_punk.png', base: 'base_round_metal_black.jpg', filter: 'invert(0.85) brightness(0.8) hue-rotate(190deg) saturate(1.5)' },
+            { filename: 'round_photochromic.png', base: 'base_round_metal_black.jpg', filter: 'sepia(0.4) brightness(0.75) contrast(1.05)' },
+            { filename: 'round_sunglasses_mirror.png', base: 'base_round_metal_black.jpg', filter: 'invert(0.5) hue-rotate(240deg) saturate(2.5) contrast(1.2)' },
+            { filename: 'round_thin_clear.png', base: 'base_round_tortoise.jpg', filter: 'grayscale(1) brightness(1.5) opacity(0.7)' }
+        ];
+
+        function log(message, className = '') {
+            const logDiv = document.getElementById('status-log');
+            const item = document.createElement('div');
+            item.className = 'log-item ' + className;
+            item.innerText = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(item);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function startGeneration() {
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('progress-bar').style.display = 'block';
+            
+            log('กำลังเริ่มต้นโหลดรูปภาพต้นฉบับ...', 'log-success');
+            
+            const uniqueBases = [...new Set(items.map(item => item.base))];
+            const loadedImages = {};
+            
+            try {
+                await Promise.all(uniqueBases.map(baseName => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.src = '/assets/' + baseName;
+                        img.onload = () => {
+                            loadedImages[baseName] = img;
+                            log(`โหลดรูปต้นฉบับสำเร็จ: ${baseName}`);
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            log(`ไม่สามารถโหลดรูปต้นฉบับได้: ${baseName}`, 'log-error');
+                            reject(new Error(`Failed to load ${baseName}`));
+                        };
+                    });
+                }));
+            } catch (err) {
+                log('ไม่สามารถดาวน์โหลดรูปต้นฉบับได้ครบ กรุณาเช็คพาธ /assets/', 'log-error');
+                document.getElementById('start-btn').disabled = false;
+                return;
+            }
+            
+            log('ดาวน์โหลดรูปภาพต้นฉบับเสร็จสมบูรณ์! เริ่มต้นวาดแคนวาสและเขียนทับพื้นหลังขาว...', 'log-success');
+            
+            const canvas = document.getElementById('gen-canvas');
+            const ctx = canvas.getContext('2d');
+            let successCount = 0;
+            
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const baseImg = loadedImages[item.base];
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw white background initially
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw with CSS Filter
+                ctx.filter = item.filter;
+                ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+                
+                // Whitening Shader: Turn all off-white/light pixels to pure #ffffff
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+                for (let k = 0; k < data.length; k += 4) {
+                    const r = data[k];
+                    const g = data[k+1];
+                    const b = data[k+2];
+                    
+                    // If the brightness or individual values are high (off-white backdrop), force to solid white
+                    const brightness = (r + g + b) / 3;
+                    if (brightness > 230 || (r > 225 && g > 225 && b > 225)) {
+                        data[k] = 255;
+                        data[k+1] = 255;
+                        data[k+2] = 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+                
+                // Convert to Base64
+                const dataUrl = canvas.toDataURL('image/png');
+                
+                // Send to backend API
+                try {
+                    log(`กำลังเซฟรูปภาพ: ${item.filename} (คิวที่ ${i + 1}/${items.length})`);
+                    const res = await fetch('/api/admin/save-generated-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename: item.filename,
+                            image_base64: dataUrl
+                        })
+                    });
+                    const resData = await res.json();
+                    if (resData.success) {
+                        log(`บันทึกไฟล์สำเร็จ (พื้นหลังขาวบริสุทธิ์): ${item.filename}`, 'log-success');
+                        successCount++;
+                    } else {
+                        log(`บันทึกไฟล์ล้มเหลว: ${item.filename} - ${resData.error}`, 'log-error');
+                    }
+                } catch (error) {
+                    log(`เกิดข้อผิดพลาดในการบันทึกภาพ: ${item.filename}`, 'log-error');
+                }
+                
+                // Update Progress Bar
+                const percent = Math.round(((i + 1) / items.length) * 100);
+                document.getElementById('progress-fill').style.width = percent + '%';
+            }
+            
+            log(`กระบวนการเสร็จสมบูรณ์! ปั่นและบันทึกไฟล์สำเร็จ ${successCount} จากทั้งหมด ${items.length} รูปครับ ✨`, 'log-success');
+            alert(`ประมวลผลสำเร็จ! สร้างและบันทึกภาพพื้นหลังขาวบริสุทธิ์ครบถ้วน ${successCount} รูปเรียบร้อยครับ`);
+        }
+    </script>
+</body>
+</html>

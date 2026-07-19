@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บ้านแว่นตา | แดชบอร์ดผู้ดูแลระบบ (Admin Dashboard)</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="/" class="logo">
+            บ้านแว่นตา<span>.admin</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">หน้าแรกร้านค้า</a></li>
+            <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
+            <li><a href="/tryon.html">ลองแว่นตา (VTO)</a></li>
+            <li><a href="/admin.html" class="active">แดชบอร์ดแอดมิน</a></li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn btn-outline" onclick="handleLogout()">ออกจากระบบ</button>
+        </div>
+    </nav>
+
+    <!-- Admin Content -->
+    <main class="admin-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h2>ระบบบริหารจัดการหลังบ้าน</h2>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">ควบคุมสต็อกสินค้า ตรวจสอบการสั่งตัดเลนส์ของลูกค้า และดูแลความปลอดภัยของฐานข้อมูล</p>
+            </div>
+            <div>
+                <a href="/api/admin/backup" class="btn btn-primary" download>
+                    <ion-icon name="cloud-download-outline"></ion-icon>
+                    สำรองข้อมูลระบบ (Backup Database)
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. Analytical Summary Grid -->
+        <section class="dashboard-summary">
+            <div class="summary-card">
+                <span class="title">ยอดขายรวมทั้งหมด</span>
+                <span class="number" id="metric-sales">0 ฿</span>
+                <span style="font-size: 0.8rem; color: #48bb78;"><ion-icon name="trending-up-outline"></ion-icon> +12.5% สัปดาห์นี้</span>
+            </div>
+            <div class="summary-card">
+                <span class="title">จำนวนคำสั่งซื้อ</span>
+                <span class="number" id="metric-orders">0</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">ออเดอร์ตัดเลนส์สำเร็จ</span>
+            </div>
+            <div class="summary-card">
+                <span class="title">อัตราคอนเวอร์ชันการลองแว่น</span>
+                <span class="number" id="metric-conversion">0%</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">ผู้ลองแว่นตาและกดสั่งซื้อ</span>
+            </div>
+            <div class="summary-card">
+                <span class="title">จำนวนสมาชิกลูกค้า</span>
+                <span class="number" id="metric-customers">0</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">รายชื่อผู้ใช้ที่ลงทะเบียน</span>
+            </div>
+        </section>
+
+        <!-- 2. Charts and Lists Section -->
+        <section class="dashboard-grid">
+            <!-- Popular Shapes -->
+            <div class="dashboard-panel">
+                <h3 style="margin-bottom: 1.5rem;"><ion-icon name="pie-chart-outline"></ion-icon> สถิติรูปทรงแว่นตาที่ถูกทดลอง (VTO)</h3>
+                <div id="popular-tryon-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- Add New Product Form -->
+            <div class="dashboard-panel">
+                <h3 style="margin-bottom: 1.5rem;"><ion-icon name="add-circle-outline"></ion-icon> เพิ่มกรอบแว่นตาใหม่ในระบบ</h3>
+                <form id="add-product-form" onsubmit="addNewProduct(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="prod-name">ชื่อรุ่นแว่นตา</label>
+                            <input type="text" id="prod-name" required placeholder="เช่น Retro Round L">
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-brand">ยี่ห้อสินค้า</label>
+                            <input type="text" id="prod-brand" required placeholder="เช่น Ray-Ban">
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-category">หมวดหมู่แว่น</label>
+                            <select id="prod-category">
+                                <option value="Optical">กรอบแว่นสายตา</option>
+                                <option value="Sunglasses">แว่นตากันแดด</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-shape">รูปทรงกรอบแว่น</label>
+                            <select id="prod-shape">
+                                <option value="Round">ทรงกลม (Round)</option>
+                                <option value="Square">ทรงเหลี่ยม (Square)</option>
+                                <option value="Oval">ทรงรี (Oval)</option>
+                                <option value="CatEye">ทรงแคทอาย (CatEye)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-price">ราคาสินค้า (บาท)</label>
+                            <input type="number" id="prod-price" required placeholder="เช่น 1200">
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-stock">จำนวนสต็อกสินค้า</label>
+                            <input type="number" id="prod-stock" required placeholder="เช่น 15">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                        <ion-icon name="checkmark-circle-outline"></ion-icon> บันทึกและลงขายแว่นตา
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 3. Orders Management Table -->
+        <section class="dashboard-panel" style="margin-bottom: 3rem;">
+            <h3><ion-icon name="list-circle-outline"></ion-icon> รายการสั่งตัดเลนส์และจัดส่ง</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>เลขออเดอร์</th>
+                            <th>ชื่อลูกค้า</th>
+                            <th>แว่นตาที่สั่ง</th>
+                            <th>ประเภทเลนส์ที่เลือก</th>
+                            <th>ราคาสั่งตัดทั้งหมด</th>
+                            <th>สถานะจัดส่ง</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-list-table">
+                        <!-- Loaded dynamically via JS -->
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">กำลังโหลดออเดอร์...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 4. Products Stock list Manager -->
+        <section class="dashboard-panel">
+            <h3><ion-icon name="cube-outline"></ion-icon> จัดการและอัปเดตสต็อกคลังสินค้า</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>รหัส</th>
+                            <th>ชื่อรุ่นแว่นตา</th>
+                            <th>ยี่ห้อ</th>
+                            <th>หมวดหมู่</th>
+                            <th>ราคาสกรีน</th>
+                            <th>จำนวนคงเหลือ</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-list-table">
+                        <!-- Loaded dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. Reviews Moderator panel -->
+        <section class="dashboard-panel" style="margin-top: 3rem;">
+            <h3><ion-icon name="chatbubbles-outline"></ion-icon> จัดการและลบความคิดเห็นของลูกค้า (Review Management)</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>รหัสรีวิว</th>
+                            <th>ชื่อผู้แสดงความเห็น</th>
+                            <th>สินค้าที่สั่งซื้อ</th>
+                            <th>คะแนน (เรตติ้ง)</th>
+                            <th>ข้อความรีวิว</th>
+                            <th>วันที่โพสต์</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviews-list-table">
+                        <!-- Loaded dynamically via JS -->
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">กำลังโหลดรีวิว...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-bottom" style="margin-top: 0; padding-top: 0; border: none;">
+            <p>&copy; 2026 บ้านแว่นตา Store. All rights reserved. จัดทำโดย นายซาฮีรัม เจ๊ะหะ (6003)</p>
+        </div>
+    </footer>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
