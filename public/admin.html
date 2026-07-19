@@ -17,9 +17,16 @@
         </a>
         <ul class="nav-links">
             <li><a href="/">หน้าแรกร้านค้า</a></li>
-            <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
-            <li><a href="/tryon.html">ลองแว่นตา (VTO)</a></li>
-            <li><a href="/admin.html" class="active">แดชบอร์ดแอดมิน</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropdown-trigger">
+                    บริการของร้าน <ion-icon name="chevron-down-outline" style="font-size: 0.8rem; margin-left: 2px; vertical-align: middle;"></ion-icon>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
+                    <li><a href="/tryon.html">ลองแว่นตา (VTO)</a></li>
+                    <li><a href="/admin.html" class="active">แดชบอร์ดแอดมิน</a></li>
+                </ul>
+            </li>
         </ul>
         <div class="nav-buttons">
             <button class="btn btn-outline" onclick="handleLogout()">ออกจากระบบ</button>

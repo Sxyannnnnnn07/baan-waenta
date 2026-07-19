@@ -22,9 +22,16 @@
         </a>
         <ul class="nav-links">
             <li><a href="/" class="active">หน้าแรก</a></li>
-            <li><a href="#catalog">กรอบแว่นตาแนะนำ</a></li>
-            <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
-            <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropdown-trigger">
+                    บริการของร้าน <ion-icon name="chevron-down-outline" style="font-size: 0.8rem; margin-left: 2px; vertical-align: middle;"></ion-icon>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
+                    <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
+                    <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
+                </ul>
+            </li>
         </ul>
         <div class="nav-buttons">
             <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;" title="สลับโหมดมืด-สว่าง">

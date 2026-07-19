@@ -141,6 +141,96 @@ a {
     color: var(--accent);
 }
 
+/* Navigation Dropdown Menu styling */
+.nav-links li.dropdown {
+    position: relative;
+}
+
+.nav-links .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.5rem 0;
+    min-width: 220px;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 5px;
+}
+
+.nav-links li.dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.nav-links .dropdown-menu li {
+    width: 100%;
+    display: block !important;
+}
+
+.nav-links .dropdown-menu a {
+    display: block !important;
+    padding: 0.6rem 1.25rem !important;
+    font-size: 0.9rem !important;
+    color: var(--text-secondary) !important;
+    transition: var(--transition) !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.nav-links .dropdown-menu a:hover {
+    background-color: var(--border-color) !important;
+    color: var(--accent) !important;
+}
+
+/* Mobile responsive override: flatten dropdown links on small screens */
+@media (max-width: 768px) {
+    .nav-links li.dropdown {
+        position: static !important;
+    }
+    .nav-links .dropdown-trigger {
+        display: none !important;
+    }
+    .nav-links .dropdown-menu {
+        position: static !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 1.25rem !important;
+        min-width: auto !important;
+    }
+    .nav-links .dropdown-menu li {
+        display: inline-block !important;
+        width: auto !important;
+    }
+    .nav-links .dropdown-menu a {
+        display: inline-block !important;
+        padding: 0 !important;
+        font-size: 0.95rem !important;
+        white-space: nowrap !important;
+    }
+}
+
 .nav-buttons {
     display: flex;
     align-items: center;
