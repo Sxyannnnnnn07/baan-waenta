@@ -238,7 +238,14 @@ async function startWebcam() {
     }
 
     try {
-        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        webcamStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: 'user',
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            }, 
+            audio: false 
+        });
         video.srcObject = webcamStream;
         video.style.display = 'block';
         document.getElementById('upload-panel').style.display = 'none';
@@ -584,7 +591,7 @@ async function runDetection() {
 
     try {
         // Detect face landmarks
-        const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+        const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 })).withFaceLandmarks();
 
         if (detections) {
             const landmarks = detections.landmarks;
