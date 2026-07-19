@@ -682,6 +682,41 @@ a {
         margin: -20px 1rem 0 1rem;
         padding: 1rem;
     }
+    
+    /* Hide username text on mobile, keep only avatar */
+    .user-nav-profile {
+        padding: 0.25rem !important;
+        margin-right: 0 !important;
+        background-color: transparent !important;
+    }
+    .user-nav-profile span {
+        display: none !important;
+    }
+    
+    /* Optimize buttons to be compact icon-only buttons on mobile */
+    #orders-history-btn {
+        font-size: 0 !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+    #orders-history-btn ion-icon {
+        font-size: 1.25rem !important;
+        margin: 0 !important;
+    }
+    
+    #cart-btn {
+        font-size: 0 !important;
+        padding: 0.5rem 0.75rem !important;
+        gap: 0.25rem !important;
+    }
+    #cart-btn ion-icon {
+        font-size: 1.25rem !important;
+        margin: 0 !important;
+    }
+    #cart-btn span {
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        display: inline-block !important;
+    }
 }
 
 .dashboard-panel {
