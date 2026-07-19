@@ -183,10 +183,16 @@ async function setupTables() {
         // column already exists, safe to ignore
     }
     try {
-        await dbPool.query("ALTER TABLE reviews ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL");
+        await dbPool.query("ALTER TABLE reviews ADD COLUMN avatar_url LONGTEXT DEFAULT NULL");
     } catch (err) {}
     try {
-        await dbPool.query("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL");
+        await dbPool.query("ALTER TABLE reviews MODIFY COLUMN avatar_url LONGTEXT DEFAULT NULL");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE users ADD COLUMN avatar_url LONGTEXT DEFAULT NULL");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE users MODIFY COLUMN avatar_url LONGTEXT DEFAULT NULL");
     } catch (err) {}
     try {
         await dbPool.query("ALTER TABLE users ADD COLUMN username VARCHAR(255) DEFAULT NULL");
@@ -498,33 +504,17 @@ app.post('/api/auth/update-avatar', async (req, res) => {
             return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
         }
         
-        // Extract base64 image type/extension (e.g. jpeg, png, webp)
-        const matches = avatar_data.match(/^data:image\/(\w+);base64,/);
-        const ext = matches ? matches[1] : 'png';
-        
-        const base64Data = avatar_data.replace(/^data:image\/\w+;base64,/, "");
-        const buffer = Buffer.from(base64Data, 'base64');
-        const fileName = `avatar_${user_id}_${Date.now()}.${ext}`;
-        const dirPath = path.join(__dirname, 'public', 'uploads', 'avatars');
-        
-        if (!fs.existsSync(dirPath)){
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        
-        fs.writeFileSync(path.join(dirPath, fileName), buffer);
-        const avatarUrl = `/uploads/avatars/${fileName}`;
-        
-        // Update database
-        await dbPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, user_id]);
+        // Update database directly with base64 data
+        await dbPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_data, user_id]);
         
         // Optionally update any reviews by this user to keep avatars in sync
         const [userRows] = await dbPool.query('SELECT name FROM users WHERE id = ?', [user_id]);
         if (userRows.length > 0) {
             const userName = userRows[0].name;
-            await dbPool.query('UPDATE reviews SET avatar_url = ? WHERE user_name = ?', [avatarUrl, `คุณ ${userName}`]);
+            await dbPool.query('UPDATE reviews SET avatar_url = ? WHERE user_name = ?', [avatar_data, `คุณ ${userName}`]);
         }
         
-        res.json({ success: true, avatar_url: avatarUrl, message: 'อัปเดตรูปโปรไฟล์สำเร็จ' });
+        res.json({ success: true, avatar_url: avatar_data, message: 'อัปเดตรูปโปรไฟล์สำเร็จ' });
     } catch (error) {
         console.error('Update avatar error:', error);
         res.status(500).json({ success: false, error: error.message });
