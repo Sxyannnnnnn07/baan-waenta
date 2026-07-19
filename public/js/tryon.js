@@ -28,6 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas = document.getElementById('tryon-canvas');
     ctx = canvas.getContext('2d');
     video = document.getElementById('webcam-video');
+    video.addEventListener('loadedmetadata', () => {
+        adjustCanvasSize();
+    });
 
     checkUserLogin();
     fetchTryOnProducts();
@@ -282,7 +285,29 @@ function cameraLoop() {
     ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    if (videoWidth > 0 && videoHeight > 0) {
+        const videoRatio = videoWidth / videoHeight;
+        const canvasRatio = canvas.width / canvas.height;
+        
+        let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
+        
+        if (videoRatio > canvasRatio) {
+            // Video is wider than canvas: crop the sides
+            sWidth = videoHeight * canvasRatio;
+            sx = (videoWidth - sWidth) / 2;
+        } else {
+            // Video is taller than canvas: crop top/bottom
+            sHeight = videoWidth / canvasRatio;
+            sy = (videoHeight - sHeight) / 2;
+        }
+        
+        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
     ctx.restore();
 
     // Draw the glasses frame on top
@@ -529,13 +554,31 @@ async function runDetection() {
         const leftEyeCenter = getFeatureCenter(leftEye);
         const rightEyeCenter = getFeatureCenter(rightEye);
         
-        // Calculate coordinate positions mapped to our canvas
-        const scaleX = canvas.width / video.videoWidth;
-        const scaleY = canvas.height / video.videoHeight;
+        // Calculate crop factor just like in cameraLoop
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        const videoRatio = videoWidth / videoHeight;
+        const canvasRatio = canvas.width / canvas.height;
+        
+        let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
+        if (videoRatio > canvasRatio) {
+            sWidth = videoHeight * canvasRatio;
+            sx = (videoWidth - sWidth) / 2;
+        } else {
+            sHeight = videoWidth / canvasRatio;
+            sy = (videoHeight - sHeight) / 2;
+        }
+        
+        const scaleX = canvas.width / sWidth;
+        const scaleY = canvas.height / sHeight;
+        
+        // Calculate eye center coordinates in video space
+        const rawEyeX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
+        const rawEyeY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
         
         // Mapped positions (taking mirror image into account since canvas is flipped)
-        const eyeX = canvas.width - ((leftEyeCenter.x + rightEyeCenter.x) / 2) * scaleX;
-        const eyeY = ((leftEyeCenter.y + rightEyeCenter.y) / 2) * scaleY;
+        const eyeX = canvas.width - (rawEyeX - sx) * scaleX;
+        const eyeY = (rawEyeY - sy) * scaleY;
         
         // Calculate distance between eyes to scale glasses
         const dx = rightEyeCenter.x - leftEyeCenter.x;
