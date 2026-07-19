@@ -3,6 +3,8 @@ let products = [];
 let selectedProduct = null;
 let webcamStream = null;
 let isWebcamActive = false;
+let isModelsLoaded = false;
+let isDetectionLoopRunning = false;
 
 // User Image / Canvas variables
 let uploadedImage = null;
@@ -176,8 +178,21 @@ function adjustCanvasSize() {
         
         canvas.width = width;
         canvas.height = height;
+    } else if (isWebcamActive && video.videoWidth > 0) {
+        // Explicitly set DOM width/height properties on the video element for face-api stability on mobile
+        video.width = video.videoWidth;
+        video.height = video.videoHeight;
+        
+        // Calculate aspect ratio dynamically from the camera stream resolution
+        const aspectRatio = video.videoHeight / video.videoWidth;
+        wrapper.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
+        wrapper.style.height = 'auto';
+        
+        const height = width * aspectRatio;
+        canvas.width = width;
+        canvas.height = height;
     } else {
-        // Reset to default 4:3 aspect ratio for webcam feed or default view
+        // Reset to default 4:3 aspect ratio for default view
         wrapper.style.aspectRatio = '4/3';
         wrapper.style.height = 'auto';
         
@@ -187,8 +202,10 @@ function adjustCanvasSize() {
     }
 
     // Set initial glasses position to the center of the canvas
-    glassesState.x = canvas.width / 2;
-    glassesState.y = canvas.height / 2.2;
+    if (glassesState.x === 0 || glassesState.x === 200 || glassesState.x === canvas.width / 2) {
+        glassesState.x = canvas.width / 2;
+        glassesState.y = canvas.height / 2.2;
+    }
 }
 
 function resetToUploadPanel() {
@@ -527,6 +544,14 @@ function orderFromVTO() {
 // OPTIONAL AUTOMATED FACE DETECTION (AI)
 // ==========================================
 async function initFaceDetection() {
+    if (isModelsLoaded) {
+        if (!isDetectionLoopRunning) {
+            isDetectionLoopRunning = true;
+            runDetection();
+        }
+        return;
+    }
+    
     console.log("Loading Face Detection Models...");
     try {
         // Load tiny face detector and landmarks model from CDN
@@ -534,15 +559,22 @@ async function initFaceDetection() {
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
         console.log("Face API Models loaded successfully");
+        isModelsLoaded = true;
         
-        runDetection();
+        if (!isDetectionLoopRunning) {
+            isDetectionLoopRunning = true;
+            runDetection();
+        }
     } catch (err) {
         console.warn("Could not load face-api.js model from CDN. Reverting to 100% manual overlay mode", err);
     }
 }
 
 async function runDetection() {
-    if (!isWebcamActive) return;
+    if (!isWebcamActive) {
+        isDetectionLoopRunning = false;
+        return;
+    }
 
     // Guard against zero dimensions during initial webcam spin-up
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
