@@ -1438,7 +1438,7 @@ input, select, textarea {
 }
 
 [data-theme="dark"] .footer-logo img {
-    filter: none !important;
+    filter: invert(1) !important; /* Invert white to black in dark mode (white footer) */
     mix-blend-mode: normal !important;
 }
 
@@ -1615,4 +1615,28 @@ input, select, textarea {
         white-space: nowrap !important;
     }
 }
+
+/* ==========================================
+   12. THEME-ADAPTIVE IMAGE LOGOS
+   ========================================== */
+.hero-logo-img {
+    filter: invert(1); /* Default (Light Mode): Invert white logo to black */
+    transition: filter 0.3s ease;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="dark"] .hero-logo-img {
+    filter: none !important; /* Dark Mode: Keep white logo */
+}
+
+.footer-logo-img {
+    filter: none; /* Default (Light Mode): Keep white logo (dark footer) */
+    transition: filter 0.3s ease;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="dark"] .footer-logo-img {
+    filter: invert(1) !important; /* Dark Mode: Invert white logo to black (white footer) */
+}
+
 
