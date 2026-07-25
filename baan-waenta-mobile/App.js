@@ -1,10 +1,36 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { StyleSheet, SafeAreaView, BackHandler, Platform, StatusBar } from 'react-native';
+import { StyleSheet, SafeAreaView, BackHandler, Platform, StatusBar, PermissionsAndroid } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export default function App() {
   const webViewRef = useRef(null);
   const [canGoBack, setCanGoBack] = useState(false);
+
+  // ขอสิทธิ์การเข้าถึงกล้องบนระบบ Android เมื่อเปิดแอป
+  useEffect(() => {
+    const requestCameraPermission = async () => {
+      if (Platform.OS === 'android') {
+        try {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.CAMERA,
+            {
+              title: 'ขอสิทธิ์เข้าถึงกล้องถ่ายภาพ',
+              message: 'ระบบลองแว่นเสมือนจริง (Virtual Try-On) จำเป็นต้องขอใช้งานกล้องเพื่อตรวจจับพิกัดใบหน้า',
+              buttonPositive: 'ตกลง',
+            }
+          );
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('Camera permission granted successfully');
+          } else {
+            console.log('Camera permission denied by user');
+          }
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+    };
+    requestCameraPermission();
+  }, []);
 
   // จัดการปุ่มกด Back บน Android
   useEffect(() => {
@@ -44,6 +70,11 @@ export default function App() {
         mediaPlaybackRequiresUserAction={false}
         originWhitelist={['*']}
         onNavigationStateChange={handleNavigationStateChange}
+        // จัดการอนุญาตคำขอสิทธิ์กล้องของหน้าเว็บ (WebRTC getUserMedia) บน Android
+        onPermissionRequest={(event) => {
+          const { request } = event.nativeEvent;
+          request.grant(request.resources);
+        }}
       />
     </SafeAreaView>
   );
