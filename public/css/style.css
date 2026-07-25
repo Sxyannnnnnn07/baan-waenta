@@ -1639,4 +1639,45 @@ input, select, textarea {
     filter: invert(1) !important; /* Dark Mode: Invert white logo to black (white footer) */
 }
 
+/* ==========================================
+   13. MOBILE CUSTOM APP OVERRIDES (max-width: 768px)
+   ========================================== */
+@media (max-width: 768px) {
+    /* จุดที่ 1: ปรับโลโก้หน้าแรกสุดให้เล็กลงพอดีๆ */
+    .hero-logo-img {
+        max-width: 170px !important;
+    }
+
+    /* จุดที่ 2: ปรับขนาดตัวอักษรหัวข้อ VTO ให้เล็กลงเหลือ 2 บรรทัดสวยงาม */
+    .vto-content h2 {
+        font-size: 1.55rem !important;
+        line-height: 1.35 !important;
+    }
+
+    /* จุดที่ 3: จัดกล่องปุ่มทดลอง VTO ให้อยู่กึ่งกลางหน้าจอ */
+    .vto-content .btn {
+        display: flex !important;
+        margin: 1.5rem auto 0 auto !important;
+        max-width: fit-content !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    /* จุดที่ 4: ปรับหัวข้อเสียงตอบรับจากลูกค้าให้เล็กลงเหลือเพียง 1 บรรทัด */
+    #reviews-section h2 {
+        font-size: 1.45rem !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.5px !important;
+    }
+
+    /* จุดที่ 5: ปรับโลโก้และชื่อร้านตรง Footer ด้านล่างสุดให้เล็กลง */
+    .footer-logo-img {
+        height: 48px !important;
+    }
+    .footer-logo span {
+        font-size: 1.25rem !important;
+    }
+}
+
+
 

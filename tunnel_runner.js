@@ -24,3 +24,6 @@ async function startTunnel() {
 }
 
 startTunnel();
+
+// Keep the Node.js process alive
+setInterval(() => {}, 1000 * 60 * 60);
