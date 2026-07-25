@@ -1677,6 +1677,26 @@ input, select, textarea {
     .footer-logo span {
         font-size: 1.25rem !important;
     }
+
+    /* เพิ่มเติม: ปรับขนาดและจัดเรียงปุ่มควบคุมกล้องใน VTO ให้อยู่ในบรรทัดเดียวกันแบบเล็กลง */
+    .camera-controls {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        margin-top: 1rem !important;
+    }
+    .camera-controls .btn {
+        flex: 1 !important;
+        padding: 0.6rem 0.5rem !important;
+        font-size: 0.8rem !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.25rem !important;
+        border-radius: 30px !important;
+    }
 }
 
 

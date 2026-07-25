@@ -6,6 +6,12 @@
     <title>บ้านแว่นตา | ลองแว่นตาเสมือนจริง (Virtual Try-On)</title>
     <link rel="icon" type="image/png" href="/assets/favicon.png">
     <link rel="stylesheet" href="/css/style.css">
+    <!-- PWA & Mobile Add to Home Screen Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="บ้านแว่นตา">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
@@ -94,11 +100,11 @@
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">ขนาดแว่นตา (Scale)</label>
                         <input type="range" id="scale-slider" min="50" max="600" value="150" oninput="drawCanvas()" style="width: 100%;">
                     </div>
-                    <div>
+                    <div style="display: none;">
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">ตำแหน่งบน-ล่าง (Y Offset)</label>
                         <input type="range" id="y-slider" min="-400" max="400" value="0" oninput="drawCanvas()" style="width: 100%;">
                     </div>
-                    <div>
+                    <div style="display: none;">
                         <label style="font-size: 0.8rem; color: var(--text-secondary);">ตำแหน่งซ้าย-ขวา (X Offset)</label>
                         <input type="range" id="x-slider" min="-400" max="400" value="0" oninput="drawCanvas()" style="width: 100%;">
                     </div>

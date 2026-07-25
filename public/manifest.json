@@ -1,0 +1,21 @@
+{
+  "short_name": "บ้านแว่นตา",
+  "name": "บ้านแว่นตา | Smart Eyewear Store & VTO",
+  "icons": [
+    {
+      "src": "/assets/logo-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/assets/logo-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait"
+}

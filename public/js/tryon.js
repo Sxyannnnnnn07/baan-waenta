@@ -150,6 +150,10 @@ function loadUploadedImage(event) {
         uploadedImage.onload = function() {
             // Hide camera view, show canvas
             stopWebcam();
+            
+            // Mirror the canvas so captured camera selfies match the viewfinder mirror preview
+            canvas.style.transform = 'scaleX(-1)';
+            
             document.getElementById('upload-panel').style.display = 'none';
             document.getElementById('manual-controls').style.display = 'block';
             document.getElementById('clear-photo-btn').style.display = 'block';
@@ -456,16 +460,20 @@ function setupCanvasInteractivity() {
         const yOffsetVal = parseInt(document.getElementById('y-slider').value);
         const xOffsetVal = parseInt(document.getElementById('x-slider').value);
         
-        // Mirror currentX to screen coordinates since the canvas is mirrored with scaleX(-1) in CSS
-        const currentX = canvas.width - (glassesState.x + xOffsetVal);
+        // Check dynamically if canvas is mirrored
+        const isMirrored = canvas.style.transform === 'scaleX(-1)';
+        const currentX = isMirrored ? (canvas.width - (glassesState.x + xOffsetVal)) : (glassesState.x + xOffsetVal);
         const currentY = glassesState.y + yOffsetVal;
         
         const dist = Math.sqrt((mouseX - currentX) ** 2 + (mouseY - currentY) ** 2);
         
         if (dist < scaleVal / 2) {
             glassesState.isDragging = true;
-            // dragStartX stores (mouseX + xOffsetVal) for mirrored drag mapping
-            glassesState.dragStartX = mouseX + xOffsetVal;
+            if (isMirrored) {
+                glassesState.dragStartX = mouseX + xOffsetVal;
+            } else {
+                glassesState.dragStartX = mouseX - xOffsetVal;
+            }
             glassesState.dragStartY = mouseY - yOffsetVal;
         }
     });
@@ -477,12 +485,18 @@ function setupCanvasInteractivity() {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Update offsets on sliders directly (X is inverted for mirrored dragging)
-        const newXOffset = Math.max(-400, Math.min(400, glassesState.dragStartX - mouseX));
-        const newYOffset = Math.max(-400, Math.min(400, mouseY - glassesState.dragStartY));
+        // Check dynamically if canvas is mirrored
+        const isMirrored = canvas.style.transform === 'scaleX(-1)';
+        let newXOffset;
+        if (isMirrored) {
+            newXOffset = glassesState.dragStartX - mouseX;
+        } else {
+            newXOffset = mouseX - glassesState.dragStartX;
+        }
+        const newYOffset = mouseY - glassesState.dragStartY;
 
-        document.getElementById('x-slider').value = newXOffset;
-        document.getElementById('y-slider').value = newYOffset;
+        document.getElementById('x-slider').value = Math.max(-400, Math.min(400, newXOffset));
+        document.getElementById('y-slider').value = Math.max(-400, Math.min(400, newYOffset));
 
         drawCanvas();
     });
@@ -506,16 +520,20 @@ function setupCanvasInteractivity() {
         const yOffsetVal = parseInt(document.getElementById('y-slider').value);
         const xOffsetVal = parseInt(document.getElementById('x-slider').value);
         
-        // Mirror currentX to screen coordinates since the canvas is mirrored with scaleX(-1) in CSS
-        const currentX = canvas.width - (glassesState.x + xOffsetVal);
+        // Check dynamically if canvas is mirrored
+        const isMirrored = canvas.style.transform === 'scaleX(-1)';
+        const currentX = isMirrored ? (canvas.width - (glassesState.x + xOffsetVal)) : (glassesState.x + xOffsetVal);
         const currentY = glassesState.y + yOffsetVal;
         
         const dist = Math.sqrt((touchX - currentX) ** 2 + (touchY - currentY) ** 2);
         
         if (dist < scaleVal / 2) {
             glassesState.isDragging = true;
-            // dragStartX stores (touchX + xOffsetVal) for mirrored drag mapping
-            glassesState.dragStartX = touchX + xOffsetVal;
+            if (isMirrored) {
+                glassesState.dragStartX = touchX + xOffsetVal;
+            } else {
+                glassesState.dragStartX = touchX - xOffsetVal;
+            }
             glassesState.dragStartY = touchY - yOffsetVal;
         }
     });
@@ -528,12 +546,18 @@ function setupCanvasInteractivity() {
         const touchX = e.touches[0].clientX - rect.left;
         const touchY = e.touches[0].clientY - rect.top;
 
-        // X is inverted for mirrored dragging
-        const newXOffset = Math.max(-400, Math.min(400, glassesState.dragStartX - touchX));
-        const newYOffset = Math.max(-400, Math.min(400, touchY - glassesState.dragStartY));
+        // Check dynamically if canvas is mirrored
+        const isMirrored = canvas.style.transform === 'scaleX(-1)';
+        let newXOffset;
+        if (isMirrored) {
+            newXOffset = glassesState.dragStartX - touchX;
+        } else {
+            newXOffset = touchX - glassesState.dragStartX;
+        }
+        const newYOffset = touchY - glassesState.dragStartY;
 
-        document.getElementById('x-slider').value = newXOffset;
-        document.getElementById('y-slider').value = newYOffset;
+        document.getElementById('x-slider').value = Math.max(-400, Math.min(400, newXOffset));
+        document.getElementById('y-slider').value = Math.max(-400, Math.min(400, newYOffset));
 
         drawCanvas();
     });
