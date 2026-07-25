@@ -36,7 +36,7 @@ export default function App() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <WebView
         ref={webViewRef}
-        source={{ uri: 'https://neat-icons-attend.loca.lt' }}
+        source={{ uri: 'https://baan-waenta.onrender.com/' }}
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
