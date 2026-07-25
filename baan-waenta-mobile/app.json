@@ -26,10 +26,16 @@
       },
       "permissions": [
         "android.permission.CAMERA"
-      ]
+      ],
+      "package": "com.sahiram12345.baanwaentamobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "33e7027e-0f77-4cf6-9cf4-b0aa95cb9f17"
+      }
     }
   }
 }
