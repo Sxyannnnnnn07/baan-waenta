@@ -1697,6 +1697,22 @@ input, select, textarea {
         gap: 0.25rem !important;
         border-radius: 30px !important;
     }
+
+    /* ปรับแต่งสไลด์โชว์หน้าแรกสุดบนมือถือ */
+    .slideshow-section {
+        margin: 2rem auto 3rem auto !important; /* เว้นห่างจากปุ่มด้านบนมากขึ้น */
+        aspect-ratio: 4/3 !important; /* ปรับรูปภาพให้สูงยาวลงมา (จากเดิม 16/9) */
+    }
+    .slideshow-section .slide-overlay {
+        padding: 1.25rem !important; /* ลดระยะขอบดำ */
+    }
+    .slideshow-section h3 {
+        font-size: 1.2rem !important; /* หัวข้อเล็กลงเหลือ 1 บรรทัด */
+        margin-bottom: 0.25rem !important;
+    }
+    .slideshow-section p {
+        font-size: 0.8rem !important; /* เนื้อหารองเล็กลงเหลือ 1 บรรทัด */
+    }
 }
 
 
