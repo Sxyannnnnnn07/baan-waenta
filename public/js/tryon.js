@@ -5,6 +5,7 @@ let webcamStream = null;
 let isWebcamActive = false;
 let isModelsLoaded = false;
 let isDetectionLoopRunning = false;
+let faceMesh = null;
 
 // User Image / Canvas variables
 let uploadedImage = null;
@@ -586,13 +587,24 @@ async function initFaceDetection() {
         return;
     }
     
-    console.log("Loading Face Detection Models...");
+    console.log("Loading Google MediaPipe Face Mesh...");
     try {
-        // Load tiny face detector and landmarks model from CDN
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        console.log("Face API Models loaded successfully");
+        // Initialize MediaPipe Face Mesh
+        faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true, // Enables iris tracking (landmarks 468, 473) for maximum accuracy
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // Set callback for results
+        faceMesh.onResults(onFaceMeshResults);
+
+        console.log("MediaPipe Face Mesh loaded successfully");
         isModelsLoaded = true;
         
         if (!isDetectionLoopRunning) {
@@ -600,7 +612,7 @@ async function initFaceDetection() {
             runDetection();
         }
     } catch (err) {
-        console.warn("Could not load face-api.js model from CDN. Reverting to 100% manual overlay mode", err);
+        console.warn("Could not load MediaPipe Face Mesh from CDN. Reverting to 100% manual overlay mode", err);
     }
 }
 
@@ -617,23 +629,50 @@ async function runDetection() {
     }
 
     try {
-        // Detect face landmarks
-        const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 })).withFaceLandmarks();
+        // Send the current video frame to the MediaPipe GPU-accelerated pipeline
+        await faceMesh.send({ image: video });
+    } catch (error) {
+        console.error("Face detection execution error:", error);
+    }
 
-        if (detections) {
-            const landmarks = detections.landmarks;
-            
-            // Find left and right eye coordinates
-            const leftEye = landmarks.getLeftEye();
-            const rightEye = landmarks.getRightEye();
-            
-            // Calculate center of eyes
-            const leftEyeCenter = getFeatureCenter(leftEye);
-            const rightEyeCenter = getFeatureCenter(rightEye);
-            
+    // Schedule next frame scan (optimized for 60fps tracking)
+    setTimeout(runDetection, 50);
+}
+
+// Extract landmarks and map to canvas
+function onFaceMeshResults(results) {
+    if (!isWebcamActive) return;
+
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        const landmarks = results.multiFaceLandmarks[0];
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+
+        let rawLeftX, rawLeftY, rawRightX, rawRightY;
+
+        // Use iris landmarks (pupils 468 & 473) for ultimate precision
+        if (landmarks[468] && landmarks[473]) {
+            rawLeftX = landmarks[468].x * videoWidth;
+            rawLeftY = landmarks[468].y * videoHeight;
+            rawRightX = landmarks[473].x * videoWidth;
+            rawRightY = landmarks[473].y * videoHeight;
+        } else {
+            // Fallback to standard eye landmarks if iris tracking is not supported/ready
+            const leftOuter = landmarks[33];
+            const leftInner = landmarks[133];
+            const rightInner = landmarks[362];
+            const rightOuter = landmarks[263];
+
+            if (leftOuter && leftInner && rightInner && rightOuter) {
+                rawLeftX = ((leftOuter.x + leftInner.x) / 2) * videoWidth;
+                rawLeftY = ((leftOuter.y + leftInner.y) / 2) * videoHeight;
+                rawRightX = ((rightInner.x + rightOuter.x) / 2) * videoWidth;
+                rawRightY = ((rightInner.y + rightOuter.y) / 2) * videoHeight;
+            }
+        }
+
+        if (rawLeftX !== undefined && rawRightX !== undefined) {
             // Calculate crop factor just like in cameraLoop
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
             const videoRatio = videoWidth / videoHeight;
             const canvasRatio = canvas.width / canvas.height;
             
@@ -650,16 +689,16 @@ async function runDetection() {
             const scaleY = canvas.height / sHeight;
             
             // Calculate eye center coordinates in video space
-            const rawEyeX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
-            const rawEyeY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+            const rawEyeX = (rawLeftX + rawRightX) / 2;
+            const rawEyeY = (rawLeftY + rawRightY) / 2;
             
             // Mapped positions directly (no inversion since CSS scales/mirrors the canvas)
             const eyeX = (rawEyeX - sx) * scaleX;
             const eyeY = (rawEyeY - sy) * scaleY;
             
             // Calculate distance between eyes to scale glasses
-            const dx = rightEyeCenter.x - leftEyeCenter.x;
-            const dy = rightEyeCenter.y - leftEyeCenter.y;
+            const dx = rawRightX - rawLeftX;
+            const dy = rawRightY - rawLeftY;
             const eyeDist = Math.sqrt(dx*dx + dy*dy);
             
             // Calculate tilt rotation angle in degrees
@@ -667,32 +706,18 @@ async function runDetection() {
             const angleDeg = angleRad * (180 / Math.PI);
             
             // Autoupdate states and sliders directly
-            // We set glasses width to roughly 2.2 times the eye distance
             document.getElementById('scale-slider').value = Math.round(eyeDist * 2.2 * scaleX);
-            document.getElementById('rotation-slider').value = Math.round(-angleDeg); // negative due to canvas mirroring
+            document.getElementById('rotation-slider').value = Math.round(-angleDeg);
             
             // Directly map position coordinates
             glassesState.x = eyeX;
             glassesState.y = eyeY;
             
-            // Set manual offsets to 0 since tracking handles it
+            // Reset manual offsets since AI tracking is active
             document.getElementById('x-slider').value = 0;
             document.getElementById('y-slider').value = 0;
         }
-    } catch (error) {
-        console.error("Face detection loop error:", error);
     }
-
-    setTimeout(runDetection, 100); // Check every 100ms
-}
-
-function getFeatureCenter(featurePoints) {
-    let sumX = 0, sumY = 0;
-    featurePoints.forEach(p => {
-        sumX += p.x;
-        sumY += p.y;
-    });
-    return { x: sumX / featurePoints.length, y: sumY / featurePoints.length };
 }
 
 // ==========================================================================
