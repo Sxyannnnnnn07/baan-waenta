@@ -63,18 +63,18 @@
                     <div class="bracket bottom-right"></div>
                     
                     <!-- AI Smart HUD Overlay -->
-                    <div id="ai-hud-card" style="position: absolute; bottom: 1rem; left: 1rem; right: 1rem; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 0.8rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; z-index: 10; color: #fff; pointer-events: none; transition: opacity 0.3s ease;">
-                        <div style="font-size: 0.7rem; font-weight: 700; color: #63b3ed; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.1rem;">
-                            <ion-icon name="analytics-outline" style="font-size: 0.95rem; color: #63b3ed;"></ion-icon>
+                    <div id="ai-hud-card" style="position: absolute; bottom: 0.8rem; left: 50%; transform: translateX(-50%); width: calc(100% - 1.6rem); max-width: 420px; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 0.5rem 0.8rem; display: flex; flex-direction: column; gap: 0.15rem; z-index: 10; color: #fff; pointer-events: none; transition: opacity 0.3s ease;">
+                        <div style="font-size: 0.62rem; font-weight: 700; color: #63b3ed; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.05rem;">
+                            <ion-icon name="analytics-outline" style="font-size: 0.85rem; color: #63b3ed;"></ion-icon>
                             ระบบวิเคราะห์รูปหน้า AI (AI Face Analyzer)
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.85rem; color: #e2e8f0;">รูปหน้าของคุณ: <strong id="hud-face-shape" style="color: #48bb78;">กำลังตรวจจับ...</strong></span>
-                            <span style="font-size: 0.75rem; color: #63b3ed; display: flex; align-items: center; gap: 0.2rem;" id="hud-fit-status">
+                            <span style="font-size: 0.8rem; color: #e2e8f0;">รูปหน้าของคุณ: <strong id="hud-face-shape" style="color: #48bb78;">กำลังตรวจจับ...</strong></span>
+                            <span style="font-size: 0.7rem; color: #63b3ed; display: flex; align-items: center; gap: 0.2rem;" id="hud-fit-status">
                                 <ion-icon name="checkmark-circle-outline"></ion-icon> Auto-Fit: ทำงาน
                             </span>
                         </div>
-                        <div style="font-size: 0.75rem; color: #a0aec0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 0.3rem; padding-top: 0.3rem;" id="hud-recommendation">
+                        <div style="font-size: 0.7rem; color: #cbd5e0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 0.2rem; padding-top: 0.2rem;" id="hud-recommendation">
                             ขยับหน้าตรงกับกล้องเพื่อให้ AI วิเคราะห์รูปทรง
                         </div>
                     </div>
