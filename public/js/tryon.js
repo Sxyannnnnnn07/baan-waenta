@@ -641,6 +641,131 @@ async function runDetection() {
 }
 
 // Extract landmarks and map to canvas
+let faceShapeHistory = [];
+const HISTORY_LIMIT = 20;
+let currentRecommendedShape = "";
+
+function analyzeFaceShape(landmarks, videoWidth, videoHeight) {
+    if (!landmarks || landmarks.length < 468) return null;
+
+    const getDistance = (p1, p2) => {
+        const dx = (p1.x - p2.x) * videoWidth;
+        const dy = (p1.y - p2.y) * videoHeight;
+        return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    // Landmark indices:
+    // 10: Forehead top center
+    // 152: Chin bottom center
+    // 234: Left cheek boundary (outermost left)
+    // 454: Right cheek boundary (outermost right)
+    // 127: Left temple (forehead width)
+    // 356: Right temple (forehead width)
+    // 172: Left jaw angle
+    // 397: Right jaw angle
+
+    const faceHeight = getDistance(landmarks[10], landmarks[152]);
+    const faceWidth = getDistance(landmarks[234], landmarks[454]);
+    const foreheadWidth = getDistance(landmarks[127], landmarks[356]);
+    const jawWidth = getDistance(landmarks[172], landmarks[397]);
+
+    if (faceHeight === 0 || faceWidth === 0) return null;
+
+    const widthToHeight = faceWidth / faceHeight;
+    const jawToCheek = jawWidth / faceWidth;
+    const foreheadToCheek = foreheadWidth / faceWidth;
+
+    let shape = "รูปไข่ (Oval)";
+    let recommendation = "กรอบทรงกลม (Round) หรือ ทรงรี (Oval)";
+
+    if (widthToHeight > 0.92) {
+        // Broad face: could be Round or Square
+        if (jawToCheek > 0.84) {
+            shape = "หน้าทรงเหลี่ยม (Square)";
+            recommendation = "กรอบทรงกลม (Round) หรือ ทรงรี (Oval) เพื่อช่วยพรางความกว้างกราม";
+        } else {
+            shape = "หน้าทรงกลม (Round)";
+            recommendation = "กรอบทรงเหลี่ยม (Square) เพื่อลดความกลม เพิ่มมิติให้ใบหน้า";
+        }
+    } else if (widthToHeight < 0.77) {
+        shape = "หน้าทรงยาว (Oblong)";
+        recommendation = "กรอบแว่นทรงเหลี่ยมหนา หรือ กรอบขนาดใหญ่ (Oversized) เพื่อลดความยาวหน้า";
+    } else {
+        // Oval or Heart
+        if (foreheadToCheek > jawToCheek + 0.15) {
+            shape = "หน้าทรงหัวใจ (Heart)";
+            recommendation = "กรอบทรงรี (Oval) หรือทรงกลมมน เพื่อลดความกว้างหน้าผาก";
+        } else {
+            shape = "หน้าทรงรี (Oval)";
+            recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / CatEye)";
+        }
+    }
+
+    return { shape, recommendation };
+}
+
+function getStableFaceShape(shapeResult) {
+    if (!shapeResult) return null;
+    faceShapeHistory.push(shapeResult);
+    if (faceShapeHistory.length > HISTORY_LIMIT) {
+        faceShapeHistory.shift();
+    }
+
+    const counts = {};
+    let maxShape = shapeResult.shape;
+    let maxCount = 0;
+
+    faceShapeHistory.forEach(item => {
+        counts[item.shape] = (counts[item.shape] || 0) + 1;
+        if (counts[item.shape] > maxCount) {
+            maxCount = counts[item.shape];
+            maxShape = item.shape;
+        }
+    });
+
+    const representative = faceShapeHistory.find(item => item.shape === maxShape);
+    return representative;
+}
+
+function highlightRecommendedProducts(recommendedShape) {
+    if (currentRecommendedShape === recommendedShape) return;
+    currentRecommendedShape = recommendedShape;
+
+    products.forEach(prod => {
+        const itemElement = document.getElementById(`vto-prod-${prod.id}`);
+        if (!itemElement) return;
+
+        // Remove old badge if exists
+        const oldBadge = itemElement.querySelector('.rec-badge-item');
+        if (oldBadge) oldBadge.remove();
+
+        if (prod.frame_shape && prod.frame_shape.toLowerCase() === recommendedShape.toLowerCase()) {
+            const badge = document.createElement('div');
+            badge.className = 'rec-badge-item';
+            badge.innerText = 'แนะนำสำหรับคุณ';
+            badge.style.fontSize = '0.65rem';
+            badge.style.backgroundColor = '#ebf8ff';
+            badge.style.color = '#2b6cb0';
+            badge.style.border = '1px solid #bee3f8';
+            badge.style.padding = '0.1rem 0.35rem';
+            badge.style.borderRadius = '4px';
+            badge.style.fontWeight = 'bold';
+            badge.style.marginTop = '0.2rem';
+            badge.style.display = 'inline-block';
+
+            const detailsDiv = itemElement.children[1];
+            if (detailsDiv) {
+                detailsDiv.appendChild(badge);
+            }
+            itemElement.style.borderColor = '#3182ce';
+            itemElement.style.boxShadow = '0 0 5px rgba(49, 130, 206, 0.2)';
+        } else {
+            itemElement.style.borderColor = 'var(--border-color)';
+            itemElement.style.boxShadow = 'none';
+        }
+    });
+}
+
 function onFaceMeshResults(results) {
     if (!isWebcamActive) return;
 
@@ -707,7 +832,8 @@ function onFaceMeshResults(results) {
             const angleDeg = angleRad * (180 / Math.PI);
             
             // Autoupdate states and sliders directly
-            document.getElementById('scale-slider').value = Math.round(eyeDist * 2.2 * scaleX);
+            const finalScale = Math.round(eyeDist * 2.2 * scaleX);
+            document.getElementById('scale-slider').value = finalScale;
             document.getElementById('rotation-slider').value = Math.round(-angleDeg);
             
             // Directly map position coordinates
@@ -717,6 +843,38 @@ function onFaceMeshResults(results) {
             // Reset manual offsets since AI tracking is active
             document.getElementById('x-slider').value = 0;
             document.getElementById('y-slider').value = 0;
+
+            // --- AI Face Shape & Auto-Size HUD Updates ---
+            const shapeResult = analyzeFaceShape(landmarks, videoWidth, videoHeight);
+            const stableResult = getStableFaceShape(shapeResult);
+            
+            if (stableResult) {
+                const shapeEl = document.getElementById('hud-face-shape');
+                const recEl = document.getElementById('hud-recommendation');
+                
+                if (shapeEl && recEl) {
+                    shapeEl.innerText = stableResult.shape;
+                    recEl.innerHTML = `💡 <strong>แนะนำสำหรับคุณ:</strong> ${stableResult.recommendation}`;
+                }
+                
+                // Extract recommendation shape key for highlighting catalog
+                let shapeKey = "";
+                if (stableResult.shape.includes("กลม")) {
+                    shapeKey = "Square";
+                } else if (stableResult.shape.includes("เหลี่ยม")) {
+                    shapeKey = "Round";
+                } else if (stableResult.shape.includes("ยาว")) {
+                    shapeKey = "Square";
+                } else if (stableResult.shape.includes("หัวใจ")) {
+                    shapeKey = "Oval";
+                } else if (stableResult.shape.includes("รี")) {
+                    shapeKey = "Round"; // fallback recommendation for oval is round
+                }
+                
+                if (shapeKey) {
+                    highlightRecommendedProducts(shapeKey);
+                }
+            }
         }
     }
 }
