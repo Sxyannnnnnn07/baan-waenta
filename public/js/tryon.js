@@ -272,8 +272,8 @@ async function startWebcam() {
         // Start continuous redraw loop for camera feed
         requestAnimationFrame(cameraLoop);
 
-        // Attempt automated tracking if face-api.js is loaded
-        if (typeof faceapi !== 'undefined') {
+        // Attempt automated tracking if MediaPipe FaceMesh is loaded
+        if (typeof FaceMesh !== 'undefined' || typeof window.FaceMesh !== 'undefined') {
             initFaceDetection();
         } else {
             // Show manual controls for camera if AI tracking is not available
@@ -590,8 +590,9 @@ async function initFaceDetection() {
     console.log("Loading Google MediaPipe Face Mesh...");
     try {
         // Initialize MediaPipe Face Mesh
-        faceMesh = new FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        const FaceMeshClass = window.FaceMesh || FaceMesh;
+        faceMesh = new FaceMeshClass({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
         });
 
         faceMesh.setOptions({
@@ -617,7 +618,7 @@ async function initFaceDetection() {
 }
 
 async function runDetection() {
-    if (!isWebcamActive) {
+    if (!isWebcamActive || !faceMesh) {
         isDetectionLoopRunning = false;
         return;
     }
