@@ -678,6 +678,8 @@ function removeFromCart(index) {
     openCartModal();
 }
 
+let pendingCheckoutDetails = null;
+
 function handleCheckoutClick() {
     if (!currentUser) {
         alert('กรุณาเข้าสู่ระบบก่อนทำการสั่งซื้อสินค้าครับ');
@@ -720,12 +722,19 @@ function handleCheckoutClick() {
             }
         }
 
-        if ((selectedPayment === 'BankTransfer' || selectedPayment === 'QRCode') && !uploadedSlipBase64) {
-            alert('กรุณาแนบรูปภาพสลิปหลักฐานการชำระเงินเพื่อดำเนินการสั่งซื้อครับ');
-            return;
-        }
+        const totalAmount = cart.reduce((sum, item) => sum + item.unit_price, 0);
 
-        checkoutOrder(shipName, shipPhone, shipAddress, selectedPayment, uploadedSlipBase64);
+        // If COD or already has manually uploaded slip, proceed immediately
+        if (selectedPayment === 'COD' || ((selectedPayment === 'BankTransfer' || selectedPayment === 'QRCode') && uploadedSlipBase64)) {
+            checkoutOrder(shipName, shipPhone, shipAddress, selectedPayment, uploadedSlipBase64);
+        } else {
+            // Store details in pending state
+            pendingCheckoutDetails = { shipName, shipPhone, shipAddress, selectedPayment, totalAmount };
+            
+            // Close cart modal and open payment modal
+            closeModal('cart-modal');
+            openPaymentModal(selectedPayment, totalAmount);
+        }
     }
 }
 
@@ -760,7 +769,9 @@ async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, sl
         const data = await response.json();
 
         if (data.success) {
-            alert('สั่งซื้อสินค้าสำเร็จ! ระบบได้บันทึกที่อยู่จัดส่ง หลักฐานการโอนเงิน และชำระเงินเรียบร้อย คุณสามารถดูประวัติการสั่งซื้อได้ทันทีครับ');
+            if (paymentMethod === 'COD' || slipBase64 === uploadedSlipBase64) {
+                alert('สั่งซื้อสินค้าสำเร็จ! ระบบได้บันทึกที่อยู่จัดส่งและชำระเงินเรียบร้อย คุณสามารถดูประวัติการสั่งซื้อได้ทันทีครับ');
+            }
             cart = [];
             updateCartUI();
             closeModal('cart-modal');
@@ -770,14 +781,18 @@ async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, sl
             document.getElementById('ship-phone').value = '';
             document.getElementById('ship-address').value = '';
             
-            // Open orders modal directly for amazing UX
-            openOrdersModal();
+            if (paymentMethod === 'COD' || slipBase64 === uploadedSlipBase64) {
+                openOrdersModal();
+            }
+            return true;
         } else {
             alert('เกิดข้อผิดพลาดในการสั่งซื้อ: ' + data.error);
+            return false;
         }
     } catch (error) {
         console.error('Checkout error:', error);
         alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อดำเนินการสั่งซื้อได้');
+        return false;
     }
 }
 
@@ -1590,12 +1605,253 @@ function resetRulesUI() {
         const el = document.getElementById(id);
         updateRuleItem(el, false);
     });
-}
-
-function resetBarsUI() {
+}function resetBarsUI() {
     const bars = document.querySelectorAll('.strength-bar');
     bars.forEach(bar => {
         bar.style.backgroundColor = 'var(--border-color)';
     });
 }
 
+function openPaymentModal(paymentMethod, totalAmount) {
+    const modal = document.getElementById('payment-modal');
+    modal.style.display = 'flex';
+    
+    document.getElementById('pay-amount-label').innerText = totalAmount.toLocaleString();
+    document.getElementById('pay-gateway-content').style.display = 'block';
+    document.getElementById('pay-processing').style.display = 'none';
+    document.getElementById('pay-success').style.display = 'none';
+    
+    if (paymentMethod === 'QRCode' || paymentMethod === 'BankTransfer') {
+        document.getElementById('pay-qr-screen').style.display = 'block';
+        document.getElementById('pay-card-screen').style.display = 'none';
+        document.getElementById('pay-promptpay-qr').src = `https://promptpay.io/0899684577/${totalAmount}.png`;
+    } else if (paymentMethod === 'CreditCard') {
+        document.getElementById('pay-qr-screen').style.display = 'none';
+        document.getElementById('pay-card-screen').style.display = 'block';
+        document.getElementById('mock-card-form').reset();
+        updateCardPreview();
+    }
+}
+
+async function simulateQRSuccess() {
+    if (!pendingCheckoutDetails) return;
+    
+    document.getElementById('pay-gateway-content').style.display = 'none';
+    document.getElementById('pay-processing').style.display = 'block';
+    
+    setTimeout(async () => {
+        const mockSlipBase64 = generateMockSlip(pendingCheckoutDetails.totalAmount);
+        
+        const success = await checkoutOrder(
+            pendingCheckoutDetails.shipName,
+            pendingCheckoutDetails.shipPhone,
+            pendingCheckoutDetails.shipAddress,
+            pendingCheckoutDetails.selectedPayment,
+            mockSlipBase64
+        );
+        
+        if (success) {
+            document.getElementById('pay-processing').style.display = 'none';
+            document.getElementById('pay-success').style.display = 'block';
+            
+            setTimeout(() => {
+                closeModal('payment-modal');
+                openOrdersModal();
+            }, 2000);
+        } else {
+            alert('เกิดข้อผิดพลาดในการทำรายการ กรุณาลองใหม่อีกครั้ง');
+            document.getElementById('pay-processing').style.display = 'none';
+            document.getElementById('pay-gateway-content').style.display = 'block';
+        }
+    }, 1500);
+}
+
+async function handleMockCardSubmit(event) {
+    event.preventDefault();
+    if (!pendingCheckoutDetails) return;
+
+    const cardNumber = document.getElementById('card-number').value.trim();
+    const cardHolder = document.getElementById('card-holder-name').value.trim();
+
+    if (cardNumber.length < 19 || !cardHolder) {
+        alert('กรุณากรอกข้อมูลบัตรเครดิตให้ครบถ้วนและถูกต้องด้วยครับ');
+        return;
+    }
+
+    document.getElementById('pay-gateway-content').style.display = 'none';
+    document.getElementById('pay-processing').style.display = 'block';
+    
+    setTimeout(async () => {
+        const success = await checkoutOrder(
+            pendingCheckoutDetails.shipName,
+            pendingCheckoutDetails.shipPhone,
+            pendingCheckoutDetails.shipAddress,
+            'CreditCard',
+            null
+        );
+        
+        if (success) {
+            document.getElementById('pay-processing').style.display = 'none';
+            document.getElementById('pay-success').style.display = 'block';
+            
+            setTimeout(() => {
+                closeModal('payment-modal');
+                openOrdersModal();
+            }, 2000);
+        } else {
+            alert('ชำระเงินไม่ผ่านระบบธนาคารจำลองขัดข้อง กรุณาลองใหม่อีกครั้ง');
+            document.getElementById('pay-processing').style.display = 'none';
+            document.getElementById('pay-gateway-content').style.display = 'block';
+        }
+    }, 1500);
+}
+
+function formatCardNumber(input) {
+    let value = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    let matches = value.match(/\d{4,16}/g);
+    let match = (matches && matches[0]) || '';
+    let parts = [];
+
+    for (let i = 0, len = match.length; i < len; i += 4) {
+        parts.push(match.substring(i, i + 4));
+    }
+
+    if (parts.length > 0) {
+        input.value = parts.join(' ');
+    } else {
+        input.value = value;
+    }
+}
+
+function formatExpiry(input) {
+    let value = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (value.length >= 2) {
+        input.value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    } else {
+        input.value = value;
+    }
+}
+
+function updateCardPreview() {
+    const holderInput = document.getElementById('card-holder-name');
+    const numberInput = document.getElementById('card-number');
+    const expiryInput = document.getElementById('card-expiry');
+
+    const previewName = document.getElementById('preview-card-name');
+    const previewNumber = document.getElementById('preview-card-number');
+    const previewExpiry = document.getElementById('preview-card-expiry');
+    const previewLogo = document.getElementById('preview-card-logo');
+
+    previewName.innerText = holderInput.value.trim() ? holderInput.value.toUpperCase() : 'CARDHOLDER NAME';
+    previewNumber.innerText = numberInput.value.trim() ? numberInput.value : '•••• •••• •••• ••••';
+    previewExpiry.innerText = expiryInput.value.trim() ? expiryInput.value : 'MM/YY';
+
+    const firstDigit = numberInput.value.replace(/\s+/g, '').charAt(0);
+    if (firstDigit === '4') {
+        previewLogo.innerText = 'VISA';
+    } else if (firstDigit === '5') {
+        previewLogo.innerText = 'MASTERCARD';
+    } else if (firstDigit === '3') {
+        previewLogo.innerText = 'JCB';
+    } else {
+        previewLogo.innerText = 'CARD';
+    }
+}
+
+function generateMockSlip(amount) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 800;
+    const ctx = canvas.getContext('2d');
+
+    // Draw background (Light Green)
+    ctx.fillStyle = '#f0fff4';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Green Border
+    ctx.strokeStyle = '#38a169';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+    // E-Slip Header
+    ctx.fillStyle = '#38a169';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('โอนเงินสำเร็จ', canvas.width / 2, 80);
+
+    // Date & Time
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    ctx.fillStyle = '#718096';
+    ctx.font = '22px Arial';
+    ctx.fillText(`${dateStr} - ${timeStr} น.`, canvas.width / 2, 125);
+
+    // Decorative Line
+    ctx.strokeStyle = '#cbd5e0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(40, 160);
+    ctx.lineTo(560, 160);
+    ctx.stroke();
+
+    // From (Customer name)
+    ctx.fillStyle = '#4a5568';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('ผู้โอน:', 50, 220);
+    
+    ctx.fillStyle = '#1a202c';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(currentUser ? currentUser.name : 'ลูกค้าทั่วไป', 180, 220);
+
+    // To (Merchant name)
+    ctx.fillStyle = '#4a5568';
+    ctx.font = '24px Arial';
+    ctx.fillText('ผู้รับโอน:', 50, 280);
+    
+    ctx.fillStyle = '#1a202c';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('ร้านบ้านแว่นตา Store', 180, 280);
+    
+    ctx.fillStyle = '#718096';
+    ctx.font = '20px Arial';
+    ctx.fillText('ธ.กสิกรไทย (KBANK) xxx-x-x6845-x', 180, 310);
+
+    // Decorative Line
+    ctx.strokeStyle = '#cbd5e0';
+    ctx.beginPath();
+    ctx.moveTo(40, 350);
+    ctx.lineTo(560, 350);
+    ctx.stroke();
+
+    // Transaction ID
+    ctx.fillStyle = '#4a5568';
+    ctx.font = '24px Arial';
+    ctx.fillText('เลขที่อ้างอิง:', 50, 400);
+    
+    const randomRef = '012' + Math.floor(Math.random() * 900000000000 + 100000000000);
+    ctx.fillStyle = '#1a202c';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(randomRef, 180, 400);
+
+    // Amount
+    ctx.fillStyle = '#4a5568';
+    ctx.font = '24px Arial';
+    ctx.fillText('จำนวนเงิน:', 50, 490);
+    
+    ctx.fillStyle = '#38a169';
+    ctx.font = 'bold 36px Arial';
+    ctx.fillText(`${parseFloat(amount).toLocaleString()} บาท`, 180, 490);
+
+    // Bottom Notice
+    ctx.fillStyle = '#edf2f7';
+    ctx.fillRect(6, 700, canvas.width - 12, 94);
+    
+    ctx.fillStyle = '#718096';
+    ctx.font = 'italic 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('ใบเสร็จรับเงินอิเล็กทรอนิกส์ฉบับนี้ถูกสร้างและอนุมัติโดยระบบชำระเงินจำลอง (Sandbox)', canvas.width / 2, 755);
+
+    return canvas.toDataURL('image/png');
+}

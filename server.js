@@ -645,7 +645,7 @@ app.post('/api/orders', async (req, res) => {
             const orderId = orderRes.insertId;
 
             // Save slip image if provided
-            if (payment_method === 'BankTransfer' && slip_image_base64) {
+            if ((payment_method === 'BankTransfer' || payment_method === 'QRCode') && slip_image_base64) {
                 try {
                     const base64Data = slip_image_base64.replace(/^data:image\/\w+;base64,/, "");
                     const buffer = Buffer.from(base64Data, 'base64');

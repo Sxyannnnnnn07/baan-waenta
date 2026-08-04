@@ -158,6 +158,7 @@ function loadUploadedImage(event) {
             document.getElementById('upload-panel').style.display = 'none';
             document.getElementById('manual-controls').style.display = 'block';
             document.getElementById('clear-photo-btn').style.display = 'block';
+            document.getElementById('take-snapshot-btn').style.display = 'inline-flex';
             
             // Adjust canvas dimensions to fit image aspect ratio
             adjustCanvasSize();
@@ -225,6 +226,7 @@ function resetToUploadPanel() {
     document.getElementById('upload-panel').style.display = 'flex';
     document.getElementById('manual-controls').style.display = 'none';
     document.getElementById('clear-photo-btn').style.display = 'none';
+    document.getElementById('take-snapshot-btn').style.display = 'none';
     
     // Recalculate canvas size
     adjustCanvasSize();
@@ -255,6 +257,7 @@ async function startWebcam() {
         video.style.display = 'block';
         document.getElementById('upload-panel').style.display = 'none';
         document.getElementById('clear-photo-btn').style.display = 'none';
+        document.getElementById('take-snapshot-btn').style.display = 'inline-flex';
         
         // Mirror the canvas for natural webcam view
         canvas.style.transform = 'scaleX(-1)';
@@ -308,6 +311,8 @@ function stopWebcam() {
     // Hide camera viewfinder overlay
     const vfOverlay = document.getElementById('viewfinder-overlay');
     if (vfOverlay) vfOverlay.style.display = 'none';
+    
+    document.getElementById('take-snapshot-btn').style.display = 'none';
     
     resetToUploadPanel();
 }
@@ -932,10 +937,48 @@ function initScrollEffects() {
         }
     });
 }
-
 function scrollToTop() {
     window.scrollTo({
         top: 0,
         behavior: 'smooth'
     });
+}
+
+function takeSnapshot() {
+    if (!selectedProduct) {
+        alert('กรุณาเลือกแว่นตาก่อนทำการบันทึกภาพครับ');
+        return;
+    }
+
+    try {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Check if canvas is mirrored
+        const isMirrored = canvas.style.transform === 'scaleX(-1)';
+        if (isMirrored) {
+            // Draw mirrored onto temp canvas to match exactly what is seen
+            tempCtx.translate(canvas.width, 0);
+            tempCtx.scale(-1, 1);
+        }
+
+        // Draw main canvas onto temp canvas
+        tempCtx.drawImage(canvas, 0, 0);
+
+        // Convert to data URL and download
+        const dataURL = tempCanvas.toDataURL('image/jpeg', 0.9);
+        const link = document.createElement('a');
+        
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[-T:]/g,"");
+        link.download = `baan-waenta-tryon-${timestamp}.jpg`;
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (err) {
+        console.error('Snapshot failed:', err);
+        alert('เกิดข้อผิดพลาดในการบันทึกภาพ กรุณาลองใหม่อีกครั้ง');
+    }
 }
