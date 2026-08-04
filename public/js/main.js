@@ -5,6 +5,9 @@ let currentUser = null;
 let activeLensProduct = null;
 let uploadedSlipBase64 = null;
 
+// Configuration: ใส่เบอร์มือถือ หรือเลขบัตรประชาชนที่ผูกพร้อมเพย์จริงของร้านที่นี่เพื่อรับโอน
+const MERCHANT_PROMPTPAY_ID = '0989687435'; 
+
 // Initialize on Page Load
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -724,8 +727,13 @@ function handleCheckoutClick() {
 
         const totalAmount = cart.reduce((sum, item) => sum + item.unit_price, 0);
 
-        // If COD or already has manually uploaded slip, proceed immediately
-        if (selectedPayment === 'COD' || ((selectedPayment === 'BankTransfer' || selectedPayment === 'QRCode') && uploadedSlipBase64)) {
+        if (selectedPayment === 'BankTransfer' && !uploadedSlipBase64) {
+            alert('กรุณาแนบรูปภาพสลิปหลักฐานการชำระเงินเพื่อดำเนินการสั่งซื้อครับ');
+            return;
+        }
+
+        // If COD or BankTransfer (which already has a manual slip), proceed immediately
+        if (selectedPayment === 'COD' || (selectedPayment === 'BankTransfer' && uploadedSlipBase64)) {
             checkoutOrder(shipName, shipPhone, shipAddress, selectedPayment, uploadedSlipBase64);
         } else {
             // Store details in pending state
@@ -931,7 +939,7 @@ function togglePaymentDetails() {
     
     if (bankBox) bankBox.style.display = selected === 'BankTransfer' ? 'block' : 'none';
     if (qrBox) qrBox.style.display = selected === 'QRCode' ? 'block' : 'none';
-    if (slipUploadBox) slipUploadBox.style.display = (selected === 'BankTransfer' || selected === 'QRCode') ? 'block' : 'none';
+    if (slipUploadBox) slipUploadBox.style.display = selected === 'BankTransfer' ? 'block' : 'none';
 }
 
 function previewSlipImage(event) {
@@ -1624,7 +1632,7 @@ function openPaymentModal(paymentMethod, totalAmount) {
     if (paymentMethod === 'QRCode' || paymentMethod === 'BankTransfer') {
         document.getElementById('pay-qr-screen').style.display = 'block';
         document.getElementById('pay-card-screen').style.display = 'none';
-        document.getElementById('pay-promptpay-qr').src = `https://promptpay.io/0899684577/${totalAmount}.png`;
+        document.getElementById('pay-promptpay-qr').src = `https://promptpay.io/${MERCHANT_PROMPTPAY_ID}/${totalAmount}.png`;
     } else if (paymentMethod === 'CreditCard') {
         document.getElementById('pay-qr-screen').style.display = 'none';
         document.getElementById('pay-card-screen').style.display = 'block';
