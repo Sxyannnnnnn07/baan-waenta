@@ -14,7 +14,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "blob:"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "blob:", "https://accounts.google.com"],
             scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
             styleSrcAttr: ["'unsafe-inline'"],
@@ -24,7 +24,7 @@ app.use(helmet({
             mediaSrc: ["'self'", "blob:", "data:", "mediastream:", "https://*"],
             workerSrc: ["'self'", "blob:"],
             childSrc: ["'self'", "blob:"],
-            frameSrc: ["'self'"],
+            frameSrc: ["'self'", "https://www.google.com", "https://maps.google.com", "https://accounts.google.com"],
             objectSrc: ["'none'"]
         }
     }
