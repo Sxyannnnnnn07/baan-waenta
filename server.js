@@ -563,13 +563,85 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
     const { name, brand, category, frame_shape, image_url, tryon_image_url, price, stock } = req.body;
     try {
-        const [result] = await dbPool.query(
-            `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [name, brand, category, frame_shape, image_url || '/assets/round.svg', tryon_image_url || '/assets/round.svg', price, stock]
-        );
-        res.json({ success: true, productId: result.insertId, message: 'เพิ่มสินค้าสำเร็จ' });
+        const conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+
+        try {
+            // Insert product with temporary empty image values to get insertId
+            const [result] = await conn.query(
+                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
+                 VALUES (?, ?, ?, ?, '', '', ?, ?)`,
+                [name, brand, category, frame_shape, price, stock]
+            );
+            const productId = result.insertId;
+
+            let finalImageUrl = '/assets/round.svg';
+            let finalTryonUrl = '/assets/round.svg';
+
+            // Save main image to disk if it is base64
+            if (image_url && image_url.startsWith('data:image/')) {
+                try {
+                    const base64Data = image_url.replace(/^data:image\/\w+;base64,/, "");
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    const ext = image_url.substring("data:image/".length, image_url.indexOf(";base64")).split('+')[0] || 'png';
+                    const fileName = `product_${productId}_${Date.now()}.${ext}`;
+                    const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
+                    
+                    if (!fs.existsSync(dirPath)){
+                        fs.mkdirSync(dirPath, { recursive: true });
+                    }
+                    
+                    fs.writeFileSync(path.join(dirPath, fileName), buffer);
+                    finalImageUrl = `/uploads/products/${fileName}`;
+                } catch (imgErr) {
+                    console.error('Failed to save product image file:', imgErr);
+                }
+            } else if (image_url) {
+                finalImageUrl = image_url;
+            }
+
+            // Save tryon image to disk if it is base64
+            if (tryon_image_url && tryon_image_url.startsWith('data:image/')) {
+                if (tryon_image_url === image_url) {
+                    finalTryonUrl = finalImageUrl;
+                } else {
+                    try {
+                        const base64Data = tryon_image_url.replace(/^data:image\/\w+;base64,/, "");
+                        const buffer = Buffer.from(base64Data, 'base64');
+                        const ext = tryon_image_url.substring("data:image/".length, tryon_image_url.indexOf(";base64")).split('+')[0] || 'png';
+                        const fileName = `product_tryon_${productId}_${Date.now()}.${ext}`;
+                        const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
+                        
+                        if (!fs.existsSync(dirPath)){
+                            fs.mkdirSync(dirPath, { recursive: true });
+                        }
+                        
+                        fs.writeFileSync(path.join(dirPath, fileName), buffer);
+                        finalTryonUrl = `/uploads/products/${fileName}`;
+                    } catch (imgErr) {
+                        console.error('Failed to save tryon image file:', imgErr);
+                    }
+                }
+            } else if (tryon_image_url) {
+                finalTryonUrl = tryon_image_url;
+            }
+
+            // Update database with the finalized upload file paths
+            await conn.query(
+                'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
+                [finalImageUrl, finalTryonUrl, productId]
+            );
+
+            await conn.commit();
+            conn.release();
+            res.json({ success: true, productId, message: 'เพิ่มสินค้าสำเร็จ' });
+        } catch (dbErr) {
+            await conn.rollback();
+            conn.release();
+            throw dbErr;
+        }
     } catch (error) {
+        console.error('Add product failed:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
