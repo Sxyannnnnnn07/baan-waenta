@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchProducts();
     initSlideshow();
     initScrollEffects();
+    initPasswordStrengthListener();
     
     // Load reviews on home page
     if (document.getElementById('reviews-list-grid')) {
@@ -280,6 +281,7 @@ function openAuthModal(mode = 'login') {
     document.getElementById('auth-email').value = '';
 
     const googleBtnSpan = document.querySelector('#auth-google-btn span');
+    const strengthContainer = document.getElementById('password-strength-container');
 
     if (mode === 'login') {
         title.innerText = 'เข้าสู่ระบบ';
@@ -287,12 +289,23 @@ function openAuthModal(mode = 'login') {
         submitBtn.innerText = 'เข้าสู่ระบบ';
         toggleText.innerHTML = 'ยังไม่มีบัญชีผู้ใช้งาน? <a href="#" onclick="toggleAuthMode()">สมัครสมาชิกที่นี่</a>';
         if (googleBtnSpan) googleBtnSpan.innerText = 'เข้าสู่ระบบด้วย Google';
+        if (strengthContainer) strengthContainer.style.display = 'none';
     } else {
         title.innerText = 'สมัครสมาชิก';
         emailGroup.style.display = 'block';
         submitBtn.innerText = 'สมัครสมาชิก';
         toggleText.innerHTML = 'มีบัญชีอยู่แล้ว? <a href="#" onclick="toggleAuthMode()">เข้าสู่ระบบที่นี่</a>';
         if (googleBtnSpan) googleBtnSpan.innerText = 'สมัครสมาชิกด้วย Google';
+        if (strengthContainer) {
+            strengthContainer.style.display = 'block';
+            // Reset UI values
+            const label = document.getElementById('strength-label');
+            const commonWarning = document.getElementById('common-warning');
+            if (label) label.innerText = 'ความปลอดภัย: ว่างเปล่า';
+            if (commonWarning) commonWarning.style.display = 'none';
+            resetRulesUI();
+            resetBarsUI();
+        }
     }
 
     modal.style.display = 'flex';
@@ -307,6 +320,31 @@ async function handleAuthSubmit(e) {
     const username = document.getElementById('auth-username').value;
     const password = document.getElementById('auth-password').value;
     const email = document.getElementById('auth-email').value;
+
+    if (currentAuthMode === 'register') {
+        const COMMON_PASSWORDS = /^(?:password|passw0rd|qwerty|letmein|welcome|admin|iloveyou|monkey|dragon|abc123|111111|123123|123456)/i;
+        const REPEATED_CHARS = /(.)\1{3,}/;
+        const SEQUENTIAL_CHARS = /(?:0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|defg|qwer|wert|erty|asdf)/i;
+        
+        const isGuessable = COMMON_PASSWORDS.test(password) || REPEATED_CHARS.test(password) || SEQUENTIAL_CHARS.test(password);
+        
+        if (password.length < 8) {
+            alert('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษรขึ้นไปครับ');
+            return;
+        }
+        if (!(/[a-z]/.test(password) && /[A-Z]/.test(password))) {
+            alert('รหัสผ่านต้องประกอบด้วยตัวอักษรพิมพ์ใหญ่ (A-Z) และพิมพ์เล็ก (a-z) ครับ');
+            return;
+        }
+        if (!(/\d/.test(password) || /[!-/:-@[-`{-~]/.test(password))) {
+            alert('รหัสผ่านต้องมีตัวเลขหรืออักขระพิเศษอย่างน้อย 1 ตัวครับ');
+            return;
+        }
+        if (isGuessable) {
+            alert('รหัสผ่านนี้คาดเดาง่ายเกินไป (เป็นคำที่คนใช้บ่อย หรือมีตัวอักษรเรียง/ซ้ำกัน) กรุณาตั้งใหม่เพื่อความปลอดภัยครับ');
+            return;
+        }
+    }
 
     const url = currentAuthMode === 'login' ? '/api/auth/login' : '/api/auth/register';
     const body = currentAuthMode === 'login' 
@@ -1448,3 +1486,116 @@ async function saveProfileChanges() {
         alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่ออัปเดตข้อมูลโปรไฟล์ได้');
     }
 }
+
+// ==========================================
+// PASSWORD STRENGTH INTERACTIVE INDICATOR
+// ==========================================
+function initPasswordStrengthListener() {
+    const passwordInput = document.getElementById('auth-password');
+    if (passwordInput) {
+        passwordInput.addEventListener('input', handlePasswordInput);
+    }
+}
+
+function handlePasswordInput(e) {
+    if (currentAuthMode !== 'register') return;
+    
+    const value = e.target.value;
+    const label = document.getElementById('strength-label');
+    const commonWarning = document.getElementById('common-warning');
+    const ruleLength = document.getElementById('rule-length');
+    const ruleCase = document.getElementById('rule-case');
+    const ruleDigitSymbol = document.getElementById('rule-digit-symbol');
+    const bars = document.querySelectorAll('.strength-bar');
+    
+    if (!value) {
+        if (label) label.innerText = 'ความปลอดภัย: ว่างเปล่า';
+        if (commonWarning) commonWarning.style.display = 'none';
+        resetRulesUI();
+        resetBarsUI();
+        return;
+    }
+    
+    // 1. Evaluate rules based on user customization
+    const hasLength = value.length >= 8;
+    const hasCase = /[a-z]/.test(value) && /[A-Z]/.test(value);
+    const hasDigitSymbol = /\d/.test(value) || /[!-/:-@[-`{-~]/.test(value);
+    
+    updateRuleItem(ruleLength, hasLength);
+    updateRuleItem(ruleCase, hasCase);
+    updateRuleItem(ruleDigitSymbol, hasDigitSymbol);
+    
+    // 2. Check common sequential/repeated patterns
+    const COMMON_PASSWORDS = /^(?:password|passw0rd|qwerty|letmein|welcome|admin|iloveyou|monkey|dragon|abc123|111111|123123|123456)/i;
+    const REPEATED_CHARS = /(.)\1{3,}/;
+    const SEQUENTIAL_CHARS = /(?:0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|defg|qwer|wert|erty|asdf)/i;
+    
+    const isGuessable = COMMON_PASSWORDS.test(value) || REPEATED_CHARS.test(value) || SEQUENTIAL_CHARS.test(value);
+    
+    // 3. Calculate Score
+    let score = 0;
+    if (isGuessable) {
+        score = 1;
+        if (commonWarning) commonWarning.style.display = 'inline';
+    } else {
+        if (commonWarning) commonWarning.style.display = 'none';
+        let passed = 0;
+        if (hasLength) passed++;
+        if (hasCase) passed++;
+        if (hasDigitSymbol) passed++;
+        score = 1 + passed; // Score ranges from 1 to 4
+    }
+    
+    // 4. Update Bars & Labels
+    const labels = ["ว่างเปล่า", "เสี่ยงมาก (คาดเดาง่าย)", "อ่อน", "ปานกลาง", "ปลอดภัยสูง"];
+    if (label) label.innerText = `ความปลอดภัย: ${labels[score]}`;
+    
+    // Define bar colors (1 -> red, 2 -> orange-red, 3 -> amber/yellow, 4 -> green)
+    let barColor = 'var(--border-color)';
+    if (score === 1) barColor = '#ef4444';
+    else if (score === 2) barColor = '#f87171';
+    else if (score === 3) barColor = '#f59e0b';
+    else if (score === 4) barColor = '#10b981';
+    
+    bars.forEach((bar, index) => {
+        if (index < score) {
+            bar.style.backgroundColor = barColor;
+        } else {
+            bar.style.backgroundColor = 'var(--border-color)';
+        }
+    });
+}
+
+function updateRuleItem(element, isMet) {
+    if (!element) return;
+    const icon = element.querySelector('ion-icon');
+    if (isMet) {
+        element.style.color = '#10b981'; // Green text
+        if (icon) {
+            icon.setAttribute('name', 'checkmark-circle');
+            icon.style.color = '#10b981';
+        }
+    } else {
+        element.style.color = 'var(--text-secondary)';
+        if (icon) {
+            icon.setAttribute('name', 'ellipse-outline');
+            icon.style.color = 'var(--text-secondary)';
+        }
+    }
+}
+
+function resetRulesUI() {
+    const rules = ['rule-length', 'rule-case', 'rule-digit-symbol'];
+    rules.forEach(id => {
+        const el = document.getElementById(id);
+        updateRuleItem(el, false);
+    });
+}
+
+function resetBarsUI() {
+    const bars = document.querySelectorAll('.strength-bar');
+    bars.forEach(bar => {
+        bar.style.backgroundColor = 'var(--border-color)';
+    });
+}
+

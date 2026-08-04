@@ -424,6 +424,34 @@
                 <div class="form-group">
                     <label for="auth-password">รหัสผ่าน</label>
                     <input type="password" id="auth-password" required placeholder="•••••">
+                    
+                    <!-- Password Strength Indicator Container (Only shown in register mode) -->
+                    <div id="password-strength-container" style="display: none; margin-top: 0.75rem;">
+                        <!-- Password strength bars -->
+                        <div class="strength-meter" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 0.5rem;">
+                            <div class="strength-bar" style="height: 5px; border-radius: 3px; background-color: var(--border-color); transition: background-color 0.2s ease;"></div>
+                            <div class="strength-bar" style="height: 5px; border-radius: 3px; background-color: var(--border-color); transition: background-color 0.2s ease;"></div>
+                            <div class="strength-bar" style="height: 5px; border-radius: 3px; background-color: var(--border-color); transition: background-color 0.2s ease;"></div>
+                            <div class="strength-bar" style="height: 5px; border-radius: 3px; background-color: var(--border-color); transition: background-color 0.2s ease;"></div>
+                        </div>
+                        <!-- Label and commonly guessed warning -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span id="strength-label" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">ความปลอดภัย: ว่างเปล่า</span>
+                            <span id="common-warning" style="font-size: 0.72rem; color: #d69e2e; font-weight: 600; display: none;">เสี่ยงต่อการเดาได้ง่าย</span>
+                        </div>
+                        <!-- Requirements checklist -->
+                        <ul id="strength-rules" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+                            <li id="rule-length" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); transition: color 0.2s ease;">
+                                <ion-icon name="ellipse-outline" style="font-size: 0.85rem; transition: color 0.2s ease;"></ion-icon> ความยาวตั้งแต่ 8 ตัวอักษรขึ้นไป
+                            </li>
+                            <li id="rule-case" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); transition: color 0.2s ease;">
+                                <ion-icon name="ellipse-outline" style="font-size: 0.85rem; transition: color 0.2s ease;"></ion-icon> มีตัวอักษรพิมพ์ใหญ่ (A-Z) และพิมพ์เล็ก (a-z)
+                            </li>
+                            <li id="rule-digit-symbol" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); transition: color 0.2s ease;">
+                                <ion-icon name="ellipse-outline" style="font-size: 0.85rem; transition: color 0.2s ease;"></ion-icon> มีตัวเลขหรืออักขระพิเศษอย่างน้อย 1 ตัว
+                            </li>
+                        </ul>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="auth-submit-btn">เข้าสู่ระบบ</button>
             </form>
