@@ -675,29 +675,37 @@ function analyzeFaceShape(landmarks, videoWidth, videoHeight) {
     const jawToCheek = jawWidth / faceWidth;
     const foreheadToCheek = foreheadWidth / faceWidth;
 
-    let shape = "รูปไข่ (Oval)";
-    let recommendation = "กรอบทรงกลม (Round) หรือ ทรงรี (Oval)";
+    let shape = "หน้าทรงรี (Oval)";
+    let recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / Cat-Eye)";
 
-    if (widthToHeight > 0.92) {
+    // Adjusting thresholds based on real human facial coordinates in MediaPipe
+    if (widthToHeight > 0.83) {
         // Broad face: could be Round or Square
-        if (jawToCheek > 0.84) {
+        if (jawToCheek > 0.81) {
             shape = "หน้าทรงเหลี่ยม (Square)";
             recommendation = "กรอบทรงกลม (Round) หรือ ทรงรี (Oval) เพื่อช่วยพรางความกว้างกราม";
         } else {
             shape = "หน้าทรงกลม (Round)";
             recommendation = "กรอบทรงเหลี่ยม (Square) เพื่อลดความกลม เพิ่มมิติให้ใบหน้า";
         }
-    } else if (widthToHeight < 0.77) {
+    } else if (widthToHeight < 0.73) {
+        // Long face
         shape = "หน้าทรงยาว (Oblong)";
-        recommendation = "กรอบแว่นทรงเหลี่ยมหนา หรือ กรอบขนาดใหญ่ (Oversized) เพื่อลดความยาวหน้า";
+        recommendation = "กรอบแว่นทรงเหลี่ยมหนา หรือทรงกลมใหญ่ (Oversized) เพื่อลดความยาวหน้า";
     } else {
-        // Oval or Heart
-        if (foreheadToCheek > jawToCheek + 0.15) {
+        // Normal/balanced proportions: Oval, Heart, Diamond, or Triangle
+        if (foreheadToCheek < 0.81 && jawToCheek < 0.73) {
+            shape = "หน้าทรงเพชร (Diamond)";
+            recommendation = "กรอบทรงกลม (Round) หรือทรงตาแมว (Cat-Eye) เพื่อลดความกว้างโหนกแก้ม";
+        } else if (jawToCheek > foreheadToCheek + 0.02) {
+            shape = "หน้าทรงสามเหลี่ยม (Triangle)";
+            recommendation = "กรอบแว่นทรงครึ่งกรอบ (Browline) หรือทรงตาแมว (Cat-Eye) เพื่อปรับสมดุลกับกราม";
+        } else if (foreheadToCheek > jawToCheek + 0.12) {
             shape = "หน้าทรงหัวใจ (Heart)";
             recommendation = "กรอบทรงรี (Oval) หรือทรงกลมมน เพื่อลดความกว้างหน้าผาก";
         } else {
             shape = "หน้าทรงรี (Oval)";
-            recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / CatEye)";
+            recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / Cat-Eye)";
         }
     }
 
@@ -867,8 +875,12 @@ function onFaceMeshResults(results) {
                     shapeKey = "Square";
                 } else if (stableResult.shape.includes("หัวใจ")) {
                     shapeKey = "Oval";
+                } else if (stableResult.shape.includes("เพชร")) {
+                    shapeKey = "CatEye";
+                } else if (stableResult.shape.includes("สามเหลี่ยม")) {
+                    shapeKey = "CatEye";
                 } else if (stableResult.shape.includes("รี")) {
-                    shapeKey = "Round"; // fallback recommendation for oval is round
+                    shapeKey = "Round";
                 }
                 
                 if (shapeKey) {
