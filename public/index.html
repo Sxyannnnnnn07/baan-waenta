@@ -695,44 +695,7 @@
                             บัตรเครดิต / เดบิต (จำลอง)
                         </label>
                     </div>
-                    
-                    <!-- Bank Details Box -->
-                    <div id="bank-transfer-details" style="display: none; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.8rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-primary); margin-bottom: 0.8rem;">
-                        <div style="font-weight: 700; color: #1a202c; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;">
-                            <ion-icon name="business-outline" style="color: #2b6cb0;"></ion-icon> ข้อมูลบัญชีธนาคารของทางร้าน
-                        </div>
-                        <div>ธนาคาร: <strong>กสิกรไทย (KBANK)</strong></div>
-                        <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong></div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
-                            <span>เลขที่บัญชี: <strong style="font-size: 0.95rem; color: #1a202c;" id="bank-acc-no">157-1-2-6845-7</strong></span>
-                            <button onclick="copyBankAccount()" type="button" style="background-color: var(--accent-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
-                                <ion-icon name="copy-outline"></ion-icon> คัดลอกเลขบัญชี
-                            </button>
-                        </div>
-                    </div>
 
-                    <!-- QR Code Details Box -->
-                    <div id="qr-code-details" style="display: none; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-primary); text-align: center; margin-bottom: 0.8rem;">
-                        <div style="font-weight: 700; color: #1a202c; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
-                            <ion-icon name="qr-code-outline" style="color: #2f855a; font-size: 1.1rem;"></ion-icon> สแกน QR เพื่อโอนเข้าบัญชี
-                        </div>
-                        <div style="width: 160px; margin: 0 auto 0.5rem auto; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: #fff; padding: 0.4rem;">
-                            <img src="/assets/qr_payment.jpg" alt="PromptPay QR Code" style="width: 100%; display: block; height: auto;">
-                        </div>
-                        <div style="font-weight: 600; color: var(--text-primary);">ชื่อบัญชี: นาย ซาฮีรัม เจ๊ะหะ</div>
-                    </div>
-
-                    <!-- Unified Slip Upload Field -->
-                    <div id="slip-upload-section" style="display: none; margin-top: 0.8rem; border-top: 1px dashed var(--border-color); padding-top: 0.8rem;">
-                        <label for="slip-file-input" style="font-weight: 600; display: block; margin-bottom: 0.3rem; color: #2d3748; font-size: 0.8rem;">
-                            <ion-icon name="image-outline"></ion-icon> แนบสลิปหลักฐานการชำระเงิน
-                        </label>
-                        <input type="file" id="slip-file-input" accept="image/*" onchange="previewSlipImage(event)" style="font-family: inherit; font-size: 0.8rem; width: 100%;">
-                        <div id="slip-preview-container" style="display: none; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; max-width: 150px;">
-                            <img id="slip-preview" src="" alt="Slip Preview" style="width: 100%; display: block; height: auto;">
-                        </div>
-                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.6rem;">*กรุณาโอนเงินตามยอดรวมแล้วกดยืนยันการสั่งซื้อ ทางร้านจะจัดส่งแว่นตาให้โดยเร็วที่สุดครับ</p>
-                    </div>
                 </div>
             </div>
             
