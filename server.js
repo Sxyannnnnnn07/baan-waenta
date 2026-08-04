@@ -14,7 +14,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdn.jsdelivr.net"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "blob:"],
             scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
             styleSrcAttr: ["'unsafe-inline'"],
@@ -22,6 +22,8 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "blob:", "https://*"],
             connectSrc: ["'self'", "https://*", "wss://*"],
             mediaSrc: ["'self'", "blob:", "data:", "mediastream:", "https://*"],
+            workerSrc: ["'self'", "blob:"],
+            childSrc: ["'self'", "blob:"],
             frameSrc: ["'self'"],
             objectSrc: ["'none'"]
         }
