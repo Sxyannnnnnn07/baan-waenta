@@ -9,6 +9,21 @@ const helmet = require('helmet');
 const app = express();
 const PORT = 3000;
 
+// Global process error logging
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    try {
+        fs.appendFileSync(path.join(__dirname, 'public', 'error.log'), `[${new Date().toISOString()}] Uncaught Exception: ${err.stack}\n`);
+    } catch (e) {}
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    try {
+        fs.appendFileSync(path.join(__dirname, 'public', 'error.log'), `[${new Date().toISOString()}] Unhandled Rejection: ${reason.stack || reason}\n`);
+    } catch (e) {}
+});
+
 // Enable Helmet for security headers
 app.use(helmet({
     contentSecurityPolicy: {
@@ -642,6 +657,12 @@ app.post('/api/products', async (req, res) => {
         }
     } catch (error) {
         console.error('Add product failed:', error);
+        try {
+            const logPath = path.join(__dirname, 'public', 'error.log');
+            fs.appendFileSync(logPath, `[${new Date().toISOString()}] Add product failed: ${error.stack}\n`);
+        } catch (e) {
+            console.error('Failed to write to error.log:', e);
+        }
         res.status(500).json({ success: false, error: error.message });
     }
 });
