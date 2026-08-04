@@ -4,9 +4,27 @@ const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = 3000;
+
+// Enable Helmet for security headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdn.jsdelivr.net"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "blob:", "https://*"],
+            connectSrc: ["'self'", "https://*", "wss://*"],
+            mediaSrc: ["'self'", "blob:", "data:", "mediastream:", "https://*"],
+            frameSrc: ["'self'"],
+            objectSrc: ["'none'"]
+        }
+    }
+}));
 
 // Enable CORS and body parsers
 app.use(cors());
