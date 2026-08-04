@@ -275,9 +275,12 @@ async function addNewProduct(e) {
             document.getElementById('add-product-form').reset();
             fetchStockProducts();
             fetchDashboardMetrics();
+        } else {
+            alert('ไม่สามารถเพิ่มแว่นตาได้: ' + data.error);
         }
     } catch (error) {
         console.error('Error adding product:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
     }
 }
 
