@@ -834,7 +834,7 @@ function onFaceMeshResults(results) {
             // Autoupdate states and sliders directly
             const finalScale = Math.round(eyeDist * 2.2 * scaleX);
             document.getElementById('scale-slider').value = finalScale;
-            document.getElementById('rotation-slider').value = Math.round(-angleDeg);
+            document.getElementById('rotation-slider').value = Math.round(angleDeg);
             
             // Directly map position coordinates
             glassesState.x = eyeX;
