@@ -65,8 +65,13 @@ const DB_CONFIG = {
 
 const dbPool = mysql.createPool(DB_CONFIG);
 
+let isDbInitialized = false;
+
 // Connect to MySQL and initialize tables/data
 async function initDB() {
+    if (isDbInitialized) return;
+    isDbInitialized = true;
+
     try {
         const isLocal = DB_CONFIG.host === 'localhost' || DB_CONFIG.host === '127.0.0.1';
         
@@ -81,21 +86,19 @@ async function initDB() {
             
             await initConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
             await initConnection.end();
+
+            // Run schema setup if tables don't exist (local dev)
+            await setupTables();
+            // Seed initial data (local dev)
+            await seedData();
         }
 
         console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
-
-        // Run schema setup if tables don't exist
-        await setupTables();
-
-        // Seed initial data
-        await seedData();
 
     } catch (error) {
         console.error('========================================================');
         console.error('DATABASE CONNECTION ERROR:');
         console.error(error.message);
-        console.error('Please make sure MySQL is running (e.g. XAMPP Control Panel) and credentials in server.js match.');
         console.error('========================================================');
     }
 }
