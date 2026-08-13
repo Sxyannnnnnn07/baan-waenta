@@ -59,11 +59,11 @@ const DB_CONFIG = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'baan_waenta',
-    port: process.env.DB_PORT || 3306,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined
+    port: Number(process.env.DB_PORT) || 3306,
+    ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
 
-let dbPool;
+const dbPool = mysql.createPool(DB_CONFIG);
 
 // Connect to MySQL and initialize tables/data
 async function initDB() {
@@ -83,8 +83,6 @@ async function initDB() {
             await initConnection.end();
         }
 
-        // Now connect to the database pool
-        dbPool = mysql.createPool(DB_CONFIG);
         console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
 
         // Run schema setup if tables don't exist
