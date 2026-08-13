@@ -7,7 +7,7 @@ const fs = require('fs');
 const helmet = require('helmet');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Global process error logging
 process.on('uncaughtException', (err) => {
