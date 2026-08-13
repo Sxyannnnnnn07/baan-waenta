@@ -94,6 +94,7 @@ async function fetchProducts() {
             renderProducts(allProducts);
             populateReviewProductSelect();
         } else {
+            console.error('Backend error:', data.error);
             productsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: red;">เกิดข้อผิดพลาดในการโหลดสินค้า</div>`;
         }
     } catch (error) {
