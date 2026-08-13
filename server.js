@@ -990,7 +990,11 @@ app.delete('/api/reviews/:id', async (req, res) => {
 
 // Start initialization and server
 initDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running at http://localhost:${PORT}`);
-    });
+    if (require.main === module) {
+        app.listen(PORT, () => {
+            console.log(`Server is running at http://localhost:${PORT}`);
+        });
+    }
 });
+
+module.exports = app;
