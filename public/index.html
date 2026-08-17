@@ -33,6 +33,8 @@
             }
         })();
     </script>
+    <!-- 3D Model Viewer Component -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 <body>
     <!-- Scroll Progress Bar -->
@@ -537,7 +539,7 @@
                 <div class="quickview-media-col">
                     <span class="quickview-badge-tag" id="qv-category-badge">Optical</span>
                     
-                    <div class="quickview-carousel-container">
+                    <div class="quickview-carousel-container" id="qv-carousel-view">
                         <button class="quickview-nav-btn prev" onclick="navigateQuickViewImage(-1)" aria-label="Previous image">
                             <ion-icon name="chevron-back-outline"></ion-icon>
                         </button>
@@ -545,6 +547,19 @@
                         <button class="quickview-nav-btn next" onclick="navigateQuickViewImage(1)" aria-label="Next image">
                             <ion-icon name="chevron-forward-outline"></ion-icon>
                         </button>
+                    </div>
+
+                    <!-- 3D Viewer Container (Hidden by default) -->
+                    <div id="qv-3d-view" style="display: none; width: 100%; height: 300px; background-color: var(--bg-secondary); border-radius: 16px; overflow: hidden; margin-bottom: 1rem;">
+                        <model-viewer id="qv-model-viewer" 
+                            alt="3D Glasses Model" 
+                            auto-rotate 
+                            camera-controls 
+                            shadow-intensity="1"
+                            exposure="1.2"
+                            environment-image="legacy"
+                            style="width: 100%; height: 100%;">
+                        </model-viewer>
                     </div>
 
                     <!-- Carousel Thumbnails -->
@@ -694,9 +709,9 @@
                             <ion-icon name="camera-outline" style="font-size: 1.15rem; color: var(--accent);"></ion-icon>
                             <span>ลองแว่นตาเสมือนจริง (Virtual Try-On)</span>
                         </a>
-                        <button type="button" class="quickview-extra-btn disabled-feature" onclick="showToast('ระบบแสดงโมเดล 3 มิติ (3D Viewer) อยู่ระหว่างการพัฒนา', 'info')" title="กำลังพัฒนา">
+                        <button type="button" id="qv-3d-btn" class="quickview-extra-btn" onclick="toggle3DView()" title="หมุนดูสินค้า 360 องศา" style="display: none;">
                             <ion-icon name="cube-outline" style="font-size: 1.15rem;"></ion-icon>
-                            <span>ดูโมเดล 3D (เร็วๆ นี้)</span>
+                            <span>ดูโมเดล 3D (360°)</span>
                         </button>
                     </div>
                 </div>

@@ -172,6 +172,11 @@ async function setupTables() {
             frame_shape VARCHAR(100) NOT NULL,
             image_url VARCHAR(255) NOT NULL,
             tryon_image_url VARCHAR(255) NOT NULL,
+            model_3d_url VARCHAR(255) DEFAULT NULL,
+            scale_x DECIMAL(10,4) DEFAULT 1.0000,
+            scale_y DECIMAL(10,4) DEFAULT 1.0000,
+            scale_z DECIMAL(10,4) DEFAULT 1.0000,
+            offset_y DECIMAL(10,4) DEFAULT 0.0000,
             price DECIMAL(10,2) NOT NULL,
             stock INT NOT NULL
         ) ENGINE=InnoDB
@@ -364,81 +369,44 @@ async function seedData() {
         console.log('Initial admin created from environment configuration.');
     }
 
+    // Add 3D columns migration
+    try {
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS model_3d_url VARCHAR(255) DEFAULT NULL");
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS scale_x DECIMAL(10,4) DEFAULT 1.0000");
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS scale_y DECIMAL(10,4) DEFAULT 1.0000");
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS scale_z DECIMAL(10,4) DEFAULT 1.0000");
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS offset_y DECIMAL(10,4) DEFAULT 0.0000");
+    } catch (err) {}
+
     // Seed Products
     console.log('Verifying and seeding products database...');
     const defaultProducts = [
-        // Original 6
         {
-            name: "แว่นตาทรงกลมสีกระปัดเงา (Round Tortoise)",
-            brand: "บ้านแว่นตา",
-            category: "Optical",
-            frame_shape: "Round",
-            image_url: "/assets/p1.jpg",
-            tryon_image_url: "/assets/vto_p1.png", // Real transparent VTO image
-            price: 1490.00,
-            stock: 15
-        },
-        {
-            name: "แว่นตาทรงกลมดำคลาสสิก (Round Black Metal)",
-            brand: "บ้านแว่นตา",
-            category: "Optical",
-            frame_shape: "Round",
-            image_url: "/assets/p2.jpg",
-            tryon_image_url: "/assets/vto_p2.png", // Real transparent VTO image
-            price: 1990.00,
-            stock: 4
-        },
-        {
-            name: "แว่นตาเหลี่ยมสีกระสว่าง (Modern Square Clear)",
-            brand: "บ้านแว่นตา",
-            category: "Optical",
-            frame_shape: "Square",
-            image_url: "/assets/p3.jpg",
-            tryon_image_url: "/assets/vto_p3.png", // Real transparent VTO image
-            price: 2490.00,
-            stock: 20
-        },
-        {
-            name: "แว่นตาโลหะโรสโกลด์ (Rose Gold CatEye)",
-            brand: "บ้านแว่นตา",
-            category: "Optical",
-            frame_shape: "CatEye",
-            image_url: "/assets/p4.jpg",
-            tryon_image_url: "/assets/vto_p4.png", // Real transparent VTO image
-            price: 3490.00,
-            stock: 10
-        },
-        {
-            name: "แว่นตากันแดดเหลี่ยมดำเข้ม (Classic Black Sunglasses)",
-            brand: "บ้านแว่นตา",
+            name: "Prada Vintage Star (3D AR Edition)",
+            brand: "Prada",
             category: "Sunglasses",
             frame_shape: "Square",
-            image_url: "/assets/p5.jpg",
-            tryon_image_url: "/assets/vto_p5.png", // Real transparent VTO image
-            price: 2290.00,
-            stock: 3
-        },
-        {
-            name: "แว่นตาทรงรีเงินมินิมอล (Minimal Oval Silver)",
-            brand: "บ้านแว่นตา",
-            category: "Optical",
-            frame_shape: "Oval",
-            image_url: "/assets/p6.jpg",
-            tryon_image_url: "/assets/vto_p6.png", // Real transparent VTO image
-            price: 1300.00,
-            stock: 12
+            image_url: "/assets/p5.jpg", // placeholder 2D image
+            tryon_image_url: "/assets/vto_p5.png", // placeholder
+            model_3d_url: "/assets/models/prada_vintage.glb",
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0,
+            price: 15900.00,
+            stock: 5
         }
     ];
 
     let seededCount = 0;
     let updatedCount = 0;
     for (const prod of defaultProducts) {
-        const [existing] = await dbPool.query('SELECT id, image_url, tryon_image_url FROM products WHERE name = ?', [prod.name]);
+        const [existing] = await dbPool.query('SELECT id FROM products WHERE name = ?', [prod.name]);
         if (existing.length === 0) {
             await dbPool.query(
-                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                 [prod.name, prod.brand, prod.category, prod.frame_shape, prod.image_url, prod.tryon_image_url, prod.price, prod.stock]
+                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, scale_x, scale_y, scale_z, offset_y, price, stock) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 [prod.name, prod.brand, prod.category, prod.frame_shape, prod.image_url, prod.tryon_image_url, prod.model_3d_url, prod.scale_x, prod.scale_y, prod.scale_z, prod.offset_y, prod.price, prod.stock]
             );
             seededCount++;
         } else {

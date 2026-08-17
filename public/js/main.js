@@ -576,6 +576,29 @@ async function openLensModal(productId) {
     // 6. Update Wishlist Button State
     updateQuickViewWishlistUI();
 
+    // 6.5 Setup 3D Viewer if available
+    const btn3D = document.getElementById('qv-3d-btn');
+    const view3D = document.getElementById('qv-3d-view');
+    const viewCarousel = document.getElementById('qv-carousel-view');
+    const modelViewer = document.getElementById('qv-model-viewer');
+    
+    // Always reset to 2D view on open
+    if (viewCarousel) viewCarousel.style.display = 'flex';
+    if (view3D) view3D.style.display = 'none';
+    if (btn3D) {
+        if (activeLensProduct.model_3d_url) {
+            btn3D.style.display = 'inline-flex';
+            btn3D.classList.remove('disabled-feature');
+            btn3D.setAttribute('onclick', 'toggle3DView()');
+            btn3D.title = "หมุนดูสินค้า 360 องศา";
+            if (modelViewer) {
+                modelViewer.src = activeLensProduct.model_3d_url;
+            }
+        } else {
+            btn3D.style.display = 'none';
+        }
+    }
+
     // 7. Load saved prescription if logged in
     if (currentUser && !isSunglasses) {
         try {
@@ -604,6 +627,28 @@ async function openLensModal(productId) {
     if (confirmBtn) confirmBtn.onclick = addActiveProductToCart;
 
     document.getElementById('lens-modal').style.display = 'flex';
+}
+
+function toggle3DView() {
+    const view3D = document.getElementById('qv-3d-view');
+    const viewCarousel = document.getElementById('qv-carousel-view');
+    const btn3D = document.getElementById('qv-3d-btn');
+    
+    if (!view3D || !viewCarousel || !btn3D) return;
+    
+    if (view3D.style.display === 'none') {
+        // Switch to 3D Mode
+        viewCarousel.style.display = 'none';
+        view3D.style.display = 'block';
+        btn3D.innerHTML = '<ion-icon name="image-outline" style="font-size: 1.15rem;"></ion-icon><span>ดูรูปภาพ (2D)</span>';
+        btn3D.classList.add('active-3d');
+    } else {
+        // Switch to 2D Carousel Mode
+        view3D.style.display = 'none';
+        viewCarousel.style.display = 'flex';
+        btn3D.innerHTML = '<ion-icon name="cube-outline" style="font-size: 1.15rem;"></ion-icon><span>ดูโมเดล 3D (360°)</span>';
+        btn3D.classList.remove('active-3d');
+    }
 }
 
 function renderQuickViewCarousel() {
