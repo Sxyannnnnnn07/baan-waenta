@@ -6,8 +6,11 @@ USE baan_waenta;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    avatar_url LONGTEXT NULL,
+    google_sub VARCHAR(255) NULL UNIQUE,
     role VARCHAR(50) DEFAULT 'customer',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -52,11 +55,40 @@ CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'paid', 'shipped'
+    status VARCHAR(50) DEFAULT 'pending', -- pending, payment_review, paid, shipped, completed, cancelled
     shipping_name VARCHAR(255) NULL,
     shipping_phone VARCHAR(50) NULL,
     shipping_address TEXT NULL,
+    payment_method VARCHAR(100) DEFAULT 'COD',
+    slip_image VARCHAR(255) NULL,
+    tracking_number VARCHAR(100) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 7. Reviews tied to the authenticated customer when available
+CREATE TABLE IF NOT EXISTS reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT NOT NULL,
+    product_name VARCHAR(255) DEFAULT 'แว่นตาทั่วไป',
+    avatar_url LONGTEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- 8. Server-side browser sessions (stores token hashes, never raw cookies)
+CREATE TABLE IF NOT EXISTS sessions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    csrf_token VARCHAR(128) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX sessions_user_id_idx (user_id),
+    INDEX sessions_expires_at_idx (expires_at),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 

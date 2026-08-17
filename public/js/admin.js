@@ -1,35 +1,60 @@
 // Admin State
 let adminUser = null;
+let csrfToken = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    checkAdminAccess();
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!await checkAdminAccess()) return;
     fetchDashboardMetrics();
     fetchOrdersList();
     fetchStockProducts();
     fetchReviewsList();
 });
 
-// 1. Guard check for Admin Role
-function checkAdminAccess() {
-    const savedUser = localStorage.getItem('baan_waenta_user');
-    if (!savedUser) {
+async function adminApiFetch(url, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = new Headers(options.headers || {});
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) {
+        headers.set('X-CSRF-Token', csrfToken);
+    }
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    if (response.status === 401 || response.status === 403) {
+        adminUser = null;
+        csrfToken = null;
+    }
+    return response;
+}
+
+// 1. Guard check for Admin Role using the server-side session.
+async function checkAdminAccess() {
+    try {
+        const response = await adminApiFetch('/api/auth/me');
+        if (!response.ok) throw new Error('Not signed in');
+        const data = await response.json();
+        adminUser = data.user;
+        csrfToken = data.csrfToken;
+    } catch (_) {
         alert('กรุณาเข้าสู่ระบบในฐานะผู้ดูแลระบบก่อนครับ');
         window.location.href = '/';
-        return;
+        return false;
     }
-    
-    adminUser = JSON.parse(savedUser);
     if (adminUser.role !== 'admin') {
         alert('บัญชีนี้ไม่มีสิทธิ์เข้าถึงแดชบอร์ดหลังบ้าน');
         window.location.href = '/';
-        return;
+        return false;
     }
+    return true;
 }
 
 // 2. Fetch and render Analytics Indicators
 async function fetchDashboardMetrics() {
     try {
-        const res = await fetch('/api/admin/analytics');
+        const res = await adminApiFetch('/api/admin/analytics');
         const data = await res.json();
         
         if (data.success) {
@@ -77,7 +102,7 @@ function renderPopularTryOnList(popularItems) {
 async function fetchOrdersList() {
     const tableBody = document.getElementById('orders-list-table');
     try {
-        const res = await fetch('/api/admin/orders');
+        const res = await adminApiFetch('/api/admin/orders');
         const data = await res.json();
         
         if (data.success) {
@@ -118,15 +143,34 @@ async function fetchOrdersList() {
                 if (order.status === 'paid') {
                     badgeClass = 'badge-paid';
                     statusText = 'ชำระเงินแล้ว / เตรียมส่ง';
+                } else if (order.status === 'payment_review') {
+                    badgeClass = 'badge-pending';
+                    statusText = 'รอตรวจสอบการชำระเงิน';
                 } else if (order.status === 'shipped') {
                     badgeClass = 'badge-shipped';
                     statusText = 'จัดส่งเรียบร้อย';
+                } else if (order.status === 'completed') {
+                    badgeClass = 'badge-shipped';
+                    statusText = 'สำเร็จ';
+                } else if (order.status === 'cancelled') {
+                    badgeClass = 'badge-pending';
+                    statusText = 'ยกเลิกแล้ว';
                 }
 
-                // Dropdown to update order status
-                const actionHtml = order.status !== 'shipped' 
-                    ? `<button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="updateOrderStatus(${order.id}, 'shipped')">ส่งสินค้าแล้ว</button>`
-                    : `<span style="color: green; font-size: 0.8rem; font-weight: 600;">ส่งแล้ว</span>`;
+                let actionHtml = '';
+                if (order.status === 'pending' || order.status === 'payment_review') {
+                    actionHtml = `
+                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'paid')">ยืนยันชำระเงิน</button>
+                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;color:#c53030;" onclick="updateOrderStatus(${order.id}, 'cancelled')">ยกเลิก</button>`;
+                } else if (order.status === 'paid') {
+                    actionHtml = `
+                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'shipped')">ส่งสินค้าแล้ว</button>
+                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;color:#c53030;" onclick="updateOrderStatus(${order.id}, 'cancelled')">ยกเลิก</button>`;
+                } else if (order.status === 'shipped') {
+                    actionHtml = `<button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'completed')">ปิดงาน</button>`;
+                } else {
+                    actionHtml = `<span style="font-size:0.8rem;font-weight:600;">${statusText}</span>`;
+                }
 
                 let slipAdminHtml = '';
                 if (order.slip_image) {
@@ -140,24 +184,24 @@ async function fetchOrdersList() {
                 let trackingAdminHtml = '';
                 if (order.tracking_number) {
                     trackingAdminHtml = `<div style="margin-top:0.35rem; font-size:0.75rem; color:#2d3748; background:#edf2f7; border:1px solid var(--border-color); padding:0.2rem 0.5rem; border-radius:6px; display:inline-flex; align-items:center; gap:0.25rem; font-weight:600;">
-                        <ion-icon name="paper-plane-outline" style="color:#4a5568;"></ion-icon> เลขพัสดุ: ${order.tracking_number}
+                        <ion-icon name="paper-plane-outline" style="color:#4a5568;"></ion-icon> เลขพัสดุ: ${escapeHtml(order.tracking_number)}
                     </div>`;
                 }
 
                 tr.innerHTML = `
                     <td style="font-weight: 600;">#${order.id}</td>
                     <td>
-                        <strong>${order.customer}</strong>
+                        <strong>${escapeHtml(order.customer)}</strong>
                         ${order.shipping_name ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem; font-weight:normal; line-height:1.4;">
-                            ชื่อผู้รับ: ${order.shipping_name}<br>
-                            เบอร์โทร: ${order.shipping_phone}<br>
-                            ที่อยู่: ${order.shipping_address}<br>
-                            วิธีชำระเงิน: <span style="color:var(--accent); font-weight:600;">${order.payment_method === 'BankTransfer' ? 'โอนผ่านธนาคาร' : (order.payment_method === 'QRCode' ? 'สแกน QR-code' : 'เก็บเงินปลายทาง')}</span>
+                            ชื่อผู้รับ: ${escapeHtml(order.shipping_name)}<br>
+                            เบอร์โทร: ${escapeHtml(order.shipping_phone)}<br>
+                            ที่อยู่: ${escapeHtml(order.shipping_address)}<br>
+                            วิธีชำระเงิน: <span style="color:var(--accent); font-weight:600;">${order.payment_method === 'BankTransfer' ? 'โอนผ่านธนาคาร' : (order.payment_method === 'QRCode' ? 'สแกน QR-code' : (order.payment_method === 'CreditCard' ? 'บัตรเครดิต / เดบิต (จำลอง)' : 'เก็บเงินปลายทาง'))}</span>
                             ${slipAdminHtml}
                             ${trackingAdminHtml}
                         </div>` : ''}
                     </td>
-                    <td>${order.items.join('<br>')}</td>
+                    <td>${order.items.map(escapeHtml).join('<br>')}</td>
                     <td>เลนส์สั่งตัดพิเศษ</td>
                     <td style="font-weight: 700; font-family: var(--font-heading);">${parseFloat(order.total).toLocaleString()} ฿</td>
                     <td><span class="badge ${badgeClass}">${statusText}</span></td>
@@ -174,6 +218,7 @@ async function fetchOrdersList() {
 
 async function updateOrderStatus(orderId, status) {
     try {
+        if (status === 'cancelled' && !confirm('ยืนยันยกเลิกออเดอร์และคืนสต็อกสินค้า?')) return;
         let trackingNumber = '';
         if (status === 'shipped') {
             trackingNumber = prompt('กรุณากรอกเลขพัสดุสำหรับออเดอร์นี้ (เช่น Flash Express: TH0123456789):');
@@ -181,7 +226,7 @@ async function updateOrderStatus(orderId, status) {
             trackingNumber = trackingNumber.trim();
         }
 
-        const res = await fetch(`/api/admin/orders/${orderId}`, {
+        const res = await adminApiFetch(`/api/admin/orders/${orderId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status, tracking_number: trackingNumber || null })
@@ -191,6 +236,8 @@ async function updateOrderStatus(orderId, status) {
             alert('อัปเดตสถานะการส่งสินค้าสำเร็จ!');
             fetchOrdersList();
             fetchDashboardMetrics();
+        } else {
+            alert(data.message || 'ไม่สามารถอัปเดตสถานะออเดอร์ได้');
         }
     } catch (error) {
         console.error('Error updating order:', error);
@@ -201,7 +248,7 @@ async function updateOrderStatus(orderId, status) {
 async function fetchStockProducts() {
     const tableBody = document.getElementById('products-list-table');
     try {
-        const res = await fetch('/api/products');
+        const res = await adminApiFetch('/api/products');
         const data = await res.json();
         if (data.success) {
             tableBody.innerHTML = '';
@@ -209,8 +256,8 @@ async function fetchStockProducts() {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${p.id}</td>
-                    <td style="font-weight: 600;">${p.name}</td>
-                    <td>${p.brand}</td>
+                    <td style="font-weight: 600;">${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.brand)}</td>
                     <td>${p.category === 'Optical' ? 'แว่นสายตา' : 'แว่นกันแดด'}</td>
                     <td style="font-family: var(--font-heading);">${parseFloat(p.price).toLocaleString()} ฿</td>
                     <td style="font-weight: 600; color: ${p.stock <= 5 ? '#e53e3e' : 'inherit'}">${p.stock} ชิ้น</td>
@@ -263,7 +310,7 @@ async function addNewProduct(e) {
     };
 
     try {
-        const res = await fetch('/api/products', {
+        const res = await adminApiFetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -289,7 +336,7 @@ async function deleteProduct(id) {
     if (!confirm('ยืนยันที่จะลบกรอบแว่นตานี้ออกจากระบบขายจริง?')) return;
     
     try {
-        const res = await fetch(`/api/products/${id}`, {
+        const res = await adminApiFetch(`/api/products/${id}`, {
             method: 'DELETE'
         });
         const data = await res.json();
@@ -304,10 +351,15 @@ async function deleteProduct(id) {
 }
 
 // Logout
-function handleLogout() {
-    localStorage.removeItem('baan_waenta_user');
-    alert('ออกจากระบบแอดมินแล้ว');
-    window.location.href = '/';
+async function handleLogout() {
+    try {
+        await adminApiFetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+        adminUser = null;
+        csrfToken = null;
+        alert('ออกจากระบบแอดมินแล้ว');
+        window.location.href = '/';
+    }
 }
 
 // 7. Fetch and Render Reviews for Management
@@ -316,7 +368,7 @@ async function fetchReviewsList() {
     if (!tableBody) return;
     
     try {
-        const res = await fetch('/api/reviews');
+        const res = await adminApiFetch('/api/reviews');
         const data = await res.json();
         
         if (data.success) {
@@ -336,10 +388,10 @@ async function fetchReviewsList() {
                 
                 row.innerHTML = `
                     <td style="font-weight: 600;">#REV-${rev.id}</td>
-                    <td>${rev.user_name}</td>
-                    <td style="font-weight: 500;">${rev.product_name || 'แว่นตาทั่วไป'}</td>
+                    <td>${escapeHtml(rev.user_name)}</td>
+                    <td style="font-weight: 500;">${escapeHtml(rev.product_name || 'แว่นตาทั่วไป')}</td>
                     <td><span style="color: #f6ad55;">${stars}</span> (${rev.rating}/5)</td>
-                    <td style="max-width: 300px; white-space: normal; line-height: 1.4;">${rev.comment}</td>
+                    <td style="max-width: 300px; white-space: normal; line-height: 1.4;">${escapeHtml(rev.comment)}</td>
                     <td>${new Date(rev.created_at).toLocaleString('th-TH')}</td>
                     <td>
                         <button class="btn btn-outline" style="color: #e53e3e; border-color: #feb2b2; padding: 0.35rem 0.7rem; font-size: 0.78rem;" onclick="deleteReview(${rev.id})">
@@ -360,7 +412,7 @@ async function deleteReview(id) {
     if (!confirm('คุณแน่ใจหรือไม่ที่จะลบรีวิวนี้อย่างถาวร? การลบนี้เพื่อป้องกันข้อมูลเท็จ')) return;
     
     try {
-        const res = await fetch(`/api/reviews/${id}`, {
+        const res = await adminApiFetch(`/api/reviews/${id}`, {
             method: 'DELETE'
         });
         const data = await res.json();

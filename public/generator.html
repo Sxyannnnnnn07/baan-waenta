@@ -131,6 +131,18 @@
         }
 
         async function startGeneration() {
+            const authResponse = await fetch('/api/auth/me', { credentials: 'same-origin' });
+            if (!authResponse.ok) {
+                alert('กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลก่อนใช้งาน');
+                window.location.href = '/';
+                return;
+            }
+            const authData = await authResponse.json();
+            if (authData.user?.role !== 'admin') {
+                alert('บัญชีนี้ไม่มีสิทธิ์ใช้งานเครื่องมือนี้');
+                return;
+            }
+            const csrfToken = authData.csrfToken;
             document.getElementById('start-btn').disabled = true;
             document.getElementById('progress-bar').style.display = 'block';
             
@@ -208,7 +220,8 @@
                     log(`กำลังเซฟรูปภาพ: ${item.filename} (คิวที่ ${i + 1}/${items.length})`);
                     const res = await fetch('/api/admin/save-generated-image', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                         body: JSON.stringify({
                             filename: item.filename,
                             image_base64: dataUrl

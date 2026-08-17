@@ -7,6 +7,12 @@ let isModelsLoaded = false;
 let isDetectionLoopRunning = false;
 let faceMesh = null;
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+}
+
 // User Image / Canvas variables
 let uploadedImage = null;
 let glassesImage = new Image();
@@ -49,16 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Check user login to update nav links
-function checkUserLogin() {
-    const savedUser = localStorage.getItem('baan_waenta_user');
+// Check the server-side session to update nav links.
+async function checkUserLogin() {
     const adminNav = document.getElementById('admin-nav');
-    if (savedUser) {
-        const user = JSON.parse(savedUser);
-        if (user.role === 'admin') {
-            adminNav.style.display = 'block';
-        }
-    }
+    try {
+        const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.user?.role === 'admin' && adminNav) adminNav.style.display = 'block';
+    } catch (_) {}
 }
 
 // Fetch products for sidebar list
@@ -96,11 +101,11 @@ function renderTryOnProducts(prods) {
 
         item.innerHTML = `
             <div style="width: 60px; height: 40px; background-color: var(--bg-primary); border-radius: 8px; padding: 0.2rem; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                <img src="${prod.image_url}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                <img src="${escapeHtml(prod.image_url)}" alt="${escapeHtml(prod.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
             </div>
             <div style="flex: 1;">
-                <h4 style="font-size: 0.85rem; font-weight: 600;">${prod.name}</h4>
-                <p style="font-size: 0.75rem; color: var(--text-secondary);">${prod.brand}</p>
+                <h4 style="font-size: 0.85rem; font-weight: 600;">${escapeHtml(prod.name)}</h4>
+                <p style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(prod.brand)}</p>
             </div>
             <div style="font-weight: 700; font-size: 0.9rem; font-family: var(--font-heading);">${parseFloat(prod.price).toLocaleString()} ฿</div>
         `;

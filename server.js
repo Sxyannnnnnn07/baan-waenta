@@ -5,23 +5,50 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
+const {
+    SESSION_COOKIE,
+    SESSION_MAX_AGE_MS,
+    randomToken,
+    hashToken,
+    parseCookies,
+    serializeSessionCookie,
+    clearSessionCookie,
+    cleanText,
+    isEmail,
+    isStrongPassword,
+    numberInRange,
+    integerInRange,
+    decodeImageDataUrl,
+    createRateLimiter
+} = require('./lib/security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+if (IS_PRODUCTION) app.set('trust proxy', 1);
+const STORAGE_DIR = path.resolve(process.env.STORAGE_DIR || path.join(__dirname, 'storage'));
+const SLIP_STORAGE_DIR = path.join(STORAGE_DIR, 'slips');
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '105484503874-92cu9940o9od95nb2pna8pr0kkf7pngi.apps.googleusercontent.com';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+function logServerError(label, error) {
+    console.error(label, error);
+    try {
+        fs.mkdirSync(STORAGE_DIR, { recursive: true });
+        fs.appendFileSync(path.join(STORAGE_DIR, 'error.log'), `[${new Date().toISOString()}] ${label}: ${error?.stack || error}\n`);
+    } catch (_) {}
+}
 
 // Global process error logging
 process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
-    try {
-        fs.appendFileSync(path.join(__dirname, 'public', 'error.log'), `[${new Date().toISOString()}] Uncaught Exception: ${err.stack}\n`);
-    } catch (e) {}
+    logServerError('Uncaught Exception', err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    try {
-        fs.appendFileSync(path.join(__dirname, 'public', 'error.log'), `[${new Date().toISOString()}] Unhandled Rejection: ${reason.stack || reason}\n`);
-    } catch (e) {}
+    logServerError('Unhandled Rejection', reason);
 });
 
 // Enable Helmet for security headers
@@ -45,10 +72,21 @@ app.use(helmet({
     }
 }));
 
-// Enable CORS and body parsers
-app.use(cors());
+// Enable CORS only for explicitly trusted cross-origin clients. Same-origin requests are always allowed.
+app.use(cors((req, callback) => {
+    const origin = req.get('Origin');
+    const forwardedProto = req.get('X-Forwarded-Proto')?.split(',')[0] || req.protocol;
+    const sameOrigin = origin === `${forwardedProto}://${req.get('Host')}`;
+    callback(null, {
+        credentials: true,
+        origin: !origin || sameOrigin || ALLOWED_ORIGINS.includes(origin)
+    });
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Payment slips are private even when legacy deployments stored them below public/uploads.
+app.use('/uploads/slips', (_req, res) => res.status(404).end());
 
 // Serve static frontend files from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
@@ -87,11 +125,11 @@ async function initDB() {
             await initConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
             await initConnection.end();
 
-            // Run schema setup if tables don't exist (local dev)
-            await setupTables();
-            // Seed initial data (local dev)
-            await seedData();
         }
+
+        // Idempotent schema migrations must also run against hosted databases.
+        await setupTables();
+        if (isLocal) await seedData();
 
         console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
 
@@ -240,8 +278,40 @@ async function setupTables() {
     } catch (err) {}
     try {
         await dbPool.query("ALTER TABLE users ADD COLUMN username VARCHAR(255) DEFAULT NULL");
+    } catch (err) {}
+    try {
         await dbPool.query("UPDATE users SET username = name WHERE username IS NULL OR username = ''");
     } catch (err) {}
+    try {
+        await dbPool.query("CREATE UNIQUE INDEX users_username_unique ON users (username)");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE users ADD COLUMN google_sub VARCHAR(255) DEFAULT NULL");
+    } catch (err) {}
+    try {
+        await dbPool.query("CREATE UNIQUE INDEX users_google_sub_unique ON users (google_sub)");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE reviews ADD COLUMN user_id INT DEFAULT NULL");
+    } catch (err) {}
+    try {
+        await dbPool.query("ALTER TABLE reviews ADD CONSTRAINT reviews_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL");
+    } catch (err) {}
+
+    // Server-side sessions. Only a SHA-256 hash of the browser token is stored.
+    await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            token_hash CHAR(64) NOT NULL UNIQUE,
+            csrf_token VARCHAR(128) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX sessions_user_id_idx (user_id),
+            INDEX sessions_expires_at_idx (expires_at),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB
+    `);
 }
 
 async function seedData() {
@@ -271,24 +341,19 @@ async function seedData() {
         await dbPool.query("UPDATE reviews SET product_name = 'แว่นตาโลหะโรสโกลด์ (Rose Gold CatEye)' WHERE id = 3 AND (product_name = 'แว่นตาทั่วไป' OR product_name IS NULL)");
     }
 
-    // Seed Users
+    // Optional first-run admin bootstrap. Existing users are never overwritten.
     const [existingUsers] = await dbPool.query('SELECT * FROM users LIMIT 1');
-    if (existingUsers.length === 0) {
-        console.log('Seeding initial users...');
-        const userPasswordHash = bcrypt.hashSync('12345zx', 10);
-        const adminPasswordHash = bcrypt.hashSync('admin12345zx', 10);
-
-        // Yang12345
+    if (existingUsers.length === 0 && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+        if (!isEmail(process.env.ADMIN_EMAIL) || !isStrongPassword(process.env.ADMIN_PASSWORD)) {
+            throw new Error('ADMIN_EMAIL or ADMIN_PASSWORD does not meet validation requirements');
+        }
+        const adminName = cleanText(process.env.ADMIN_NAME || 'admin', 255);
+        const adminPasswordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
         await dbPool.query(
-            'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-            ['Yang12345', 'sahiramm12345@gmail.com', userPasswordHash, 'customer']
+            'INSERT INTO users (name, username, email, password_hash, role) VALUES (?, ?, ?, ?, ?)',
+            [adminName, adminName, process.env.ADMIN_EMAIL.toLowerCase(), adminPasswordHash, 'admin']
         );
-        // admin
-        await dbPool.query(
-            'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-            ['admin', 'admin@baanwaenta.com', adminPasswordHash, 'admin']
-        );
-        console.log('Initial test users created successfully.');
+        console.log('Initial admin created from environment configuration.');
     }
 
     // Seed Products
@@ -357,10 +422,6 @@ async function seedData() {
         }
     ];
 
-    // Clean up database by deleting all other products
-    const originalNames = defaultProducts.map(p => p.name);
-    await dbPool.query('DELETE FROM products WHERE name NOT IN (?)', [originalNames]);
-
     let seededCount = 0;
     let updatedCount = 0;
     for (const prod of defaultProducts) {
@@ -388,49 +449,158 @@ async function seedData() {
     }
 }
 
+function publicUser(user) {
+    return {
+        id: user.id,
+        name: user.name,
+        username: user.username || user.name,
+        email: user.email,
+        avatar_url: user.avatar_url,
+        role: user.role
+    };
+}
+
+async function startSession(userId, req, res) {
+    const token = randomToken();
+    const csrfToken = randomToken(24);
+    const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS);
+    await dbPool.query('DELETE FROM sessions WHERE expires_at <= NOW()');
+    await dbPool.query(
+        'INSERT INTO sessions (user_id, token_hash, csrf_token, expires_at) VALUES (?, ?, ?, ?)',
+        [userId, hashToken(token), csrfToken, expiresAt]
+    );
+    const secure = IS_PRODUCTION || req.get('X-Forwarded-Proto') === 'https';
+    res.setHeader('Set-Cookie', serializeSessionCookie(token, { secure }));
+    return csrfToken;
+}
+
+async function loadSession(req, _res, next) {
+    const token = parseCookies(req.headers.cookie || '')[SESSION_COOKIE];
+    if (!token) return next();
+    try {
+        const [rows] = await dbPool.query(
+            `SELECT s.id AS session_id, s.csrf_token, s.expires_at,
+                    u.id, u.name, u.username, u.email, u.avatar_url, u.role
+             FROM sessions s
+             JOIN users u ON u.id = s.user_id
+             WHERE s.token_hash = ? AND s.expires_at > NOW()
+             LIMIT 1`,
+            [hashToken(token)]
+        );
+        if (rows.length) {
+            req.session = rows[0];
+            req.user = rows[0];
+        }
+        next();
+    } catch (error) {
+        next(error);
+    }
+}
+
+function requireAuth(req, res, next) {
+    if (!req.user) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
+    next();
+}
+
+function requireAdmin(req, res, next) {
+    if (!req.user) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' });
+    next();
+}
+
+function requireTrustedOrigin(req, res, next) {
+    const origin = req.get('Origin');
+    if (!origin) return next();
+    const forwardedProto = req.get('X-Forwarded-Proto')?.split(',')[0] || req.protocol;
+    const sameOrigin = origin === `${forwardedProto}://${req.get('Host')}`;
+    if (!sameOrigin && !ALLOWED_ORIGINS.includes(origin)) {
+        return res.status(403).json({ success: false, message: 'Origin ไม่ได้รับอนุญาต' });
+    }
+    next();
+}
+
+function requireCsrf(req, res, next) {
+    const token = req.get('X-CSRF-Token');
+    const expected = req.session?.csrf_token;
+    if (!token || !expected || token.length !== expected.length) {
+        return res.status(403).json({ success: false, message: 'คำขอไม่ผ่านการตรวจสอบความปลอดภัย' });
+    }
+    const tokenBuffer = Buffer.from(token);
+    const expectedBuffer = Buffer.from(expected);
+    if (!require('crypto').timingSafeEqual(tokenBuffer, expectedBuffer)) {
+        return res.status(403).json({ success: false, message: 'คำขอไม่ผ่านการตรวจสอบความปลอดภัย' });
+    }
+
+    requireTrustedOrigin(req, res, next);
+}
+
+function sendServerError(res, error, label) {
+    logServerError(label, error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดภายในระบบ' });
+}
+
+function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) {
+    const { buffer, extension } = decodeImageDataUrl(dataUrl, maxBytes);
+    const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
+    fs.mkdirSync(dirPath, { recursive: true });
+    const fileName = `${prefix}_${randomToken(12)}.${extension}`;
+    fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
+    return `/uploads/products/${fileName}`;
+}
+
+const authRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
+app.use('/api', loadSession);
+
 // ==========================================
 // REST API ENDPOINTS
 // ==========================================
 
+app.get('/api/config', (_req, res) => {
+    res.json({ success: true, googleClientId: GOOGLE_CLIENT_ID });
+});
+
 // 1. Authentication: Login
-app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body;
+app.post('/api/auth/login', requireTrustedOrigin, authRateLimit, async (req, res) => {
+    const username = cleanText(req.body.username, 255);
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    if (!username || !password || password.length > 128) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง' });
+    }
     try {
         const [users] = await dbPool.query('SELECT * FROM users WHERE name = ? OR username = ?', [username, username]);
         if (users.length === 0) {
-            return res.status(401).json({ success: false, message: 'ไม่พบผู้ใช้นี้ในระบบ' });
+            return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
         const user = users[0];
-        const isPasswordValid = bcrypt.compareSync(password, user.password_hash);
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordValid) {
-            return res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+            return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
-
+        const csrfToken = await startSession(user.id, req, res);
         res.json({
             success: true,
-            user: {
-                id: user.id,
-                name: user.name,
-                username: user.username || user.name,
-                email: user.email,
-                avatar_url: user.avatar_url,
-                role: user.role
-            }
+            user: publicUser(user),
+            csrfToken
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Login failed');
     }
 });
 
 // 2. Authentication: Register
-app.post('/api/auth/register', async (req, res) => {
-    const { username, email, password } = req.body;
+app.post('/api/auth/register', requireTrustedOrigin, authRateLimit, async (req, res) => {
+    const username = cleanText(req.body.username, 80);
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body.password;
+    if (!username || !isEmail(email) || !isStrongPassword(password)) {
+        return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้ อีเมล หรือรหัสผ่านไม่ถูกต้อง' });
+    }
     try {
         const [existing] = await dbPool.query('SELECT * FROM users WHERE name = ? OR username = ? OR email = ?', [username, username, email]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้งานหรืออีเมลนี้ถูกใช้ไปแล้ว' });
         }
-        const passwordHash = bcrypt.hashSync(password, 10);
+        const passwordHash = await bcrypt.hash(password, 12);
         const [result] = await dbPool.query(
             'INSERT INTO users (name, email, password_hash, username, role) VALUES (?, ?, ?, ?, "customer")',
             [username, email, passwordHash, username]
@@ -442,126 +612,122 @@ app.post('/api/auth/register', async (req, res) => {
             message: 'สมัครสมาชิกสำเร็จ'
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Registration failed');
     }
 });
 
 // 2.5 Authentication: Google Sign-in/Sign-up
-app.post('/api/auth/google', async (req, res) => {
-    const { email, name, avatar, google_id } = req.body;
+app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, res) => {
+    const accessToken = typeof req.body.access_token === 'string' ? req.body.access_token : '';
+    if (!accessToken || accessToken.length > 4096) {
+        return res.status(400).json({ success: false, message: 'Google token ไม่ถูกต้อง' });
+    }
     try {
-        if (!email || !name) {
-            return res.status(400).json({ success: false, message: 'ข้อมูล Google ไม่ครบถ้วน' });
-        }
-        
-        // Find if user already exists with this email
-        const [users] = await dbPool.query('SELECT * FROM users WHERE email = ?', [email]);
-        let user;
-        const generatedUsername = email.split('@')[0] + '_google';
-        
-        if (users.length > 0) {
-            user = users[0];
-            // Update avatar or name if changed
-            await dbPool.query(
-                'UPDATE users SET name = ?, avatar_url = ? WHERE id = ?',
-                [name, avatar, user.id]
-            );
-            user.name = name;
-            user.avatar_url = avatar;
-            if (!user.username) {
-                await dbPool.query('UPDATE users SET username = ? WHERE id = ?', [generatedUsername, user.id]);
-                user.username = generatedUsername;
-            }
-        } else {
-            // Register a new user
-            const dummyPassword = bcrypt.hashSync(google_id || 'google_dummy_secret', 10);
-            const [result] = await dbPool.query(
-                'INSERT INTO users (name, email, password_hash, avatar_url, username, role) VALUES (?, ?, ?, ?, ?, "customer")',
-                [name, email, dummyPassword, avatar, generatedUsername]
-            );
-            
-            user = {
-                id: result.insertId,
-                name: name,
-                email: email,
-                avatar_url: avatar,
-                username: generatedUsername,
-                role: 'customer'
-            };
-        }
-        
-        res.json({
-            success: true,
-            user: {
-                id: user.id,
-                name: user.name,
-                username: user.username,
-                email: user.email,
-                avatar_url: user.avatar_url,
-                role: user.role
-            }
+        const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`, {
+            signal: AbortSignal.timeout(10000)
         });
+        if (!tokenInfoResponse.ok) return res.status(401).json({ success: false, message: 'Google token ไม่ถูกต้องหรือหมดอายุ' });
+        const tokenInfo = await tokenInfoResponse.json();
+        if (tokenInfo.aud !== GOOGLE_CLIENT_ID || Number(tokenInfo.expires_in) <= 0) {
+            return res.status(401).json({ success: false, message: 'Google token ไม่ได้ออกให้แอปนี้' });
+        }
+
+        const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal: AbortSignal.timeout(10000)
+        });
+        if (!profileResponse.ok) return res.status(401).json({ success: false, message: 'ไม่สามารถยืนยันบัญชี Google ได้' });
+        const profile = await profileResponse.json();
+        const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+        const name = cleanText(profile.name, 255);
+        const googleSub = cleanText(profile.sub, 255);
+        const avatar = typeof profile.picture === 'string' && profile.picture.length <= 2048 ? profile.picture : null;
+        if (!isEmail(email) || !name || !googleSub || profile.email_verified !== true) {
+            return res.status(401).json({ success: false, message: 'บัญชี Google ต้องมีอีเมลที่ยืนยันแล้ว' });
+        }
+
+        const [users] = await dbPool.query('SELECT * FROM users WHERE google_sub = ? OR email = ? LIMIT 1', [googleSub, email]);
+        let user = users[0];
+        let generatedUsername = `${email.split('@')[0]}_${googleSub.slice(-8)}_google`;
+        if (generatedUsername.length > 80) generatedUsername = generatedUsername.slice(0, 80);
+
+        if (user) {
+            if (user.google_sub && user.google_sub !== googleSub) {
+                return res.status(409).json({ success: false, message: 'อีเมลนี้เชื่อมกับบัญชี Google อื่นแล้ว' });
+            }
+            await dbPool.query(
+                'UPDATE users SET google_sub = ?, name = ?, avatar_url = ?, username = COALESCE(username, ?) WHERE id = ?',
+                [googleSub, name, avatar, generatedUsername, user.id]
+            );
+            [user] = (await dbPool.query('SELECT * FROM users WHERE id = ?', [user.id]))[0];
+        } else {
+            const dummyPassword = await bcrypt.hash(randomToken(), 12);
+            const [result] = await dbPool.query(
+                'INSERT INTO users (name, email, password_hash, avatar_url, username, google_sub, role) VALUES (?, ?, ?, ?, ?, ?, "customer")',
+                [name, email, dummyPassword, avatar, generatedUsername, googleSub]
+            );
+            [user] = (await dbPool.query('SELECT * FROM users WHERE id = ?', [result.insertId]))[0];
+        }
+
+        const csrfToken = await startSession(user.id, req, res);
+        res.json({ success: true, user: publicUser(user), csrfToken });
     } catch (error) {
-        console.error('Google auth error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Google authentication failed');
+    }
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+    res.json({ success: true, user: publicUser(req.user), csrfToken: req.session.csrf_token });
+});
+
+app.post('/api/auth/logout', requireAuth, requireCsrf, async (req, res) => {
+    try {
+        await dbPool.query('DELETE FROM sessions WHERE id = ?', [req.session.session_id]);
+        const secure = IS_PRODUCTION || req.get('X-Forwarded-Proto') === 'https';
+        res.setHeader('Set-Cookie', clearSessionCookie(secure));
+        res.json({ success: true });
+    } catch (error) {
+        sendServerError(res, error, 'Logout failed');
     }
 });
 
 // 2.6 Update User Profile Details
-app.post('/api/auth/update-profile', async (req, res) => {
-    const { user_id, name, username } = req.body;
+app.post('/api/auth/update-profile', requireAuth, requireCsrf, async (req, res) => {
+    const name = cleanText(req.body.name, 255);
+    const username = cleanText(req.body.username, 80);
     try {
-        if (!user_id || !name || !username) {
-            return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+        if (!name || !username) {
+            return res.status(400).json({ success: false, message: 'ชื่อหรือชื่อผู้ใช้ไม่ถูกต้อง' });
         }
-        
-        // Check if username is already taken by another user
-        const [existing] = await dbPool.query('SELECT * FROM users WHERE username = ? AND id != ?', [username, user_id]);
+        const [existing] = await dbPool.query('SELECT id FROM users WHERE username = ? AND id != ?', [username, req.user.id]);
         if (existing.length > 0) {
             return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้งานนี้ถูกใช้ไปแล้ว' });
         }
-        
-        // Get old name first to update reviews
-        const [userRows] = await dbPool.query('SELECT name FROM users WHERE id = ?', [user_id]);
-        if (userRows.length > 0) {
-            const oldName = userRows[0].name;
-            
-            // Update database
-            await dbPool.query('UPDATE users SET name = ?, username = ? WHERE id = ?', [name, username, user_id]);
-            
-            // Sync reviews
-            await dbPool.query('UPDATE reviews SET user_name = ? WHERE user_name = ?', [`คุณ ${name}`, `คุณ ${oldName}`]);
-        }
-        
-        res.json({ success: true, message: 'อัปเดตข้อมูลสำเร็จ' });
+        await dbPool.query('UPDATE users SET name = ?, username = ? WHERE id = ?', [name, username, req.user.id]);
+        await dbPool.query('UPDATE reviews SET user_name = ? WHERE user_id = ?', [`คุณ ${name}`, req.user.id]);
+        const [rows] = await dbPool.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        res.json({ success: true, user: publicUser(rows[0]), message: 'อัปเดตข้อมูลสำเร็จ' });
     } catch (error) {
-        console.error('Update profile error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Update profile failed');
     }
 });
 
 // 2.7 Update User Avatar (Profile Picture)
-app.post('/api/auth/update-avatar', async (req, res) => {
-    const { user_id, avatar_data } = req.body;
+app.post('/api/auth/update-avatar', requireAuth, requireCsrf, async (req, res) => {
+    const { avatar_data } = req.body;
     try {
-        if (!user_id || !avatar_data) {
+        if (!avatar_data) {
             return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
         }
-        
-        // Update database directly with base64 data
-        await dbPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_data, user_id]);
-        
-        // Optionally update any reviews by this user to keep avatars in sync
-        const [userRows] = await dbPool.query('SELECT name FROM users WHERE id = ?', [user_id]);
-        if (userRows.length > 0) {
-            const userName = userRows[0].name;
-            await dbPool.query('UPDATE reviews SET avatar_url = ? WHERE user_name = ?', [avatar_data, `คุณ ${userName}`]);
-        }
-        
+        decodeImageDataUrl(avatar_data, 2 * 1024 * 1024);
+        await dbPool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatar_data, req.user.id]);
+        await dbPool.query('UPDATE reviews SET avatar_url = ? WHERE user_id = ?', [avatar_data, req.user.id]);
         res.json({ success: true, avatar_url: avatar_data, message: 'อัปเดตรูปโปรไฟล์สำเร็จ' });
     } catch (error) {
-        console.error('Update avatar error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        if (/image|format|large|WebP/i.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'รูปภาพไม่ถูกต้องหรือมีขนาดเกิน 2 MB' });
+        }
+        sendServerError(res, error, 'Update avatar failed');
     }
 });
 
@@ -571,13 +737,23 @@ app.get('/api/products', async (req, res) => {
         const [products] = await dbPool.query('SELECT * FROM products');
         res.json({ success: true, products });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'List products failed');
     }
 });
 
 // 4. Products: Add (Admin Only)
-app.post('/api/products', async (req, res) => {
-    const { name, brand, category, frame_shape, image_url, tryon_image_url, price, stock } = req.body;
+app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
+    const name = cleanText(req.body.name, 255);
+    const brand = cleanText(req.body.brand, 255);
+    const category = ['Optical', 'Sunglasses'].includes(req.body.category) ? req.body.category : null;
+    const frameShape = ['Round', 'Square', 'Aviator', 'Oval', 'CatEye'].includes(req.body.frame_shape) ? req.body.frame_shape : null;
+    const price = numberInRange(req.body.price, 0, 1000000);
+    const stock = integerInRange(req.body.stock, 0, 1000000);
+    const imageUrl = req.body.image_url;
+    const tryonImageUrl = req.body.tryon_image_url;
+    if (!name || !brand || !category || !frameShape || price === null || stock === null) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลสินค้าไม่ถูกต้อง' });
+    }
     try {
         const conn = await dbPool.getConnection();
         await conn.beginTransaction();
@@ -587,7 +763,7 @@ app.post('/api/products', async (req, res) => {
             const [result] = await conn.query(
                 `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
                  VALUES (?, ?, ?, ?, '', '', ?, ?)`,
-                [name, brand, category, frame_shape, price, stock]
+                [name, brand, category, frameShape, price, stock]
             );
             const productId = result.insertId;
 
@@ -595,51 +771,29 @@ app.post('/api/products', async (req, res) => {
             let finalTryonUrl = '/assets/round.svg';
 
             // Save main image to disk if it is base64
-            if (image_url && image_url.startsWith('data:image/')) {
+            if (imageUrl && imageUrl.startsWith('data:image/')) {
                 try {
-                    const base64Data = image_url.replace(/^data:image\/\w+;base64,/, "");
-                    const buffer = Buffer.from(base64Data, 'base64');
-                    const ext = image_url.substring("data:image/".length, image_url.indexOf(";base64")).split('+')[0] || 'png';
-                    const fileName = `product_${productId}_${Date.now()}.${ext}`;
-                    const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
-                    
-                    if (!fs.existsSync(dirPath)){
-                        fs.mkdirSync(dirPath, { recursive: true });
-                    }
-                    
-                    fs.writeFileSync(path.join(dirPath, fileName), buffer);
-                    finalImageUrl = `/uploads/products/${fileName}`;
+                    finalImageUrl = savePublicImageData(imageUrl, `product_${productId}`);
                 } catch (imgErr) {
-                    console.error('Failed to save product image file:', imgErr);
+                    throw new Error(`Invalid product image: ${imgErr.message}`);
                 }
-            } else if (image_url) {
-                finalImageUrl = image_url;
+            } else if (typeof imageUrl === 'string' && imageUrl.startsWith('/assets/')) {
+                finalImageUrl = imageUrl;
             }
 
             // Save tryon image to disk if it is base64
-            if (tryon_image_url && tryon_image_url.startsWith('data:image/')) {
-                if (tryon_image_url === image_url) {
+            if (tryonImageUrl && tryonImageUrl.startsWith('data:image/')) {
+                if (tryonImageUrl === imageUrl) {
                     finalTryonUrl = finalImageUrl;
                 } else {
                     try {
-                        const base64Data = tryon_image_url.replace(/^data:image\/\w+;base64,/, "");
-                        const buffer = Buffer.from(base64Data, 'base64');
-                        const ext = tryon_image_url.substring("data:image/".length, tryon_image_url.indexOf(";base64")).split('+')[0] || 'png';
-                        const fileName = `product_tryon_${productId}_${Date.now()}.${ext}`;
-                        const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
-                        
-                        if (!fs.existsSync(dirPath)){
-                            fs.mkdirSync(dirPath, { recursive: true });
-                        }
-                        
-                        fs.writeFileSync(path.join(dirPath, fileName), buffer);
-                        finalTryonUrl = `/uploads/products/${fileName}`;
+                        finalTryonUrl = savePublicImageData(tryonImageUrl, `product_tryon_${productId}`);
                     } catch (imgErr) {
-                        console.error('Failed to save tryon image file:', imgErr);
+                        throw new Error(`Invalid try-on image: ${imgErr.message}`);
                     }
                 }
-            } else if (tryon_image_url) {
-                finalTryonUrl = tryon_image_url;
+            } else if (typeof tryonImageUrl === 'string' && tryonImageUrl.startsWith('/assets/')) {
+                finalTryonUrl = tryonImageUrl;
             }
 
             // Update database with the finalized upload file paths
@@ -657,141 +811,200 @@ app.post('/api/products', async (req, res) => {
             throw dbErr;
         }
     } catch (error) {
-        console.error('Add product failed:', error);
-        try {
-            const logPath = path.join(__dirname, 'public', 'error.log');
-            fs.appendFileSync(logPath, `[${new Date().toISOString()}] Add product failed: ${error.stack}\n`);
-        } catch (e) {
-            console.error('Failed to write to error.log:', e);
+        if (/Invalid product image|Invalid try-on image/.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'รูปสินค้าไม่ถูกต้องหรือมีขนาดเกิน 5 MB' });
         }
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Add product failed');
     }
 });
 
 // 5. Products: Delete (Admin Only)
-app.delete('/api/products/:id', async (req, res) => {
-    const productId = req.params.id;
+app.delete('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
+    const productId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    if (!productId) return res.status(400).json({ success: false, message: 'หมายเลขสินค้าไม่ถูกต้อง' });
     try {
         await dbPool.query('DELETE FROM products WHERE id = ?', [productId]);
         res.json({ success: true, message: 'ลบสินค้าสำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Delete product failed');
     }
 });
 
 // 6. Prescriptions: Get latest for a user
-app.get('/api/prescriptions/:userId', async (req, res) => {
-    const userId = req.params.userId;
+app.get('/api/prescriptions/:userId', requireAuth, async (req, res) => {
+    const requestedUserId = integerInRange(req.params.userId, 1, Number.MAX_SAFE_INTEGER);
+    if (!requestedUserId || (req.user.role !== 'admin' && requestedUserId !== req.user.id)) {
+        return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ดูข้อมูลนี้' });
+    }
     try {
         const [rows] = await dbPool.query(
             'SELECT * FROM prescriptions WHERE user_id = ? ORDER BY recorded_at DESC LIMIT 1',
-            [userId]
+            [requestedUserId]
         );
         if (rows.length === 0) {
             return res.json({ success: true, prescription: null });
         }
         res.json({ success: true, prescription: rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Read prescription failed');
     }
 });
 
 // 7. Prescriptions: Save
-app.post('/api/prescriptions', async (req, res) => {
-    const { user_id, sphere_left, sphere_right, cylinder_left, cylinder_right, axis_left, axis_right, pd } = req.body;
+app.post('/api/prescriptions', requireAuth, requireCsrf, async (req, res) => {
+    const values = {
+        sphere_left: numberInRange(req.body.sphere_left, -30, 30),
+        sphere_right: numberInRange(req.body.sphere_right, -30, 30),
+        cylinder_left: numberInRange(req.body.cylinder_left, -10, 10),
+        cylinder_right: numberInRange(req.body.cylinder_right, -10, 10),
+        axis_left: integerInRange(req.body.axis_left, 0, 180),
+        axis_right: integerInRange(req.body.axis_right, 0, 180),
+        pd: numberInRange(req.body.pd, 40, 90)
+    };
+    if (Object.values(values).some(value => value === null)) {
+        return res.status(400).json({ success: false, message: 'ค่าสายตาไม่ถูกต้อง' });
+    }
     try {
         await dbPool.query(
             `INSERT INTO prescriptions (user_id, sphere_left, sphere_right, cylinder_left, cylinder_right, axis_left, axis_right, pd)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [user_id, sphere_left, sphere_right, cylinder_left, cylinder_right, axis_left, axis_right, pd]
+            [req.user.id, values.sphere_left, values.sphere_right, values.cylinder_left, values.cylinder_right, values.axis_left, values.axis_right, values.pd]
         );
         res.json({ success: true, message: 'บันทึกค่าสายตาสำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Save prescription failed');
     }
 });
 
 // 8. Orders: Place a new order
-app.post('/api/orders', async (req, res) => {
-    const { user_id, items, total_amount, prescription, shipping_name, shipping_phone, shipping_address, payment_method, slip_image_base64 } = req.body;
-    
-    // items is array: [{ product_id, quantity, unit_price, lens_id }]
-    try {
-        // Start Transaction
-        const conn = await dbPool.getConnection();
-        await conn.beginTransaction();
+app.post('/api/orders', requireAuth, requireCsrf, async (req, res) => {
+    const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
+    const shippingName = cleanText(req.body.shipping_name, 255);
+    const shippingPhone = cleanText(req.body.shipping_phone, 30);
+    const shippingAddress = cleanText(req.body.shipping_address, 2000);
+    const paymentMethod = ['COD', 'BankTransfer', 'QRCode', 'CreditCard'].includes(req.body.payment_method)
+        ? req.body.payment_method
+        : null;
+    if (!shippingName || !shippingPhone || !shippingAddress || !paymentMethod || rawItems.length < 1 || rawItems.length > 20) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลคำสั่งซื้อไม่ถูกต้อง' });
+    }
 
+    const items = rawItems.map(item => ({
+        productId: integerInRange(item.product_id, 1, Number.MAX_SAFE_INTEGER),
+        lensId: integerInRange(item.lens_id, 1, Number.MAX_SAFE_INTEGER),
+        quantity: integerInRange(item.quantity, 1, 20)
+    }));
+    if (items.some(item => !item.productId || !item.lensId || !item.quantity)) {
+        return res.status(400).json({ success: false, message: 'รายการสินค้าไม่ถูกต้อง' });
+    }
+
+    const groupedItems = new Map();
+    for (const item of items) {
+        const key = `${item.productId}:${item.lensId}`;
+        const existing = groupedItems.get(key);
+        if (existing) {
+            existing.quantity += item.quantity;
+            if (existing.quantity > 20) return res.status(400).json({ success: false, message: 'จำนวนสินค้าต่อรายการมากเกินไป' });
+        } else {
+            groupedItems.set(key, { ...item });
+        }
+    }
+
+    let prescription = null;
+    if (req.body.prescription && Object.keys(req.body.prescription).length) {
+        prescription = {
+            sphere_left: numberInRange(req.body.prescription.sphere_left, -30, 30),
+            sphere_right: numberInRange(req.body.prescription.sphere_right, -30, 30),
+            cylinder_left: numberInRange(req.body.prescription.cylinder_left, -10, 10),
+            cylinder_right: numberInRange(req.body.prescription.cylinder_right, -10, 10),
+            axis_left: integerInRange(req.body.prescription.axis_left, 0, 180),
+            axis_right: integerInRange(req.body.prescription.axis_right, 0, 180),
+            pd: numberInRange(req.body.prescription.pd, 40, 90)
+        };
+        if (Object.values(prescription).some(value => value === null)) {
+            return res.status(400).json({ success: false, message: 'ค่าสายตาไม่ถูกต้อง' });
+        }
+    }
+
+    const requiresSlip = paymentMethod === 'BankTransfer' || paymentMethod === 'QRCode';
+    let slipImage = null;
+    if (requiresSlip) {
         try {
-            // Save prescription if provided
-            if (prescription && Object.keys(prescription).length > 0) {
-                await conn.query(
-                    `INSERT INTO prescriptions (user_id, sphere_left, sphere_right, cylinder_left, cylinder_right, axis_left, axis_right, pd)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [user_id, prescription.sphere_left, prescription.sphere_right, prescription.cylinder_left, prescription.cylinder_right, prescription.axis_left, prescription.axis_right, prescription.pd]
-                );
-            }
+            slipImage = decodeImageDataUrl(req.body.slip_image_base64, 5 * 1024 * 1024);
+        } catch (_) {
+            return res.status(400).json({ success: false, message: 'กรุณาแนบสลิป PNG, JPEG หรือ WebP ขนาดไม่เกิน 5 MB' });
+        }
+    }
 
-            // Create Order
-            const [orderRes] = await conn.query(
-                'INSERT INTO orders (user_id, total_amount, status, shipping_name, shipping_phone, shipping_address, payment_method) VALUES (?, ?, "paid", ?, ?, ?, ?)', // Auto marked as paid for mock order flow
-                [user_id, total_amount, shipping_name || null, shipping_phone || null, shipping_address || null, payment_method || 'COD']
+    let conn = null;
+    let slipDiskPath = null;
+    try {
+        conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+        const pricedItems = [];
+        let totalAmount = 0;
+
+        for (const item of groupedItems.values()) {
+            const [productRows] = await conn.query('SELECT id, price, stock FROM products WHERE id = ? FOR UPDATE', [item.productId]);
+            const [lensRows] = await conn.query('SELECT id, price_addon FROM lenses WHERE id = ?', [item.lensId]);
+            if (!productRows.length || !lensRows.length) throw Object.assign(new Error('Product or lens not found'), { status: 400 });
+            if (productRows[0].stock < item.quantity) throw Object.assign(new Error('Insufficient stock'), { status: 409 });
+            const unitPrice = Number(productRows[0].price) + Number(lensRows[0].price_addon);
+            totalAmount += unitPrice * item.quantity;
+            pricedItems.push({ ...item, unitPrice });
+        }
+        totalAmount = Number(totalAmount.toFixed(2));
+
+        if (prescription) {
+            await conn.query(
+                `INSERT INTO prescriptions (user_id, sphere_left, sphere_right, cylinder_left, cylinder_right, axis_left, axis_right, pd)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [req.user.id, prescription.sphere_left, prescription.sphere_right, prescription.cylinder_left, prescription.cylinder_right, prescription.axis_left, prescription.axis_right, prescription.pd]
             );
-            const orderId = orderRes.insertId;
-
-            // Save slip image if provided
-            if ((payment_method === 'BankTransfer' || payment_method === 'QRCode') && slip_image_base64) {
-                try {
-                    const base64Data = slip_image_base64.replace(/^data:image\/\w+;base64,/, "");
-                    const buffer = Buffer.from(base64Data, 'base64');
-                    const fileName = `slip_${orderId}_${Date.now()}.png`;
-                    const dirPath = path.join(__dirname, 'public', 'uploads', 'slips');
-                    
-                    if (!fs.existsSync(dirPath)){
-                        fs.mkdirSync(dirPath, { recursive: true });
-                    }
-                    
-                    fs.writeFileSync(path.join(dirPath, fileName), buffer);
-                    const slipUrl = `/uploads/slips/${fileName}`;
-                    
-                    await conn.query('UPDATE orders SET slip_image = ? WHERE id = ?', [slipUrl, orderId]);
-                } catch (imgErr) {
-                    console.error('Failed to save slip image:', imgErr);
-                }
-            }
-
-            // Create Order Items and decrease stock
-            for (const item of items) {
-                await conn.query(
-                    `INSERT INTO order_items (order_id, product_id, quantity, unit_price, lens_id)
-                     VALUES (?, ?, ?, ?, ?)`,
-                    [orderId, item.product_id, item.quantity, item.unit_price, item.lens_id]
-                );
-
-                // Decrease stock
-                await conn.query(
-                    'UPDATE products SET stock = stock - ? WHERE id = ?',
-                    [item.quantity, item.product_id]
-                );
-            }
-
-            await conn.commit();
-            conn.release();
-
-            res.json({ success: true, orderId, message: 'สั่งซื้อสินค้าสำเร็จ' });
-
-        } catch (txError) {
-            await conn.rollback();
-            conn.release();
-            throw txError;
         }
 
+        const initialStatus = paymentMethod === 'COD' ? 'pending' : 'payment_review';
+        const [orderResult] = await conn.query(
+            `INSERT INTO orders (user_id, total_amount, status, shipping_name, shipping_phone, shipping_address, payment_method)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, totalAmount, initialStatus, shippingName, shippingPhone, shippingAddress, paymentMethod]
+        );
+        const orderId = orderResult.insertId;
+
+        if (slipImage) {
+            fs.mkdirSync(SLIP_STORAGE_DIR, { recursive: true });
+            const slipFileName = `slip_${orderId}_${randomToken(16)}.${slipImage.extension}`;
+            slipDiskPath = path.join(SLIP_STORAGE_DIR, slipFileName);
+            fs.writeFileSync(slipDiskPath, slipImage.buffer, { flag: 'wx' });
+            await conn.query('UPDATE orders SET slip_image = ? WHERE id = ?', [slipFileName, orderId]);
+        }
+
+        for (const item of pricedItems) {
+            await conn.query(
+                'INSERT INTO order_items (order_id, product_id, quantity, unit_price, lens_id) VALUES (?, ?, ?, ?, ?)',
+                [orderId, item.productId, item.quantity, item.unitPrice, item.lensId]
+            );
+            const [stockResult] = await conn.query(
+                'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?',
+                [item.quantity, item.productId, item.quantity]
+            );
+            if (stockResult.affectedRows !== 1) throw Object.assign(new Error('Insufficient stock'), { status: 409 });
+        }
+
+        await conn.commit();
+        res.json({ success: true, orderId, total_amount: totalAmount, status: initialStatus, message: 'สั่งซื้อสินค้าสำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        if (conn) await conn.rollback();
+        if (slipDiskPath) fs.promises.unlink(slipDiskPath).catch(() => {});
+        if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+        return sendServerError(res, error, 'Create order failed');
+    } finally {
+        if (conn) conn.release();
     }
 });
 
 // 9. Admin: Get all orders
-app.get('/api/admin/orders', async (req, res) => {
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
     try {
         const query = `
             SELECT o.id as order_id, o.total_amount, o.status, o.created_at, u.name as customer_name,
@@ -805,34 +1018,80 @@ app.get('/api/admin/orders', async (req, res) => {
             ORDER BY o.created_at DESC
         `;
         const [orders] = await dbPool.query(query);
-        res.json({ success: true, orders });
+        res.json({
+            success: true,
+            orders: orders.map(order => ({
+                ...order,
+                slip_image: order.slip_image ? `/api/orders/${order.order_id}/slip` : null
+            }))
+        });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'List admin orders failed');
     }
 });
 
 // 10. Admin: Update order status
-app.put('/api/admin/orders/:id', async (req, res) => {
-    const orderId = req.params.id;
-    const { status, tracking_number } = req.body;
+app.put('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) => {
+    const orderId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    const status = ['pending', 'payment_review', 'paid', 'shipped', 'completed', 'cancelled'].includes(req.body.status)
+        ? req.body.status
+        : null;
+    const trackingNumber = req.body.tracking_number == null ? null : cleanText(req.body.tracking_number, 100);
+    if (!orderId || !status || (status === 'shipped' && !trackingNumber)) {
+        return res.status(400).json({ success: false, message: 'สถานะหรือเลขพัสดุไม่ถูกต้อง' });
+    }
+    const transitions = {
+        pending: ['paid', 'cancelled'],
+        payment_review: ['paid', 'cancelled'],
+        paid: ['shipped', 'cancelled'],
+        shipped: ['completed'],
+        completed: [],
+        cancelled: []
+    };
+    let conn = null;
     try {
-        if (tracking_number !== undefined) {
-            await dbPool.query('UPDATE orders SET status = ?, tracking_number = ? WHERE id = ?', [status, tracking_number, orderId]);
-        } else {
-            await dbPool.query('UPDATE orders SET status = ? WHERE id = ?', [status, orderId]);
+        conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+        const [orders] = await conn.query('SELECT status FROM orders WHERE id = ? FOR UPDATE', [orderId]);
+        if (!orders.length) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, message: 'ไม่พบคำสั่งซื้อ' });
         }
+        const currentStatus = orders[0].status;
+        if (!transitions[currentStatus]?.includes(status)) {
+            await conn.rollback();
+            return res.status(409).json({ success: false, message: `ไม่สามารถเปลี่ยนสถานะจาก ${currentStatus} เป็น ${status}` });
+        }
+        if (status === 'cancelled') {
+            const [items] = await conn.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId]);
+            for (const item of items) {
+                await conn.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
+            }
+        }
+        await conn.query(
+            'UPDATE orders SET status = ?, tracking_number = COALESCE(?, tracking_number) WHERE id = ?',
+            [status, trackingNumber, orderId]
+        );
+        await conn.commit();
         res.json({ success: true, message: 'อัปเดตสถานะออเดอร์สำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        if (conn) await conn.rollback();
+        sendServerError(res, error, 'Update order status failed');
+    } finally {
+        if (conn) conn.release();
     }
 });
 
 // 11. Admin: Analytics (Page views mockup, conversions, and popular try-on shapes)
-app.get('/api/admin/analytics', async (req, res) => {
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const [userCount] = await dbPool.query('SELECT COUNT(*) as count FROM users WHERE role = "customer"');
         const [productCount] = await dbPool.query('SELECT COUNT(*) as count FROM products');
-        const [orderCount] = await dbPool.query('SELECT COUNT(*) as count, SUM(total_amount) as sales FROM orders');
+        const [orderCount] = await dbPool.query(`
+            SELECT COUNT(*) as count,
+                   SUM(CASE WHEN status IN ('paid', 'shipped', 'completed') THEN total_amount ELSE 0 END) as sales
+            FROM orders
+        `);
         
         // Return analytical metrics
         res.json({
@@ -861,12 +1120,12 @@ app.get('/api/admin/analytics', async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Read analytics failed');
     }
 });
 
 // 12. Admin: DB Backup endpoint (Outputs schema + data as text file)
-app.get('/api/admin/backup', async (req, res) => {
+app.get('/api/admin/backup', requireAdmin, async (req, res) => {
     try {
         let sqlDump = `-- Backup generated for Baan Waenta on ${new Date().toISOString()}\n`;
         sqlDump += `CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\`;\nUSE \`${DB_CONFIG.database}\`;\n\n`;
@@ -902,13 +1161,16 @@ app.get('/api/admin/backup', async (req, res) => {
         res.write(sqlDump);
         res.end();
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Create database backup failed');
     }
 });
 
 // 13. Orders: Get orders for a specific user (Customer History)
-app.get('/api/orders/user/:userId', async (req, res) => {
-    const userId = req.params.userId;
+app.get('/api/orders/user/:userId', requireAuth, async (req, res) => {
+    const userId = integerInRange(req.params.userId, 1, Number.MAX_SAFE_INTEGER);
+    if (!userId || (req.user.role !== 'admin' && userId !== req.user.id)) {
+        return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ดูข้อมูลนี้' });
+    }
     try {
         const query = `
             SELECT o.id as order_id, o.total_amount, o.status, o.created_at,
@@ -922,32 +1184,59 @@ app.get('/api/orders/user/:userId', async (req, res) => {
             ORDER BY o.created_at DESC
         `;
         const [orders] = await dbPool.query(query, [userId]);
-        res.json({ success: true, orders });
+        res.json({
+            success: true,
+            orders: orders.map(order => ({
+                ...order,
+                slip_image: order.slip_image ? `/api/orders/${order.order_id}/slip` : null
+            }))
+        });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'List customer orders failed');
+    }
+});
+
+app.get('/api/orders/:id/slip', requireAuth, async (req, res) => {
+    const orderId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    if (!orderId) return res.status(400).json({ success: false, message: 'หมายเลขคำสั่งซื้อไม่ถูกต้อง' });
+    try {
+        const [orders] = await dbPool.query('SELECT user_id, slip_image FROM orders WHERE id = ?', [orderId]);
+        if (!orders.length || !orders[0].slip_image) return res.status(404).end();
+        if (req.user.role !== 'admin' && orders[0].user_id !== req.user.id) return res.status(403).end();
+
+        const storedName = orders[0].slip_image;
+        const legacy = storedName.startsWith('/uploads/slips/');
+        const safeName = path.basename(storedName);
+        const filePath = legacy
+            ? path.join(__dirname, 'public', 'uploads', 'slips', safeName)
+            : path.join(SLIP_STORAGE_DIR, safeName);
+        if (!fs.existsSync(filePath)) return res.status(404).end();
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.sendFile(filePath);
+    } catch (error) {
+        sendServerError(res, error, 'Read payment slip failed');
     }
 });
 
 // 14. Admin: Save client-side generated product image
-app.post('/api/admin/save-generated-image', async (req, res) => {
+app.post('/api/admin/save-generated-image', requireAdmin, requireCsrf, async (req, res) => {
     const { filename, image_base64 } = req.body;
     try {
-        if (!filename || !image_base64) {
-            return res.status(400).json({ success: false, error: 'Missing filename or image data' });
+        const safeBaseName = cleanText(filename, 100);
+        if (!safeBaseName || path.basename(safeBaseName) !== safeBaseName || !image_base64) {
+            return res.status(400).json({ success: false, message: 'ชื่อไฟล์หรือข้อมูลรูปไม่ถูกต้อง' });
         }
-        const base64Data = image_base64.replace(/^data:image\/\w+;base64,/, "");
-        const buffer = Buffer.from(base64Data, 'base64');
+        const image = decodeImageDataUrl(image_base64, 5 * 1024 * 1024);
         const dirPath = path.join(__dirname, 'public', 'assets', 'products');
-        
-        if (!fs.existsSync(dirPath)){
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        
-        fs.writeFileSync(path.join(dirPath, filename), buffer);
-        res.json({ success: true, message: `Successfully saved ${filename}` });
+        fs.mkdirSync(dirPath, { recursive: true });
+        const outputName = `${path.parse(safeBaseName).name}.${image.extension}`;
+        fs.writeFileSync(path.join(dirPath, outputName), image.buffer);
+        res.json({ success: true, filename: outputName, message: `Successfully saved ${outputName}` });
     } catch (error) {
-        console.error('Failed to save generated product image:', error);
-        res.status(500).json({ success: false, error: error.message });
+        if (/image|format|large|WebP/i.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'รูปภาพไม่ถูกต้องหรือมีขนาดเกิน 5 MB' });
+        }
+        sendServerError(res, error, 'Save generated product image failed');
     }
 });
 
@@ -957,40 +1246,52 @@ app.get('/api/reviews', async (req, res) => {
         const [reviews] = await dbPool.query('SELECT * FROM reviews ORDER BY created_at DESC');
         res.json({ success: true, reviews });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'List reviews failed');
     }
 });
 
 // 16. Reviews API: Post a new review
-app.post('/api/reviews', async (req, res) => {
-    const { user_name, rating, comment, product_name, avatar_url } = req.body;
+app.post('/api/reviews', requireAuth, requireCsrf, async (req, res) => {
+    const rating = integerInRange(req.body.rating, 1, 5);
+    const comment = cleanText(req.body.comment, 2000);
+    const productName = cleanText(req.body.product_name || 'แว่นตาทั่วไป', 255);
     try {
-        if (!user_name || !rating || !comment) {
-            return res.status(400).json({ success: false, error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+        if (!rating || !comment || !productName) {
+            return res.status(400).json({ success: false, message: 'ข้อมูลรีวิวไม่ถูกต้อง' });
         }
         await dbPool.query(
-            'INSERT INTO reviews (user_name, rating, comment, product_name, avatar_url) VALUES (?, ?, ?, ?, ?)',
-            [user_name, rating, comment, product_name || 'แว่นตาทั่วไป', avatar_url || null]
+            'INSERT INTO reviews (user_id, user_name, rating, comment, product_name, avatar_url) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.user.id, `คุณ ${req.user.name}`, rating, comment, productName, req.user.avatar_url || null]
         );
         res.json({ success: true, message: 'บันทึกรีวิวสำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Create review failed');
     }
 });
 
 // 17. Reviews API: Delete a review (Admin action)
-app.delete('/api/reviews/:id', async (req, res) => {
-    const reviewId = req.params.id;
+app.delete('/api/reviews/:id', requireAdmin, requireCsrf, async (req, res) => {
+    const reviewId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    if (!reviewId) return res.status(400).json({ success: false, message: 'หมายเลขรีวิวไม่ถูกต้อง' });
     try {
         await dbPool.query('DELETE FROM reviews WHERE id = ?', [reviewId]);
         res.json({ success: true, message: 'ลบรีวิวสำเร็จ' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendServerError(res, error, 'Delete review failed');
     }
 });
 
-// Start initialization and server
-initDB().then(() => {
+app.use('/api', (_req, res) => {
+    res.status(404).json({ success: false, message: 'ไม่พบ API ที่เรียก' });
+});
+
+app.use((error, _req, res, _next) => {
+    sendServerError(res, error, 'Unhandled request error');
+});
+
+// Start initialization and server. Tests can skip external database initialization.
+const initialization = process.env.SKIP_DB_INIT === '1' ? Promise.resolve() : initDB();
+initialization.then(() => {
     if (require.main === module) {
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);
@@ -999,3 +1300,5 @@ initDB().then(() => {
 });
 
 module.exports = app;
+module.exports.initialization = initialization;
+module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser };

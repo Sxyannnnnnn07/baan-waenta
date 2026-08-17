@@ -2,11 +2,18 @@
 let allProducts = [];
 let cart = [];
 let currentUser = null;
+let csrfToken = null;
 let activeLensProduct = null;
 let uploadedSlipBase64 = null;
 
 // Configuration: ใส่เบอร์มือถือ หรือเลขบัตรประชาชนที่ผูกพร้อมเพย์จริงของร้านที่นี่เพื่อรับโอน
 const MERCHANT_PROMPTPAY_ID = '0989687435'; 
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
+}
 
 // Initialize on Page Load
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,29 +30,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 1. Check Login Status from localStorage
-function checkLoginStatus() {
-    const savedUser = localStorage.getItem('baan_waenta_user');
+async function apiFetch(url, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = new Headers(options.headers || {});
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) {
+        headers.set('X-CSRF-Token', csrfToken);
+    }
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    if (response.status === 401) {
+        currentUser = null;
+        csrfToken = null;
+    }
+    return response;
+}
+
+// 1. Check the signed-in user from the server-side session.
+async function checkLoginStatus() {
+    try {
+        const response = await apiFetch('/api/auth/me');
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data.user;
+            csrfToken = data.csrfToken;
+        } else {
+            currentUser = null;
+            csrfToken = null;
+        }
+    } catch (_) {
+        currentUser = null;
+        csrfToken = null;
+    }
+
     const authStatusDiv = document.getElementById('auth-status');
     const adminNav = document.getElementById('admin-nav');
     const ordersHistoryBtn = document.getElementById('orders-history-btn');
     const reviewAuthPrompt = document.getElementById('review-auth-prompt');
     const reviewForm = document.getElementById('review-form');
 
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        
+    if (currentUser) {
         // Update Nav UI
         authStatusDiv.innerHTML = `
             <div class="user-nav-profile" onclick="openUserProfileModal()" style="margin-left: 0.5rem; padding: 0.3rem 0.7rem;">
                 <div style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--text-primary); color: var(--bg-primary); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 700; border: 1px solid var(--border-color); overflow: hidden; flex-shrink: 0;">
                     ${currentUser.avatar_url 
-                        ? `<img src="${currentUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">` 
+                        ? `<img src="${escapeHtml(currentUser.avatar_url)}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">`
                         : `<ion-icon name="person-outline" style="font-size: 1.1rem; color: var(--bg-primary);"></ion-icon>`
                     }
                 </div>
                 <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">
-                    ${currentUser.name}
+                    ${escapeHtml(currentUser.name)}
                 </span>
             </div>
         `;
@@ -70,9 +103,7 @@ function checkLoginStatus() {
         currentUser = null;
         if (adminNav) adminNav.style.display = 'none';
         if (ordersHistoryBtn) ordersHistoryBtn.style.display = 'none';
-        authStatusDiv.innerHTML = `
-            <button class="btn btn-primary" onclick="openAuthModal('login')">เข้าสู่ระบบ</button>
-        `;
+        if (authStatusDiv) authStatusDiv.innerHTML = `<button class="btn btn-primary" onclick="openAuthModal('login')">เข้าสู่ระบบ</button>`;
 
         // Toggle review submission UI
         if (reviewAuthPrompt && reviewForm) {
@@ -86,7 +117,7 @@ function checkLoginStatus() {
 async function fetchProducts() {
     const productsList = document.getElementById('products-list');
     try {
-        const response = await fetch('/api/products');
+        const response = await apiFetch('/api/products');
         const data = await response.json();
         
         if (data.success) {
@@ -174,10 +205,10 @@ function renderProducts(products) {
         card.innerHTML = `
             ${badgeHtml}
             <div class="product-image-container">
-                <img src="${prod.image_url}" alt="${prod.name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                <img src="${escapeHtml(prod.image_url)}" alt="${escapeHtml(prod.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
             </div>
-            <div class="product-brand">${prod.brand}</div>
-            <div class="product-name">${prod.name}</div>
+            <div class="product-brand">${escapeHtml(prod.brand)}</div>
+            <div class="product-name">${escapeHtml(prod.name)}</div>
             <div class="product-meta" style="margin-bottom: 0.4rem;">ทรง: ${getThaiShape(prod.frame_shape)} | ประเภท: ${prod.category === 'Optical' ? 'สายตา' : 'กันแดด'}</div>
             <div style="margin-bottom: 1rem; min-height: 20px; display: flex; align-items: center;">
                 ${stockHtml}
@@ -356,7 +387,7 @@ async function handleAuthSubmit(e) {
         : { username, email, password };
 
     try {
-        const response = await fetch(url, {
+        const response = await apiFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -368,8 +399,9 @@ async function handleAuthSubmit(e) {
             closeModal('auth-modal');
             
             if (currentAuthMode === 'login') {
-                localStorage.setItem('baan_waenta_user', JSON.stringify(data.user));
-                checkLoginStatus();
+                currentUser = data.user;
+                csrfToken = data.csrfToken;
+                await checkLoginStatus();
             } else {
                 openAuthModal('login');
             }
@@ -382,11 +414,15 @@ async function handleAuthSubmit(e) {
     }
 }
 
-function handleLogout() {
-    localStorage.removeItem('baan_waenta_user');
-    checkLoginStatus();
-    alert('ออกจากระบบแล้ว');
-    window.location.reload();
+async function handleLogout() {
+    try {
+        await apiFetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+        currentUser = null;
+        csrfToken = null;
+        alert('ออกจากระบบแล้ว');
+        window.location.reload();
+    }
 }
 
 // Load Google Identity Services SDK dynamically
@@ -399,40 +435,41 @@ function handleLogout() {
 })();
 
 let googleTokenClient = null;
+let googleClientId = null;
 
-function initGoogleAuth() {
+async function initGoogleAuth() {
     if (typeof google === 'undefined') {
         setTimeout(initGoogleAuth, 100);
         return;
     }
+    if (!googleClientId) {
+        try {
+            const response = await apiFetch('/api/config');
+            const config = await response.json();
+            googleClientId = config.googleClientId;
+        } catch (_) {
+            setTimeout(initGoogleAuth, 1000);
+            return;
+        }
+    }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: '105484503874-92cu9940o9od95nb2pna8pr0kkf7pngi.apps.googleusercontent.com',
+        client_id: googleClientId,
         scope: 'email profile openid',
         callback: async (tokenResponse) => {
             if (tokenResponse && tokenResponse.access_token) {
                 try {
-                    // Fetch profile info from Google API
-                    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                        headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                    });
-                    const googleInfo = await userInfoRes.json();
-                    
-                    // Call backend to authenticate this Google user
-                    const authRes = await fetch('/api/auth/google', {
+                    // The backend validates the token, audience, expiry, and verified email with Google.
+                    const authRes = await apiFetch('/api/auth/google', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: googleInfo.email,
-                            name: googleInfo.name,
-                            avatar: googleInfo.picture,
-                            google_id: googleInfo.sub
-                        })
+                        body: JSON.stringify({ access_token: tokenResponse.access_token })
                     });
                     const authData = await authRes.json();
                     
                     if (authData.success) {
-                        localStorage.setItem('baan_waenta_user', JSON.stringify(authData.user));
-                        checkLoginStatus();
+                        currentUser = authData.user;
+                        csrfToken = authData.csrfToken;
+                        await checkLoginStatus();
                         closeModal('auth-modal');
                         alert(`เข้าสู่ระบบด้วย Google สำเร็จ!\nยินดีต้อนรับ คุณ ${authData.user.name}`);
                         window.location.reload();
@@ -488,7 +525,7 @@ async function openLensModal(productId) {
     // If logged in, fetch user's last prescription to prepopulate fields (only if NOT sunglasses)
     if (currentUser && !isSunglasses) {
         try {
-            const res = await fetch(`/api/prescriptions/${currentUser.id}`);
+            const res = await apiFetch(`/api/prescriptions/${currentUser.id}`);
             const data = await res.json();
             if (data.success && data.prescription) {
                 const presc = data.prescription;
@@ -748,13 +785,10 @@ function handleCheckoutClick() {
 }
 
 async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, slipBase64) {
-    const totalAmount = cart.reduce((sum, item) => sum + item.unit_price, 0);
     const itemWithPresc = cart.find(item => item.prescription !== null);
     const prescToSave = itemWithPresc ? itemWithPresc.prescription : null;
 
     const orderPayload = {
-        user_id: currentUser.id,
-        total_amount: totalAmount,
         shipping_name: shipName,
         shipping_phone: shipPhone,
         shipping_address: shipAddress,
@@ -763,14 +797,13 @@ async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, sl
         items: cart.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
-            unit_price: item.unit_price,
             lens_id: item.lens_id
         })),
         prescription: prescToSave
     };
 
     try {
-        const response = await fetch('/api/orders', {
+        const response = await apiFetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderPayload)
@@ -779,7 +812,10 @@ async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, sl
 
         if (data.success) {
             if (paymentMethod === 'COD' || slipBase64 === uploadedSlipBase64) {
-                alert('สั่งซื้อสินค้าสำเร็จ! ระบบได้บันทึกที่อยู่จัดส่งและชำระเงินเรียบร้อย คุณสามารถดูประวัติการสั่งซื้อได้ทันทีครับ');
+                const message = data.status === 'payment_review'
+                    ? 'สั่งซื้อสำเร็จและอยู่ระหว่างตรวจสอบการชำระเงิน'
+                    : 'สั่งซื้อสำเร็จและอยู่ระหว่างดำเนินการ';
+                alert(message);
             }
             cart = [];
             updateCartUI();
@@ -795,7 +831,7 @@ async function checkoutOrder(shipName, shipPhone, shipAddress, paymentMethod, sl
             }
             return true;
         } else {
-            alert('เกิดข้อผิดพลาดในการสั่งซื้อ: ' + data.error);
+            alert('เกิดข้อผิดพลาดในการสั่งซื้อ: ' + (data.message || 'กรุณาลองใหม่'));
             return false;
         }
     } catch (error) {
@@ -814,7 +850,7 @@ async function openOrdersModal() {
     modal.style.display = 'flex';
 
     try {
-        const res = await fetch(`/api/orders/user/${currentUser.id}`);
+        const res = await apiFetch(`/api/orders/user/${currentUser.id}`);
         const data = await res.json();
         
         if (data.success) {
@@ -858,9 +894,16 @@ async function openOrdersModal() {
                 if (order.status === 'paid') {
                     badgeClass = 'badge-paid';
                     statusText = 'ชำระเงินแล้ว / เตรียมส่ง';
+                } else if (order.status === 'payment_review') {
+                    statusText = 'รอตรวจสอบการชำระเงิน';
                 } else if (order.status === 'shipped') {
                     badgeClass = 'badge-shipped';
                     statusText = 'จัดส่งเรียบร้อย';
+                } else if (order.status === 'completed') {
+                    badgeClass = 'badge-shipped';
+                    statusText = 'สำเร็จ';
+                } else if (order.status === 'cancelled') {
+                    statusText = 'ยกเลิกแล้ว';
                 }
 
                 let slipHtml = '';
@@ -870,7 +913,7 @@ async function openOrdersModal() {
 
                 let trackingHtml = '';
                 if (order.tracking_number) {
-                    trackingHtml = `<br><strong>เลขพัสดุจัดส่ง:</strong> <span style="background-color: #ebf8ff; border: 1px solid #bee3f8; color: #2b6cb0; font-weight: 700; font-family: monospace; padding: 0.1rem 0.45rem; border-radius: 4px; margin-top: 0.25rem; display: inline-flex; align-items: center; gap: 0.2rem;"><ion-icon name="paper-plane-outline"></ion-icon> ${order.tracking_number}</span>`;
+                    trackingHtml = `<br><strong>เลขพัสดุจัดส่ง:</strong> <span style="background-color: #ebf8ff; border: 1px solid #bee3f8; color: #2b6cb0; font-weight: 700; font-family: monospace; padding: 0.1rem 0.45rem; border-radius: 4px; margin-top: 0.25rem; display: inline-flex; align-items: center; gap: 0.2rem;"><ion-icon name="paper-plane-outline"></ion-icon> ${escapeHtml(order.tracking_number)}</span>`;
                 }
 
                 let paymentMethodText = 'เก็บเงินปลายทาง (COD)';
@@ -878,6 +921,8 @@ async function openOrdersModal() {
                     paymentMethodText = 'โอนผ่านบัญชีธนาคาร (กสิกรไทย)';
                 } else if (order.payment_method === 'QRCode') {
                     paymentMethodText = 'สแกน QR-code (PromptPay)';
+                } else if (order.payment_method === 'CreditCard') {
+                    paymentMethodText = 'บัตรเครดิต / เดบิต (จำลอง)';
                 }
 
                 card.innerHTML = `
@@ -889,11 +934,11 @@ async function openOrdersModal() {
                         </div>
                     </div>
                     <div style="font-size: 0.9rem; margin-bottom: 0.8rem; line-height: 1.5;">
-                        ${order.items.map(item => `<div style="color: var(--text-primary); font-weight: 500;">• ${item}</div>`).join('')}
+                        ${order.items.map(item => `<div style="color: var(--text-primary); font-weight: 500;">• ${escapeHtml(item)}</div>`).join('')}
                     </div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary); background-color: var(--bg-primary); padding: 0.6rem; border-radius: 8px; margin-bottom: 0.6rem; line-height: 1.5;">
-                        <strong>ที่อยู่จัดส่ง:</strong> ${order.shipping_name || 'ไม่ระบุ'} (${order.shipping_phone || 'ไม่ระบุ'})<br>
-                        ${order.shipping_address || 'ไม่ระบุที่อยู่'}<br>
+                        <strong>ที่อยู่จัดส่ง:</strong> ${escapeHtml(order.shipping_name || 'ไม่ระบุ')} (${escapeHtml(order.shipping_phone || 'ไม่ระบุ')})<br>
+                        ${escapeHtml(order.shipping_address || 'ไม่ระบุที่อยู่')}<br>
                         <strong>ช่องทางการชำระเงิน:</strong> ${paymentMethodText}
                         ${slipHtml}
                         ${trackingHtml}
@@ -1197,7 +1242,7 @@ function updateLensSimulationSlider(uvValue) {
 // ==========================================
 async function loadAndRenderReviews() {
     try {
-        const res = await fetch('/api/reviews');
+        const res = await apiFetch('/api/reviews');
         const data = await res.json();
         if (data.success) {
             renderReviewsGrid(data.reviews);
@@ -1237,18 +1282,18 @@ function renderReviewsGrid(reviews) {
                 ${starsHtml}
             </div>
             <p class="review-text" style="font-size: 0.92rem; line-height: 1.6; font-style: italic; margin-bottom: 1.5rem;">
-                "${rev.comment}"
+                "${escapeHtml(rev.comment)}"
             </p>
             <div class="review-user" style="display: flex; align-items: center; gap: 0.8rem;">
                 <div class="review-avatar" style="width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background-color: var(--text-primary); color: var(--bg-primary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid var(--border-color); transition: background-color 0.3s ease, color 0.3s ease; overflow: hidden;">
                     ${rev.avatar_url 
-                        ? `<img src="${rev.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">` 
+                        ? `<img src="${escapeHtml(rev.avatar_url)}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">`
                         : '<ion-icon name="person"></ion-icon>'
                     }
                 </div>
                 <div class="review-details">
-                    <h5 style="margin: 0 0 0.4rem 0; font-size: 0.95rem; font-weight: 600;">${rev.user_name}</h5>
-                    <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">${rev.product_name || 'แว่นตาทั่วไป'}</span>
+                    <h5 style="margin: 0 0 0.4rem 0; font-size: 0.95rem; font-weight: 600;">${escapeHtml(rev.user_name)}</h5>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">${escapeHtml(rev.product_name || 'แว่นตาทั่วไป')}</span>
                 </div>
             </div>
         `;
@@ -1294,15 +1339,13 @@ async function submitReview(e) {
     if (!comment) return alert('กรุณากรอกข้อความรีวิว');
     
     try {
-        const res = await fetch('/api/reviews', {
+        const res = await apiFetch('/api/reviews', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_name: `คุณ ${currentUser.name}`,
                 rating,
                 comment,
-                product_name,
-                avatar_url: currentUser.avatar_url || null
+                product_name
             })
         });
         const data = await res.json();
@@ -1330,7 +1373,7 @@ function openUserProfileModal() {
     const avatarContainer = document.getElementById('profile-avatar-container');
     if (avatarContainer) {
         avatarContainer.innerHTML = (currentUser.avatar_url 
-            ? `<img src="${currentUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">` 
+            ? `<img src="${escapeHtml(currentUser.avatar_url)}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">`
             : `<ion-icon name="person-outline" style="color: var(--bg-primary);"></ion-icon>`) + `
             <div class="avatar-hover-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; opacity: 0; transition: opacity 0.2s ease;">
                 <ion-icon name="camera-outline" style="font-size: 1.4rem; margin-bottom: 0.15rem;"></ion-icon>
@@ -1379,23 +1422,18 @@ async function handleAvatarFileChange(e) {
         avatarContainer.innerHTML = `<div style="font-size: 0.8rem; color: #fff; background-color: rgba(0,0,0,0.5); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">อัปโหลด...</div>`;
         
         try {
-            const res = await fetch('/api/auth/update-avatar', {
+            const res = await apiFetch('/api/auth/update-avatar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: currentUser.id,
                     avatar_data: base64Data
                 })
             });
             const data = await res.json();
             
             if (data.success) {
-                // Update local session
                 currentUser.avatar_url = data.avatar_url;
-                localStorage.setItem('baan_waenta_user', JSON.stringify(currentUser));
-                
-                // Re-sync navbar
-                checkLoginStatus();
+                await checkLoginStatus();
                 
                 // Re-render modal avatar
                 avatarContainer.innerHTML = `<img src="${data.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer">
@@ -1470,11 +1508,10 @@ async function saveProfileChanges() {
     }
     
     try {
-        const res = await fetch('/api/auth/update-profile', {
+        const res = await apiFetch('/api/auth/update-profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: currentUser.id,
                 name: newName,
                 username: newUsername
             })
@@ -1482,13 +1519,8 @@ async function saveProfileChanges() {
         const data = await res.json();
         
         if (data.success) {
-            // Update local session
-            currentUser.name = newName;
-            currentUser.username = newUsername;
-            localStorage.setItem('baan_waenta_user', JSON.stringify(currentUser));
-            
-            // Sync UI displays
-            checkLoginStatus();
+            currentUser = data.user;
+            await checkLoginStatus();
             
             document.getElementById('profile-name').innerText = newName;
             document.getElementById('profile-username').innerText = newUsername;
