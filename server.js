@@ -386,8 +386,8 @@ async function seedData() {
             brand: "Prada",
             category: "Sunglasses",
             frame_shape: "Square",
-            image_url: "/assets/p5.jpg", // placeholder 2D image
-            tryon_image_url: "/assets/vto_p5.png", // placeholder
+            image_url: "/assets/prada_front.png",
+            tryon_image_url: "/assets/prada_front.png",
             model_3d_url: "/assets/models/prada_vintage.glb",
             scale_x: 1.0,
             scale_y: 1.0,

@@ -82,19 +82,29 @@ async function loadProductPageData(productId) {
             }
         }
 
-        // Setup Carousel Images
-        let modelImg = '/assets/model1.jpg';
-        if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
-        if (currentProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+        // Setup Carousel Images (5 angles for Prada / dynamic products)
+        if (currentProduct.name && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada')) {
+            currentProductGallery = [
+                { src: '/assets/prada_front.png', label: 'มุมตรง' },
+                { src: '/assets/prada_angle1.png', label: 'มุมเฉียง 1' },
+                { src: '/assets/prada_detail.png', label: 'ดีเทลโลโก้ดาว' },
+                { src: '/assets/prada_angle2.png', label: 'มุมข้าง' },
+                { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
+            ];
+        } else {
+            let modelImg = '/assets/model1.jpg';
+            if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+            if (currentProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
 
-        let sideImg = '/assets/vto_model.jpg';
-        if (currentProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+            let sideImg = '/assets/vto_model.jpg';
+            if (currentProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
 
-        currentProductGallery = [
-            { src: currentProduct.image_url, label: 'มุมตรง' },
-            { src: modelImg, label: 'ขณะสวมใส่' },
-            { src: sideImg, label: 'มุมเฉียง' }
-        ];
+            currentProductGallery = [
+                { src: currentProduct.image_url, label: 'มุมตรง' },
+                { src: modelImg, label: 'ขณะสวมใส่' },
+                { src: sideImg, label: 'มุมเฉียง' }
+            ];
+        }
         currentGalleryIdx = 0;
         renderProductGallery();
 
