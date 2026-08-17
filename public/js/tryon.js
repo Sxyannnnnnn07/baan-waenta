@@ -131,10 +131,19 @@ function selectProduct(productId) {
     selectedProduct = products.find(p => p.id === productId);
     if (!selectedProduct) return;
 
+    // Ensure ThreeJS is initialized
+    if (!threeScene) {
+        initThreeJS();
+    }
+
     // Load 3D Model if available
-    if (selectedProduct.model_3d_url && threeScene) {
+    if (selectedProduct.model_3d_url) {
+        isGlassesLoaded = false; // Disable 2D drawing completely
         load3DModel(selectedProduct);
     } else {
+        if (current3DModel) {
+            current3DModel.visible = false;
+        }
         // Fallback to 2D
         glassesImage.src = selectedProduct.tryon_image_url;
         glassesImage.onload = () => {
@@ -159,18 +168,23 @@ function initThreeJS() {
     const wrapper = document.getElementById('video-wrapper');
     if (!wrapper || typeof THREE === 'undefined') return;
 
+    // Avoid duplicate initialization
+    if (threeScene) return;
+
     // 1. Scene
     threeScene = new THREE.Scene();
 
     // 2. Camera
-    const aspect = wrapper.clientWidth / wrapper.clientHeight;
+    const width = wrapper.clientWidth || 640;
+    const height = wrapper.clientHeight || 480;
+    const aspect = width / height;
     threeCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
     threeCamera.position.set(0, 0, 100);
 
     // 3. Renderer (Transparent background, preserve drawing buffer for snapshot)
     threeRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    threeRenderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
-    threeRenderer.setPixelRatio(window.devicePixelRatio);
+    threeRenderer.setSize(width, height);
+    threeRenderer.setPixelRatio(window.devicePixelRatio || 1);
     
     // Layer it over the 2D canvas/video
     threeRenderer.domElement.style.position = 'absolute';
@@ -187,14 +201,14 @@ function initThreeJS() {
     wrapper.appendChild(threeRenderer.domElement);
 
     // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     threeScene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
     directionalLight.position.set(10, 20, 20);
     threeScene.add(directionalLight);
     
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
     hemiLight.position.set(0, 20, 0);
     threeScene.add(hemiLight);
 
@@ -210,29 +224,32 @@ function animateThreeJS() {
 }
 
 function load3DModel(prod) {
+    if (!threeScene) {
+        initThreeJS();
+    }
     if (current3DModel) {
         threeScene.remove(current3DModel);
         current3DModel = null;
     }
 
+    console.log("Loading 3D Model from URL:", prod.model_3d_url);
     const loader = new THREE.GLTFLoader();
     loader.load(prod.model_3d_url, (gltf) => {
         current3DModel = gltf.scene;
         
         // Apply DB scales and offsets
-        const sX = prod.scale_x || 1;
-        const sY = prod.scale_y || 1;
-        const sZ = prod.scale_z || 1;
+        const sX = parseFloat(prod.scale_x) || 1;
+        const sY = parseFloat(prod.scale_y) || 1;
+        const sZ = parseFloat(prod.scale_z) || 1;
         
-        // Base scale adjustment for typical GLB files to fit our coordinate system
         const baseScale = 20; 
         current3DModel.scale.set(baseScale * sX, baseScale * sY, baseScale * sZ);
         
-        // Hide it initially until face is detected (Phase 4)
-        current3DModel.visible = false;
+        // Set visible
+        current3DModel.visible = true;
         
         threeScene.add(current3DModel);
-        isGlassesLoaded = true;
+        console.log("3D Model added to scene successfully:", prod.name);
     }, undefined, (error) => {
         console.error("Error loading 3D model:", error);
     });
@@ -456,8 +473,8 @@ function cameraLoop() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
-    // Draw the glasses frame on top ONLY if not using 3D model
-    if (isGlassesLoaded && selectedProduct && (!selectedProduct.model_3d_url || !threeScene)) {
+    // Draw the glasses frame on top ONLY if NOT using a 3D model
+    if (isGlassesLoaded && selectedProduct && !selectedProduct.model_3d_url) {
         drawGlasses();
     }
     
@@ -477,8 +494,8 @@ function drawCanvas() {
         ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
     }
 
-    // Draw glasses overlay ONLY if not using 3D model
-    if (isGlassesLoaded && selectedProduct && (!selectedProduct.model_3d_url || !threeScene)) {
+    // Draw glasses overlay ONLY if NOT using a 3D model
+    if (isGlassesLoaded && selectedProduct && !selectedProduct.model_3d_url) {
         drawGlasses();
     }
 }
@@ -488,6 +505,9 @@ let offscreenCanvas = null;
 let offscreenCtx = null;
 
 function drawGlasses() {
+    // If this product has a 3D model, never draw 2D glasses!
+    if (selectedProduct && selectedProduct.model_3d_url) return;
+
     const scaleSlider = document.getElementById('scale-slider');
     const xSlider = document.getElementById('x-slider');
     const ySlider = document.getElementById('y-slider');
@@ -499,8 +519,8 @@ function drawGlasses() {
     const x = glassesState.x + parseInt(xSlider.value);
     const y = glassesState.y + parseInt(ySlider.value);
 
-    const aspectRatio = glassesImage.height / glassesImage.width || 0.5; // default square aspect ratio
-    const glassesHeight = scale * aspectRatio;
+    const aspect = glassesImage.naturalWidth / glassesImage.naturalHeight;
+    const glassesHeight = scale / aspect;
 
     // Create offscreen canvas if it doesn't exist
     if (!offscreenCanvas) {
@@ -508,9 +528,11 @@ function drawGlasses() {
         offscreenCtx = offscreenCanvas.getContext('2d');
     }
 
-    // Set offscreen dimensions to draw the current scaled frame
-    offscreenCanvas.width = scale;
-    offscreenCanvas.height = glassesHeight;
+    if (offscreenCanvas.width !== scale || offscreenCanvas.height !== glassesHeight) {
+        offscreenCanvas.width = scale;
+        offscreenCanvas.height = glassesHeight;
+    }
+
     offscreenCtx.clearRect(0, 0, scale, glassesHeight);
     
     // Draw raw glasses image to offscreen canvas
@@ -568,28 +590,17 @@ function setupCanvasInteractivity() {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-
-        // Check if clicked near the glasses coordinate (bounding box check)
-        const scaleVal = parseInt(document.getElementById('scale-slider').value);
-        const yOffsetVal = parseInt(document.getElementById('y-slider').value);
         const xOffsetVal = parseInt(document.getElementById('x-slider').value);
-        
+        const yOffsetVal = parseInt(document.getElementById('y-slider').value);
+
         // Check dynamically if canvas is mirrored
         const isMirrored = canvas.style.transform === 'scaleX(-1)';
         const currentX = isMirrored ? (canvas.width - (glassesState.x + xOffsetVal)) : (glassesState.x + xOffsetVal);
         const currentY = glassesState.y + yOffsetVal;
         
-        const dist = Math.sqrt((mouseX - currentX) ** 2 + (mouseY - currentY) ** 2);
-        
-        if (dist < scaleVal / 2) {
-            glassesState.isDragging = true;
-            if (isMirrored) {
-                glassesState.dragStartX = mouseX + xOffsetVal;
-            } else {
-                glassesState.dragStartX = mouseX - xOffsetVal;
-            }
-            glassesState.dragStartY = mouseY - yOffsetVal;
-        }
+        glassesState.isDragging = true;
+        glassesState.dragStartX = mouseX - currentX;
+        glassesState.dragStartY = mouseY - currentY;
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -603,14 +614,14 @@ function setupCanvasInteractivity() {
         const isMirrored = canvas.style.transform === 'scaleX(-1)';
         let newXOffset;
         if (isMirrored) {
-            newXOffset = glassesState.dragStartX - mouseX;
+            newXOffset = (canvas.width - (mouseX - glassesState.dragStartX)) - glassesState.x;
         } else {
-            newXOffset = mouseX - glassesState.dragStartX;
+            newXOffset = (mouseX - glassesState.dragStartX) - glassesState.x;
         }
-        const newYOffset = mouseY - glassesState.dragStartY;
+        const newYOffset = (mouseY - glassesState.dragStartY) - glassesState.y;
 
-        document.getElementById('x-slider').value = Math.max(-400, Math.min(400, newXOffset));
-        document.getElementById('y-slider').value = Math.max(-400, Math.min(400, newYOffset));
+        document.getElementById('x-slider').value = Math.round(newXOffset);
+        document.getElementById('y-slider').value = Math.round(newYOffset);
 
         drawCanvas();
     });
@@ -629,27 +640,17 @@ function setupCanvasInteractivity() {
         const rect = canvas.getBoundingClientRect();
         const touchX = e.touches[0].clientX - rect.left;
         const touchY = e.touches[0].clientY - rect.top;
-
-        const scaleVal = parseInt(document.getElementById('scale-slider').value);
-        const yOffsetVal = parseInt(document.getElementById('y-slider').value);
         const xOffsetVal = parseInt(document.getElementById('x-slider').value);
+        const yOffsetVal = parseInt(document.getElementById('y-slider').value);
         
         // Check dynamically if canvas is mirrored
         const isMirrored = canvas.style.transform === 'scaleX(-1)';
         const currentX = isMirrored ? (canvas.width - (glassesState.x + xOffsetVal)) : (glassesState.x + xOffsetVal);
         const currentY = glassesState.y + yOffsetVal;
         
-        const dist = Math.sqrt((touchX - currentX) ** 2 + (touchY - currentY) ** 2);
-        
-        if (dist < scaleVal / 2) {
-            glassesState.isDragging = true;
-            if (isMirrored) {
-                glassesState.dragStartX = touchX + xOffsetVal;
-            } else {
-                glassesState.dragStartX = touchX - xOffsetVal;
-            }
-            glassesState.dragStartY = touchY - yOffsetVal;
-        }
+        glassesState.isDragging = true;
+        glassesState.dragStartX = touchX - currentX;
+        glassesState.dragStartY = touchY - currentY;
     });
 
     canvas.addEventListener('touchmove', (e) => {
@@ -664,14 +665,14 @@ function setupCanvasInteractivity() {
         const isMirrored = canvas.style.transform === 'scaleX(-1)';
         let newXOffset;
         if (isMirrored) {
-            newXOffset = glassesState.dragStartX - touchX;
+            newXOffset = (canvas.width - (touchX - glassesState.dragStartX)) - glassesState.x;
         } else {
-            newXOffset = touchX - glassesState.dragStartX;
+            newXOffset = (touchX - glassesState.dragStartX) - glassesState.x;
         }
-        const newYOffset = touchY - glassesState.dragStartY;
+        const newYOffset = (touchY - glassesState.dragStartY) - glassesState.y;
 
-        document.getElementById('x-slider').value = Math.max(-400, Math.min(400, newXOffset));
-        document.getElementById('y-slider').value = Math.max(-400, Math.min(400, newYOffset));
+        document.getElementById('x-slider').value = Math.round(newXOffset);
+        document.getElementById('y-slider').value = Math.round(newYOffset);
 
         drawCanvas();
     });
@@ -726,7 +727,7 @@ async function initFaceDetection() {
             runDetection();
         }
     } catch (err) {
-        console.warn("Could not load MediaPipe Face Mesh from CDN. Reverting to 100% manual overlay mode", err);
+        console.warn("Could not load MediaPipe Face Mesh from CDN. Reverting to manual mode", err);
     }
 }
 
@@ -736,21 +737,15 @@ async function runDetection() {
         return;
     }
 
-    // Guard against zero dimensions during initial webcam spin-up
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-        setTimeout(runDetection, 100);
-        return;
+    if (video.readyState >= 2) {
+        try {
+            await faceMesh.send({ image: video });
+        } catch (e) {
+            console.error("FaceMesh detection frame error:", e);
+        }
     }
 
-    try {
-        // Send the current video frame to the MediaPipe GPU-accelerated pipeline
-        await faceMesh.send({ image: video });
-    } catch (error) {
-        console.error("Face detection execution error:", error);
-    }
-
-    // Schedule next frame scan (optimized for 60fps tracking)
-    setTimeout(runDetection, 50);
+    requestAnimationFrame(runDetection);
 }
 
 // Extract landmarks and map to canvas
@@ -759,54 +754,47 @@ const HISTORY_LIMIT = 20;
 let currentRecommendedShape = "";
 
 function analyzeFaceShape(landmarks, videoWidth, videoHeight) {
-    if (!landmarks || landmarks.length < 468) return null;
+    if (!landmarks) return null;
 
-    const getDistance = (p1, p2) => {
-        const dx = (p1.x - p2.x) * videoWidth;
-        const dy = (p1.y - p2.y) * videoHeight;
-        return Math.sqrt(dx * dx + dy * dy);
-    };
+    const pForehead = landmarks[10];
+    const pChin = landmarks[152];
+    const pCheekLeft = landmarks[234];
+    const pCheekRight = landmarks[454];
+    const pJawLeft = landmarks[58];
+    const pJawRight = landmarks[288];
+    const pForeheadLeft = landmarks[103];
+    const pForeheadRight = landmarks[332];
 
-    // Landmark indices:
-    // 10: Forehead top center
-    // 152: Chin bottom center
-    // 234: Left cheek boundary (outermost left)
-    // 454: Right cheek boundary (outermost right)
-    // 127: Left temple (forehead width)
-    // 356: Right temple (forehead width)
-    // 172: Left jaw angle
-    // 397: Right jaw angle
+    if (!pForehead || !pChin || !pCheekLeft || !pCheekRight || !pJawLeft || !pJawRight || !pForeheadLeft || !pForeheadRight) {
+        return null;
+    }
 
-    const faceHeight = getDistance(landmarks[10], landmarks[152]);
-    const faceWidth = getDistance(landmarks[234], landmarks[454]);
-    const foreheadWidth = getDistance(landmarks[127], landmarks[356]);
-    const jawWidth = getDistance(landmarks[172], landmarks[397]);
+    const faceHeight = Math.hypot((pChin.x - pForehead.x) * videoWidth, (pChin.y - pForehead.y) * videoHeight);
+    const cheekWidth = Math.hypot((pCheekRight.x - pCheekLeft.x) * videoWidth, (pCheekRight.y - pCheekLeft.y) * videoHeight);
+    const jawWidth = Math.hypot((pJawRight.x - pJawLeft.x) * videoWidth, (pJawRight.y - pJawLeft.y) * videoHeight);
+    const foreheadWidth = Math.hypot((pForeheadRight.x - pForeheadLeft.x) * videoWidth, (pForeheadRight.y - pForeheadLeft.y) * videoHeight);
 
-    if (faceHeight === 0 || faceWidth === 0) return null;
+    if (faceHeight <= 0 || cheekWidth <= 0) return null;
 
-    const widthToHeight = faceWidth / faceHeight;
-    const jawToCheek = jawWidth / faceWidth;
-    const foreheadToCheek = foreheadWidth / faceWidth;
+    const widthToHeight = cheekWidth / faceHeight;
+    const jawToCheek = jawWidth / cheekWidth;
+    const foreheadToCheek = foreheadWidth / cheekWidth;
 
-    let shape = "หน้าทรงรี (Oval)";
+    let shape = "หน้ารูปไข่ (Oval)";
     let recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / Cat-Eye)";
 
-    // Adjusting thresholds based on real human facial coordinates in MediaPipe
-    if (widthToHeight > 0.83) {
-        // Broad face: could be Round or Square
-        if (jawToCheek > 0.81) {
+    if (widthToHeight > 0.84) {
+        if (jawToCheek > 0.82) {
             shape = "หน้าทรงเหลี่ยม (Square)";
-            recommendation = "กรอบทรงกลม (Round) หรือ ทรงรี (Oval) เพื่อช่วยพรางความกว้างกราม";
+            recommendation = "กรอบทรงกลม (Round) หรือทรงหยดน้ำ (Aviator) เพื่อลดความคมของกราม";
         } else {
             shape = "หน้าทรงกลม (Round)";
             recommendation = "กรอบทรงเหลี่ยม (Square) เพื่อลดความกลม เพิ่มมิติให้ใบหน้า";
         }
     } else if (widthToHeight < 0.73) {
-        // Long face
         shape = "หน้าทรงยาว (Oblong)";
         recommendation = "กรอบแว่นทรงเหลี่ยมหนา หรือทรงกลมใหญ่ (Oversized) เพื่อลดความยาวหน้า";
     } else {
-        // Normal/balanced proportions: Oval, Heart, Diamond, or Triangle
         if (foreheadToCheek < 0.81 && jawToCheek < 0.73) {
             shape = "หน้าทรงเพชร (Diamond)";
             recommendation = "กรอบทรงกลม (Round) หรือทรงตาแมว (Cat-Eye) เพื่อลดความกว้างโหนกแก้ม";
@@ -816,9 +804,6 @@ function analyzeFaceShape(landmarks, videoWidth, videoHeight) {
         } else if (foreheadToCheek > jawToCheek + 0.12) {
             shape = "หน้าทรงหัวใจ (Heart)";
             recommendation = "กรอบทรงรี (Oval) หรือทรงกลมมน เพื่อลดความกว้างหน้าผาก";
-        } else {
-            shape = "หน้าทรงรี (Oval)";
-            recommendation = "หน้ารูปไข่สามารถใส่ได้ทุกรูปทรง (เหมาะมากกับ ทรงกลม / Cat-Eye)";
         }
     }
 
@@ -844,8 +829,7 @@ function getStableFaceShape(shapeResult) {
         }
     });
 
-    const representative = faceShapeHistory.find(item => item.shape === maxShape);
-    return representative;
+    return faceShapeHistory.find(item => item.shape === maxShape);
 }
 
 function highlightRecommendedProducts(recommendedShape) {
@@ -895,11 +879,38 @@ function onFaceMeshResults(results) {
         const videoWidth = video.videoWidth;
         const videoHeight = video.videoHeight;
 
-        // Extract landmarks
-        const leftPupil = landmarks[468];
-        const rightPupil = landmarks[473];
-        const noseBridge = landmarks[168];
-        const noseTip = landmarks[4];
+        // Extract landmarks with bulletproof fallback
+        let leftPupil = landmarks[468];
+        let rightPupil = landmarks[473];
+        if (!leftPupil || !rightPupil) {
+            const leftOuter = landmarks[33] || landmarks[130];
+            const leftInner = landmarks[133];
+            const rightInner = landmarks[362];
+            const rightOuter = landmarks[263] || landmarks[359];
+            
+            if (leftOuter && leftInner) {
+                leftPupil = {
+                    x: (leftOuter.x + leftInner.x) / 2,
+                    y: (leftOuter.y + leftInner.y) / 2,
+                    z: ((leftOuter.z || 0) + (leftInner.z || 0)) / 2
+                };
+            } else {
+                leftPupil = landmarks[159] || { x: 0.4, y: 0.4, z: 0 };
+            }
+            
+            if (rightInner && rightOuter) {
+                rightPupil = {
+                    x: (rightInner.x + rightOuter.x) / 2,
+                    y: (rightInner.y + rightOuter.y) / 2,
+                    z: ((rightInner.z || 0) + (rightOuter.z || 0)) / 2
+                };
+            } else {
+                rightPupil = landmarks[386] || { x: 0.6, y: 0.4, z: 0 };
+            }
+        }
+        
+        const noseBridge = landmarks[168] || landmarks[6] || { x: (leftPupil.x + rightPupil.x)/2, y: leftPupil.y, z: 0 };
+        const noseTip = landmarks[4] || landmarks[1] || { x: noseBridge.x, y: noseBridge.y + 0.1, z: -0.05 };
         
         // -------------------------------------------------------------
         // THREE.JS 3D AR TRY-ON PROCESSOR (PHASE 4 & 5)
@@ -915,10 +926,10 @@ function onFaceMeshResults(results) {
             const widthAtZero = heightAtZero * aspect;
 
             // 2. Coords in video pixel space
-            const pLeft = new THREE.Vector3(leftPupil.x * videoWidth, leftPupil.y * videoHeight, leftPupil.z * videoWidth);
-            const pRight = new THREE.Vector3(rightPupil.x * videoWidth, rightPupil.y * videoHeight, rightPupil.z * videoWidth);
-            const pBridge = new THREE.Vector3(noseBridge.x * videoWidth, noseBridge.y * videoHeight, noseBridge.z * videoWidth);
-            const pNose = new THREE.Vector3(noseTip.x * videoWidth, noseTip.y * videoHeight, noseTip.z * videoWidth);
+            const pLeft = new THREE.Vector3(leftPupil.x * videoWidth, leftPupil.y * videoHeight, (leftPupil.z || 0) * videoWidth);
+            const pRight = new THREE.Vector3(rightPupil.x * videoWidth, rightPupil.y * videoHeight, (rightPupil.z || 0) * videoWidth);
+            const pBridge = new THREE.Vector3(noseBridge.x * videoWidth, noseBridge.y * videoHeight, (noseBridge.z || 0) * videoWidth);
+            const pNose = new THREE.Vector3(noseTip.x * videoWidth, noseTip.y * videoHeight, (noseTip.z || 0) * videoWidth);
 
             // 3. Create Orthogonal 3D Rotation Matrix from face vectors (6-DoF Yaw, Pitch, Roll)
             const vX = new THREE.Vector3().subVectors(pRight, pLeft).normalize(); // Right vector
@@ -951,16 +962,16 @@ function onFaceMeshResults(results) {
             const userOffsetY = -parseInt(document.getElementById('y-slider').value) / canvas.height * heightAtZero;
             
             // Map depth along face Z axis
-            const targetZ = noseBridge.z * widthAtZero;
+            const targetZ = (noseBridge.z || 0) * widthAtZero;
             const targetPos = new THREE.Vector3(targetX + userOffsetX, targetY + userOffsetY, targetZ);
             
             // Push model slightly forward along face's Z axis to sit naturally on the nose bridge
-            const modelBaseScale = selectedProduct.scale_x || 1.0;
+            const modelBaseScale = parseFloat(selectedProduct.scale_x) || 1.0;
             const forwardOffset = vZ.clone().multiplyScalar(4.5 * modelBaseScale);
             targetPos.add(forwardOffset);
 
             // Add manual height offset (offset_y) from product DB
-            const dbOffsetY = (selectedProduct.offset_y || 0.0) * heightAtZero;
+            const dbOffsetY = (parseFloat(selectedProduct.offset_y) || 0.0) * heightAtZero;
             targetPos.y += dbOffsetY;
 
             // EMA Smoothing filter for Position (Phase 5)
@@ -1001,32 +1012,17 @@ function onFaceMeshResults(results) {
 
         } else {
             // -------------------------------------------------------------
-            // 2D FALLBACK OVERLAY MODE
+            // 2D FALLBACK OVERLAY MODE (Only if product has NO 3D model)
             // -------------------------------------------------------------
             if (current3DModel) current3DModel.visible = false;
             if (headOccluder) headOccluder.visible = false;
 
-            let rawLeftX, rawLeftY, rawRightX, rawRightY;
-            if (landmarks[468] && landmarks[473]) {
-                rawLeftX = landmarks[468].x * videoWidth;
-                rawLeftY = landmarks[468].y * videoHeight;
-                rawRightX = landmarks[473].x * videoWidth;
-                rawRightY = landmarks[473].y * videoHeight;
-            } else {
-                const leftOuter = landmarks[33];
-                const leftInner = landmarks[133];
-                const rightInner = landmarks[362];
-                const rightOuter = landmarks[263];
+            if (selectedProduct && !selectedProduct.model_3d_url) {
+                const rawLeftX = leftPupil.x * videoWidth;
+                const rawLeftY = leftPupil.y * videoHeight;
+                const rawRightX = rightPupil.x * videoWidth;
+                const rawRightY = rightPupil.y * videoHeight;
 
-                if (leftOuter && leftInner && rightInner && rightOuter) {
-                    rawLeftX = ((leftOuter.x + leftInner.x) / 2) * videoWidth;
-                    rawLeftY = ((leftOuter.y + leftInner.y) / 2) * videoHeight;
-                    rawRightX = ((rightInner.x + rightOuter.x) / 2) * videoWidth;
-                    rawRightY = ((rightInner.y + rightOuter.y) / 2) * videoHeight;
-                }
-            }
-
-            if (rawLeftX !== undefined && rawRightX !== undefined) {
                 const videoRatio = videoWidth / videoHeight;
                 const canvasRatio = canvas.width / canvas.height;
                 
