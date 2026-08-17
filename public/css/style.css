@@ -1,5 +1,5 @@
 /* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap');
 
 :root {
     --bg-primary: #f5f6f8;
@@ -12,8 +12,8 @@
     --border-color: #e2e8f0;
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
     --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.06);
-    --font-heading: 'Outfit', 'IBM Plex Sans Thai', sans-serif;
-    --font-body: 'IBM Plex Sans Thai', sans-serif;
+    --font-heading: 'Outfit', 'IBM Plex Sans Thai', 'Prompt', sans-serif;
+    --font-body: 'IBM Plex Sans Thai', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --border-radius: 16px;
     --navbar-bg: rgba(255, 255, 255, 0.8);
@@ -59,6 +59,14 @@ body, .navbar, .product-card, .modal-content, .filters-container, .dashboard-pan
     background-color: #ffffff !important;
 }
 
+/* Global Styles & Universal Font Reset */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: inherit;
+}
+
 html {
     scroll-behavior: smooth;
     overflow-x: hidden;
@@ -66,17 +74,10 @@ html {
     width: 100%;
 }
 
-/* Global Styles & Reset */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
 body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-family: var(--font-body);
+    font-family: var(--font-body) !important;
     line-height: 1.6;
     overflow-x: hidden;
     max-width: 100vw;
@@ -85,8 +86,23 @@ body {
     -webkit-text-size-adjust: 100%;
 }
 
-h1, h2, h3, h4 {
-    font-family: var(--font-heading);
+/* Enforce font-family on all interactive and form controls */
+button, input, select, textarea, optgroup, option, label {
+    font-family: var(--font-body) !important;
+}
+
+.btn, .btn-primary, .btn-secondary, .btn-outline,
+.filter-btn, .shape-filter-btn, .category-filter-btn,
+.nav-links a, .nav-buttons, .nav-buttons button, .nav-buttons a,
+.dropdown-menu a, .modal-content, .product-card, .search-bar input,
+#search-input, .auth-tab-btn, .dashboard-panel, table, th, td,
+.badge, .review-card, .faq-item, .contact-banner, .footer,
+input[type="text"], input[type="password"], input[type="email"], input[type="search"] {
+    font-family: var(--font-body) !important;
+}
+
+h1, h2, h3, h4, h5, h6, .logo, .section-title, .hero h1, .vto-content h2, .footer-logo {
+    font-family: var(--font-heading) !important;
     font-weight: 600;
     color: var(--accent);
 }
@@ -95,6 +111,7 @@ a {
     color: var(--accent);
     text-decoration: none;
     transition: var(--transition);
+    font-family: inherit;
 }
 
 /* Navigation Bar */
