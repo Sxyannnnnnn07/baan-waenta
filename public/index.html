@@ -50,7 +50,7 @@
                     บริการของร้าน <ion-icon name="chevron-down-outline" style="font-size: 0.8rem; margin-left: 2px; vertical-align: middle;"></ion-icon>
                 </a>
                 <ul class="dropdown-menu">
-                    <li><a href="/#catalog">กรอบแว่นตาแนะนำ</a></li>
+                    <li><a href="/#catalog">รายการแว่นตาทั้งหมด</a></li>
                     <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
                     <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
                 </ul>
@@ -89,43 +89,8 @@
         </div>
     </header>
 
-    <!-- Slideshow Carousel Section (Auto slides to give dimension) -->
-    <section class="slideshow-section" style="max-width: 1000px; margin: -40px auto 4rem auto; position: relative; z-index: 10; border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); aspect-ratio: 16/9; background-color: var(--bg-secondary);" data-aos="zoom-in" data-aos-duration="1000">
-        <div class="slides-container" style="display: flex; width: 300%; height: 100%; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(0);">
-            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
-                <img src="/assets/model1.jpg" alt="Model 1" style="width: 100%; height: 100%; object-fit: cover;">
-                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
-                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">ค้นหาตัวตนของคุณ</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">กรอบแว่นตาที่คัดสรรเพื่อรับกับรูปหน้าคนเอเชียโดยเฉพาะ</p>
-                </div>
-            </div>
-            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
-                <img src="/assets/model2.jpg" alt="Model 2" style="width: 100%; height: 100%; object-fit: cover;">
-                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
-                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">ความมินิมอลที่เหนือระดับ</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">เบาสบาย แข็งแรง ทนทาน ใส่ได้ตลอดทั้งวัน</p>
-                </div>
-            </div>
-            <div class="slide" style="width: 33.333%; height: 100%; position: relative;">
-                <img src="/assets/model3.jpg" alt="Model 3" style="width: 100%; height: 100%; object-fit: cover;">
-                <div class="slide-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white;">
-                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.4rem; font-family: var(--font-heading);">เลนส์สั่งตัดคุณภาพระดับพรีเมียม</h3>
-                    <p style="opacity: 0.9; font-size: 0.95rem;">ปกป้องดวงตาของคุณจากแสงสีฟ้าและแสงแดดจัด</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Controls Indicators -->
-        <div style="position: absolute; bottom: 1.5rem; right: 2rem; display: flex; gap: 0.5rem; z-index: 20;">
-            <div class="dot active" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 1;" onclick="setSlide(0)"></div>
-            <div class="dot" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 0.5;" onclick="setSlide(1)"></div>
-            <div class="dot" style="width: 10px; height: 10px; border-radius: 50%; background-color: white; cursor: pointer; transition: opacity 0.3s; opacity: 0.5;" onclick="setSlide(2)"></div>
-        </div>
-    </section>
-
     <!-- Main Catalog Section -->
     <main class="catalog-container" id="catalog">
-        <h2 class="section-title" data-aos="fade-up">กรอบแว่นตาแนะนำ</h2>
         
         <!-- Multi-Criteria Filters Container -->
         <div class="filters-container" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; box-shadow: var(--shadow-sm);" data-aos="fade-up" data-aos-delay="100">
