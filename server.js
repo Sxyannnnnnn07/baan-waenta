@@ -524,6 +524,30 @@ function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) {
     return `/uploads/products/${fileName}`;
 }
 
+function decodeModelDataUrl(dataUrl, maxBytes = 50 * 1024 * 1024) {
+    if (typeof dataUrl !== 'string') throw new Error('Invalid model data');
+    const match = /^data:(?:application\/octet-stream|model\/gltf-binary|application\/x-gltf-binary);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    const base64Data = match ? match[1] : dataUrl.split(',')[1] || dataUrl;
+    const buffer = Buffer.from(base64Data, 'base64');
+    if (!buffer.length || buffer.length > maxBytes) throw new Error('Model is empty or too large');
+    
+    // Check GLB magic number 0x46546C67 (little-endian for 'glTF') or 0x676C5446 (big-endian)
+    const magic = buffer.readUInt32BE(0);
+    if (magic !== 0x676c5446 && magic !== 0x67546c46 && magic !== 0x46546c67) {
+        throw new Error('Invalid GLB model file');
+    }
+    return { buffer, extension: 'glb' };
+}
+
+function savePublicModelData(dataUrl, prefix) {
+    const { buffer, extension } = decodeModelDataUrl(dataUrl);
+    const dirPath = path.join(__dirname, 'public', 'uploads', 'models');
+    fs.mkdirSync(dirPath, { recursive: true });
+    const fileName = `${prefix}_${randomToken(12)}.${extension}`;
+    fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
+    return `/uploads/models/${fileName}`;
+}
+
 const authRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api', loadSession);
 
@@ -727,6 +751,8 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
     const stock = integerInRange(req.body.stock, 0, 1000000);
     const imageUrl = req.body.image_url;
     const tryonImageUrl = req.body.tryon_image_url;
+    const model3d = req.body.model_3d; // optional 3D model base64
+
     if (!name || !brand || !category || !frameShape || price === null || stock === null) {
         return res.status(400).json({ success: false, message: 'ข้อมูลสินค้าไม่ถูกต้อง' });
     }
@@ -737,14 +763,24 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
         try {
             // Insert product with temporary empty image values to get insertId
             const [result] = await conn.query(
-                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, price, stock) 
-                 VALUES (?, ?, ?, ?, '', '', ?, ?)`,
+                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, price, stock) 
+                 VALUES (?, ?, ?, ?, '', '', NULL, ?, ?)`,
                 [name, brand, category, frameShape, price, stock]
             );
             const productId = result.insertId;
 
             let finalImageUrl = '/assets/round.svg';
             let finalTryonUrl = '/assets/round.svg';
+            let finalModelUrl = null;
+
+            // Save 3D Model to disk if provided
+            if (model3d) {
+                try {
+                    finalModelUrl = savePublicModelData(model3d, `model_${productId}`);
+                } catch (modelErr) {
+                    throw new Error(`Invalid 3D model: ${modelErr.message}`);
+                }
+            }
 
             // Save main image to disk if it is base64
             if (imageUrl && imageUrl.startsWith('data:image/')) {
@@ -774,8 +810,8 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
 
             // Update database with the finalized upload file paths
             await conn.query(
-                'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
-                [finalImageUrl, finalTryonUrl, productId]
+                'UPDATE products SET image_url = ?, tryon_image_url = ?, model_3d_url = ? WHERE id = ?',
+                [finalImageUrl, finalTryonUrl, finalModelUrl, productId]
             );
 
             await conn.commit();
@@ -789,6 +825,9 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
     } catch (error) {
         if (/Invalid product image|Invalid try-on image/.test(error.message)) {
             return res.status(400).json({ success: false, message: 'รูปสินค้าไม่ถูกต้องหรือมีขนาดเกิน 5 MB' });
+        }
+        if (/Invalid 3D model/.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'โมเดล 3D ไม่ถูกต้องหรือมีขนาดเกิน 50 MB' });
         }
         sendServerError(res, error, 'Add product failed');
     }

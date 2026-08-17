@@ -17,6 +17,9 @@
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <!-- Three.js for 3D Auto-Snapshot feature (Method B) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
 
@@ -132,6 +135,14 @@
                         <div class="form-group" style="grid-column: span 2;">
                             <label for="prod-image">รูปภาพกรอบแว่นตา (.jpg, .png)</label>
                             <input type="file" id="prod-image" accept="image/*" required style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label for="prod-model-3d">อัปโหลดไฟล์โมเดล 3D (.glb - ทางเลือก)</label>
+                            <input type="file" id="prod-model-3d" accept=".glb" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                        </div>
+                        <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; gap: 0.5rem; margin-top: -0.5rem; margin-bottom: 0.5rem;">
+                            <input type="checkbox" id="auto-snapshot" checked style="width: auto; cursor: pointer;">
+                            <label for="auto-snapshot" style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary);">ถ่ายภาพปก 2D จากโมเดล 3D อัตโนมัติ (ไม่จำเป็นต้องอัปโหลดรูปภาพ)</label>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
