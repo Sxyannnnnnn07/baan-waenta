@@ -202,6 +202,9 @@ function renderProducts(products) {
             `;
         }
 
+        card.style.cursor = 'pointer';
+        card.setAttribute('onclick', `openLensModal(${prod.id})`);
+
         card.innerHTML = `
             ${badgeHtml}
             <div class="product-image-container">
@@ -213,7 +216,7 @@ function renderProducts(products) {
             <div style="margin-bottom: 1rem; min-height: 20px; display: flex; align-items: center;">
                 ${stockHtml}
             </div>
-            <div class="product-footer">
+            <div class="product-footer" onclick="event.stopPropagation()">
                 <div class="product-price">${parseFloat(prod.price).toLocaleString()} ฿</div>
                 <div style="display: flex; gap: 0.5rem;">
                     <a href="/tryon.html?product=${prod.id}" class="btn btn-outline" style="padding: 0.5rem 0.8rem; font-size: 0.8rem;" title="ลองแว่น">
@@ -496,34 +499,82 @@ async function loginWithGoogle() {
     googleTokenClient.requestAccessToken();
 }
 
-// ==========================================
-// LENS CONFIGURATOR & CUSTOM ORDERS
-// ==========================================
+// QuickView Media State
+let qvCurrentImages = [];
+let qvCurrentIndex = 0;
+let wishlist = JSON.parse(localStorage.getItem('baan_waenta_wishlist') || '[]');
+
 async function openLensModal(productId) {
     activeLensProduct = allProducts.find(p => p.id === productId);
     if (!activeLensProduct) return;
 
-    document.getElementById('lens-prod-name').innerText = activeLensProduct.name;
-    document.getElementById('lens-prod-price').innerText = `ราคากรอบแว่น: ${parseFloat(activeLensProduct.price).toLocaleString()} บาท`;
-    document.getElementById('lens-type-select').value = "1";
-    document.getElementById('enter-presc-check').checked = false;
-    document.getElementById('prescription-fields').style.display = 'none';
+    // 1. Populate Header & Details
+    const nameEl = document.getElementById('qv-name');
+    const brandEl = document.getElementById('qv-brand');
+    const descEl = document.getElementById('qv-desc');
+    const catBadge = document.getElementById('qv-category-badge');
+    const vtoLink = document.getElementById('qv-vto-link');
 
-    // Sunglasses specific visibility toggles
-    const isSunglasses = activeLensProduct.category === 'Sunglasses';
-    if (isSunglasses) {
-        document.getElementById('lens-type-group').style.display = 'none';
-        document.getElementById('lens-simulator-container').style.display = 'none';
-        document.getElementById('prescription-toggle-group').style.display = 'none';
-    } else {
-        document.getElementById('lens-type-group').style.display = 'block';
-        document.getElementById('lens-simulator-container').style.display = 'flex';
-        document.getElementById('prescription-toggle-group').style.display = 'block';
+    if (nameEl) nameEl.innerText = activeLensProduct.name;
+    if (brandEl) brandEl.innerText = activeLensProduct.brand || 'Baan Waenta';
+    if (catBadge) catBadge.innerText = activeLensProduct.category === 'Optical' ? 'แว่นสายตา' : 'แว่นกันแดด';
+    if (vtoLink) vtoLink.href = `/tryon.html?product=${activeLensProduct.id}`;
+    if (descEl) {
+        descEl.innerText = `กรอบแว่นตา ${activeLensProduct.brand || ''} รุ่น ${activeLensProduct.name} ทรง ${getThaiShape(activeLensProduct.frame_shape)} ผลิตจากวัสดุคุณภาพสูง เบาสบาย ทนทาน`;
     }
 
-    updateLensPricing();
+    // Keep hidden legacy spans synced
+    const legacyName = document.getElementById('lens-prod-name');
+    const legacyPrice = document.getElementById('lens-prod-price');
+    if (legacyName) legacyName.innerText = activeLensProduct.name;
+    if (legacyPrice) legacyPrice.innerText = `ราคากรอบแว่น: ${parseFloat(activeLensProduct.price).toLocaleString()} บาท`;
 
-    // If logged in, fetch user's last prescription to prepopulate fields (only if NOT sunglasses)
+    // 2. Prepare Carousel Images (Front view, model view, sample view)
+    const baseImg = activeLensProduct.image_url;
+    let modelImg = '/assets/model1.jpg';
+    if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+    if (activeLensProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+
+    let sideImg = '/assets/vto_model.jpg';
+    if (activeLensProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+
+    qvCurrentImages = [
+        { src: baseImg, label: 'มุมตรง' },
+        { src: modelImg, label: 'ขณะสวมใส่' },
+        { src: sideImg, label: 'มุมเฉียง' }
+    ];
+    qvCurrentIndex = 0;
+    renderQuickViewCarousel();
+
+    // 3. Reset Lens Selection to Normal (1)
+    selectQuickViewLens(1);
+
+    // 4. Reset Prescription Fields
+    const prescCheck = document.getElementById('enter-presc-check');
+    const prescFields = document.getElementById('prescription-fields');
+    if (prescCheck) prescCheck.checked = false;
+    if (prescFields) prescFields.style.display = 'none';
+
+    // 5. Sunglasses specific adjustments
+    const isSunglasses = activeLensProduct.category === 'Sunglasses';
+    const lensGroup = document.getElementById('lens-type-group');
+    const simContainer = document.getElementById('lens-simulator-container');
+    const prescGroup = document.getElementById('prescription-toggle-group');
+
+    if (isSunglasses) {
+        if (lensGroup) lensGroup.style.display = 'none';
+        if (simContainer) simContainer.style.display = 'none';
+        if (prescGroup) prescGroup.style.display = 'none';
+    } else {
+        if (lensGroup) lensGroup.style.display = 'block';
+        if (simContainer) simContainer.style.display = 'flex';
+        if (prescGroup) prescGroup.style.display = 'block';
+    }
+
+    // 6. Update Wishlist Button State
+    updateQuickViewWishlistUI();
+
+    // 7. Load saved prescription if logged in
     if (currentUser && !isSunglasses) {
         try {
             const res = await apiFetch(`/api/prescriptions/${currentUser.id}`);
@@ -538,39 +589,134 @@ async function openLensModal(productId) {
                 document.getElementById('axis-right').value = presc.axis_right;
                 document.getElementById('pd-value').value = presc.pd;
                 
-                // Auto enable check box since they have prescription history
-                document.getElementById('enter-presc-check').checked = true;
-                document.getElementById('prescription-fields').style.display = 'block';
+                if (prescCheck) prescCheck.checked = true;
+                if (prescFields) prescFields.style.display = 'block';
             }
         } catch (err) {
             console.warn('Could not load user prescription history', err);
         }
     }
 
-    // Set Add button click action
-    document.getElementById('confirm-add-cart-btn').onclick = addActiveProductToCart;
+    // 8. Bind Confirm Button & Show Modal
+    const confirmBtn = document.getElementById('confirm-add-cart-btn');
+    if (confirmBtn) confirmBtn.onclick = addActiveProductToCart;
 
     document.getElementById('lens-modal').style.display = 'flex';
 }
 
-function updateLensPricing() {
+function renderQuickViewCarousel() {
+    const mainImg = document.getElementById('qv-main-image');
+    const thumbsContainer = document.getElementById('qv-thumbnails-container');
+
+    if (mainImg && qvCurrentImages.length > 0) {
+        mainImg.style.opacity = '0';
+        setTimeout(() => {
+            mainImg.src = qvCurrentImages[qvCurrentIndex].src;
+            mainImg.style.opacity = '1';
+        }, 150);
+    }
+
+    if (thumbsContainer) {
+        thumbsContainer.innerHTML = qvCurrentImages.map((img, idx) => `
+            <div class="quickview-thumb-dot ${idx === qvCurrentIndex ? 'active' : ''}" onclick="setQuickViewImageIndex(${idx})" title="${img.label}">
+                <img src="${img.src}" alt="${img.label}">
+            </div>
+        `).join('');
+    }
+}
+
+function navigateQuickViewImage(direction) {
+    if (!qvCurrentImages.length) return;
+    qvCurrentIndex = (qvCurrentIndex + direction + qvCurrentImages.length) % qvCurrentImages.length;
+    renderQuickViewCarousel();
+}
+
+function setQuickViewImageIndex(index) {
+    if (index >= 0 && index < qvCurrentImages.length) {
+        qvCurrentIndex = index;
+        renderQuickViewCarousel();
+    }
+}
+
+function selectQuickViewLens(lensVal) {
     const lensSelect = document.getElementById('lens-type-select');
-    const activeOption = lensSelect.options[lensSelect.selectedIndex];
-    const addonPrice = parseFloat(activeOption.getAttribute('data-addon'));
+    if (lensSelect) lensSelect.value = String(lensVal);
+
+    // Update active class on lens cards
+    [1, 2, 3].forEach(id => {
+        const card = document.getElementById(`qv-lens-card-${id}`);
+        if (card) {
+            if (id === lensVal) card.classList.add('active');
+            else card.classList.remove('active');
+        }
+    });
+
+    const labelMap = {
+        1: 'เลนส์ธรรมดา (+0฿)',
+        2: 'เลนส์กรองแสงสีฟ้า (+500฿)',
+        3: 'เลนส์ปรับแสงออโต้ตามแดด (+1,000฿)'
+    };
+    const activeLabel = document.getElementById('qv-active-lens-label');
+    if (activeLabel) activeLabel.innerText = labelMap[lensVal] || '';
+
+    updateLensPricing();
+}
+
+function updateLensPricing() {
+    if (!activeLensProduct) return;
+    const lensSelect = document.getElementById('lens-type-select');
+    let addonPrice = 0;
+    if (lensSelect) {
+        const activeOption = lensSelect.options[lensSelect.selectedIndex];
+        if (activeOption) {
+            addonPrice = parseFloat(activeOption.getAttribute('data-addon')) || 0;
+        }
+    }
     const totalPrice = parseFloat(activeLensProduct.price) + addonPrice;
     
-    document.getElementById('lens-total-price').innerText = totalPrice.toLocaleString();
+    const priceDisplay = document.getElementById('qv-price');
+    const legacyTotalPrice = document.getElementById('lens-total-price');
+    if (priceDisplay) priceDisplay.innerText = totalPrice.toLocaleString();
+    if (legacyTotalPrice) legacyTotalPrice.innerText = totalPrice.toLocaleString();
 
     // Update Interactive Lens Simulator
-    if (typeof updateLensSimulation === 'function') {
+    if (typeof updateLensSimulation === 'function' && lensSelect) {
         updateLensSimulation(parseInt(lensSelect.value));
     }
 }
 
-function togglePrescriptionFields() {
-    const check = document.getElementById('enter-presc-check');
-    const fieldsDiv = document.getElementById('prescription-fields');
-    fieldsDiv.style.display = check.checked ? 'block' : 'none';
+function toggleQuickViewWishlist() {
+    if (!activeLensProduct) return;
+    const prodId = activeLensProduct.id;
+    const idx = wishlist.indexOf(prodId);
+    
+    if (idx > -1) {
+        wishlist.splice(idx, 1);
+        showToast(`นำ "${activeLensProduct.name}" ออกจากรายการโปรดแล้ว`, 'info');
+    } else {
+        wishlist.push(prodId);
+        showToast(`บันทึก "${activeLensProduct.name}" ลงรายการโปรดเรียบร้อย ❤️`, 'success');
+    }
+    
+    localStorage.setItem('baan_waenta_wishlist', JSON.stringify(wishlist));
+    updateQuickViewWishlistUI();
+}
+
+function updateQuickViewWishlistUI() {
+    if (!activeLensProduct) return;
+    const isFav = wishlist.includes(activeLensProduct.id);
+    const btn = document.getElementById('qv-wishlist-btn');
+    const icon = document.getElementById('qv-wishlist-icon');
+    
+    if (btn && icon) {
+        if (isFav) {
+            btn.classList.add('wishlist-active');
+            icon.setAttribute('name', 'heart');
+        } else {
+            btn.classList.remove('wishlist-active');
+            icon.setAttribute('name', 'heart-outline');
+        }
+    }
 }
 
 function addActiveProductToCart() {

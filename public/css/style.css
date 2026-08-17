@@ -2001,6 +2001,436 @@ input, select, textarea {
     color: var(--text-primary);
 }
 
+/* ==========================================
+   15. MODERN LUXURY PRODUCT QUICKVIEW MODAL (SHADCN/RAY-BAN STYLE)
+   ========================================== */
+.quickview-dialog-content {
+    max-width: 1060px !important;
+    width: 95% !important;
+    padding: 0 !important;
+    border-radius: 24px !important;
+    overflow: hidden !important;
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35) !important;
+}
+
+.quickview-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    min-height: 580px;
+    max-height: 88vh;
+    overflow: hidden;
+}
+
+/* Left Carousel Column */
+.quickview-media-col {
+    position: relative;
+    background: linear-gradient(145deg, rgba(0,0,0,0.03), rgba(0,0,0,0.08));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .quickview-media-col {
+    background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(0,0,0,0.3));
+}
+
+.quickview-carousel-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quickview-main-image {
+    max-width: 85%;
+    max-height: 380px;
+    object-fit: contain;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.15));
+}
+
+.quickview-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    color: #1a202c;
+    border: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+[data-theme="dark"] .quickview-nav-btn {
+    background: rgba(30, 32, 36, 0.85);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.quickview-nav-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    transform: translateY(-50%) scale(1.08);
+}
+
+.quickview-nav-btn.prev { left: 16px; }
+.quickview-nav-btn.next { right: 16px; }
+
+.quickview-badge-tag {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    z-index: 10;
+}
+
+/* Image Thumbnails bar */
+.quickview-thumbnails-bar {
+    position: absolute;
+    bottom: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 6px 12px;
+    border-radius: 30px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] .quickview-thumbnails-bar {
+    background: rgba(20, 22, 26, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.quickview-thumb-dot {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    transition: all 0.2s ease;
+    opacity: 0.65;
+}
+
+.quickview-thumb-dot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.quickview-thumb-dot.active {
+    border-color: var(--accent);
+    opacity: 1;
+    transform: scale(1.08);
+}
+
+/* Right Details Column */
+.quickview-info-col {
+    padding: 2.2rem 2.4rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.3rem;
+    scrollbar-width: thin;
+}
+
+.quickview-info-col::-webkit-scrollbar {
+    width: 5px;
+}
+.quickview-info-col::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.quickview-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    padding-right: 2rem;
+}
+
+.quickview-brand-pill {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+}
+
+.quickview-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.quickview-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 0.2rem;
+}
+
+/* Price presentation */
+.quickview-price-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    margin-top: 0.2rem;
+}
+
+.quickview-price-current {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+}
+
+.quickview-price-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Lens Option Pills / Radios */
+.quickview-option-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.quickview-section-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.quickview-lens-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.65rem;
+}
+
+.quickview-lens-card {
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.75rem 0.6rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg-primary);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.quickview-lens-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.quickview-lens-card.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.quickview-lens-icon {
+    font-size: 1.3rem;
+    color: var(--accent);
+    margin-bottom: 2px;
+}
+
+.quickview-lens-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.quickview-lens-price {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.quickview-lens-card.active .quickview-lens-price {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* Action Buttons Bar */
+.quickview-actions-grid {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.quickview-add-btn {
+    flex: 1;
+    padding: 0.95rem 1.4rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.quickview-icon-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.35rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.quickview-icon-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.quickview-icon-btn.wishlist-active {
+    background: #fff5f5;
+    border-color: #feb2b2;
+    color: #e53e3e;
+}
+
+[data-theme="dark"] .quickview-icon-btn.wishlist-active {
+    background: rgba(229, 62, 62, 0.15);
+    border-color: #e53e3e;
+    color: #fc8181;
+}
+
+.quickview-extra-links {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.1rem;
+}
+
+.quickview-extra-btn {
+    flex: 1;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.quickview-extra-btn:hover {
+    background: var(--accent-light);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.quickview-extra-btn.disabled-feature {
+    opacity: 0.7;
+    border-style: dashed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 860px) {
+    .quickview-grid {
+        grid-template-columns: 1fr;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    
+    .quickview-media-col {
+        min-height: 300px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .quickview-carousel-container {
+        min-height: 280px;
+    }
+    
+    .quickview-main-image {
+        max-height: 240px;
+    }
+
+    .quickview-info-col {
+        padding: 1.5rem 1.25rem;
+    }
+    
+    .quickview-lens-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .quickview-lens-card {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        text-align: left;
+    }
+    
+    .quickview-extra-links {
+        flex-direction: column;
+    }
+}
+
+
 
 
 

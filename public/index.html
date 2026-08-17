@@ -527,102 +527,179 @@
         </div>
     </div>
 
-    <!-- MODAL: CONFIGURE LENS & ADD TO CART -->
+    <!-- MODAL: LUXURY PRODUCT QUICKVIEW & CUSTOMIZER -->
     <div class="modal" id="lens-modal">
-        <div class="modal-content" style="max-width: 650px;">
-            <span class="modal-close" onclick="closeModal('lens-modal')">&times;</span>
-            <h3 style="margin-bottom: 0.5rem;" id="lens-prod-name">ปรับแต่งเลนส์ของคุณ</h3>
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;" id="lens-prod-price"></p>
+        <div class="modal-content quickview-dialog-content">
+            <span class="modal-close" onclick="closeModal('lens-modal')" style="z-index: 50; top: 1.2rem; right: 1.2rem;">&times;</span>
             
-            <div class="form-group" id="lens-type-group">
-                <label for="lens-type-select">เลือกประเภทเลนส์</label>
-                <select id="lens-type-select" onchange="updateLensPricing()">
-                    <option value="1" data-addon="0">เลนส์ธรรมดา (Normal Lens) +0 บาท</option>
-                    <option value="2" data-addon="500">เลนส์กรองแสงสีฟ้า (Blue Block) +500 บาท</option>
-                    <option value="3" data-addon="1000">เลนส์ปรับแสงออโต้ตามแดด (Photochromic) +1000 บาท</option>
-                </select>
-            </div>
+            <div class="quickview-grid">
+                <!-- Left Carousel / Media View -->
+                <div class="quickview-media-col">
+                    <span class="quickview-badge-tag" id="qv-category-badge">Optical</span>
+                    
+                    <div class="quickview-carousel-container">
+                        <button class="quickview-nav-btn prev" onclick="navigateQuickViewImage(-1)" aria-label="Previous image">
+                            <ion-icon name="chevron-back-outline"></ion-icon>
+                        </button>
+                        <img src="/assets/products/p1.jpg" alt="แว่นตา" id="qv-main-image" class="quickview-main-image">
+                        <button class="quickview-nav-btn next" onclick="navigateQuickViewImage(1)" aria-label="Next image">
+                            <ion-icon name="chevron-forward-outline"></ion-icon>
+                        </button>
+                    </div>
 
-            <!-- Interactive Lens Simulator -->
-            <div id="lens-simulator-container" style="border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; margin: 1.2rem 0; background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.8rem;">
-                <h4 style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; color: var(--accent); margin: 0;">
-                    <ion-icon name="eye-outline" style="font-size: 1.1rem; color: #3182ce;"></ion-icon> 
-                    ระบบจำลองเลนส์อัจฉริยะ (Lens Simulator)
-                </h4>
-                
-                <div style="position: relative; width: 100%; height: 230px; border-radius: 8px; overflow: hidden; background-color: #e2e8f0; display: flex; align-items: center; justify-content: center;">
-                    <!-- Lens background image -->
-                    <img src="/assets/model3.jpg" id="lens-sim-bg" style="width: 100%; height: 100%; object-fit: cover; object-position: center 12%; filter: brightness(1.05);">
-                    
-                    <!-- Lens tint filter overlay -->
-                    <div id="lens-sim-tint" style="position: absolute; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0); pointer-events: none; transition: background-color 0.4s ease, backdrop-filter 0.4s ease; top: 0; left: 0;"></div>
-                    
-                    <!-- Blue light ray simulation overlay (for Blue Block lens) -->
-                    <div id="lens-sim-blue-beam" style="position: absolute; top: 50%; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #3182ce, transparent); transform: translateY(-50%); opacity: 0; transition: opacity 0.4s ease; box-shadow: 0 0 10px #3182ce; z-index: 2;"></div>
-                    <div id="lens-sim-blocked-label" style="position: absolute; top: 50%; right: 2rem; transform: translateY(-50%); background-color: #2f855a; color: #fff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; opacity: 0; transition: opacity 0.4s ease; z-index: 3;">บล็อกแสงสีฟ้า 95%</div>
-                    
-                    <!-- Simulator HUD text -->
-                    <div id="lens-sim-text" style="position: absolute; bottom: 0.6rem; right: 0.6rem; background-color: rgba(0, 0, 0, 0.65); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; font-family: var(--font-heading);">
-                        เลนส์ธรรมดา (Normal Lens)
+                    <!-- Carousel Thumbnails -->
+                    <div class="quickview-thumbnails-bar" id="qv-thumbnails-container">
+                        <!-- Loaded dynamically via JS -->
                     </div>
                 </div>
 
-                <!-- UV Sunlight Slider controls (for Photochromic lens simulation) -->
-                <div id="lens-sim-slider-group" style="display: none; align-items: center; gap: 0.8rem; margin-top: 0.2rem;">
-                    <span style="font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; font-weight: 600;">จำลองปริมาณแดด / แสง UV:</span>
-                    <input type="range" id="lens-uv-slider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;" oninput="updateLensSimulationSlider(this.value)">
+                <!-- Right Information & Configuration View -->
+                <div class="quickview-info-col">
+                    <div class="quickview-header">
+                        <span class="quickview-brand-pill" id="qv-brand">Ray-Ban</span>
+                        <h2 class="quickview-title" id="qv-name">แว่นตารุ่นคลาสสิก</h2>
+                        <div class="quickview-price-wrap">
+                            <span class="quickview-price-current"><span id="qv-price">0</span> ฿</span>
+                            <span class="quickview-price-label" id="qv-price-note">(ราคารวมเลนส์ที่เลือก)</span>
+                        </div>
+                        <p class="quickview-desc" id="qv-desc">กรอบแว่นตาคุณภาพพรีเมียม น้ำหนักเบา สวมใส่สบาย ออกแบบตามหลักสรีรศาสตร์</p>
+                    </div>
+
+                    <!-- Hidden legacy inputs for compatibility -->
+                    <span id="lens-prod-name" style="display: none;"></span>
+                    <span id="lens-prod-price" style="display: none;"></span>
+                    <span id="lens-total-price" style="display: none;">0</span>
+                    <select id="lens-type-select" style="display: none;" onchange="updateLensPricing()">
+                        <option value="1" data-addon="0">เลนส์ธรรมดา (Normal Lens) +0 บาท</option>
+                        <option value="2" data-addon="500">เลนส์กรองแสงสีฟ้า (Blue Block) +500 บาท</option>
+                        <option value="3" data-addon="1000">เลนส์ปรับแสงออโต้ตามแดด (Photochromic) +1000 บาท</option>
+                    </select>
+
+                    <!-- Lens Type Selection (Pills Grid) -->
+                    <div class="quickview-option-section" id="lens-type-group">
+                        <div class="quickview-section-label">
+                            <span>ประเภทเลนส์ (Lens Option)</span>
+                            <span id="qv-active-lens-label" style="font-size: 0.78rem; color: var(--accent); font-weight: 600;">เลนส์ธรรมดา</span>
+                        </div>
+                        
+                        <div class="quickview-lens-grid">
+                            <div class="quickview-lens-card active" onclick="selectQuickViewLens(1)" id="qv-lens-card-1">
+                                <ion-icon name="glasses-outline" class="quickview-lens-icon"></ion-icon>
+                                <div class="quickview-lens-name">เลนส์ธรรมดา</div>
+                                <div class="quickview-lens-price">มาตรฐาน (+0฿)</div>
+                            </div>
+                            <div class="quickview-lens-card" onclick="selectQuickViewLens(2)" id="qv-lens-card-2">
+                                <ion-icon name="shield-checkmark-outline" class="quickview-lens-icon"></ion-icon>
+                                <div class="quickview-lens-name">กรองแสงสีฟ้า</div>
+                                <div class="quickview-lens-price">Blue Block (+500฿)</div>
+                            </div>
+                            <div class="quickview-lens-card" onclick="selectQuickViewLens(3)" id="qv-lens-card-3">
+                                <ion-icon name="sunny-outline" class="quickview-lens-icon"></ion-icon>
+                                <div class="quickview-lens-name">ปรับแสงออโต้</div>
+                                <div class="quickview-lens-price">Auto UV (+1,000฿)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Lens Simulator -->
+                    <div id="lens-simulator-container" style="border: 1px solid var(--border-color); border-radius: 14px; padding: 1rem; background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 0.7rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <h4 style="font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; color: var(--accent); margin: 0; font-weight: 700;">
+                                <ion-icon name="sparkles-outline" style="font-size: 1rem; color: #3182ce;"></ion-icon> 
+                                ระบบจำลองเลนส์อัจฉริยะ (Lens Simulator)
+                            </h4>
+                            <span id="lens-sim-mode-badge" style="font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 6px; background: rgba(49, 130, 206, 0.1); color: #3182ce; font-weight: 600;">Realtime</span>
+                        </div>
+                        
+                        <div style="position: relative; width: 100%; height: 180px; border-radius: 10px; overflow: hidden; background-color: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                            <!-- Lens background image -->
+                            <img src="/assets/model3.jpg" id="lens-sim-bg" style="width: 100%; height: 100%; object-fit: cover; object-position: center 12%; filter: brightness(1.05);">
+                            
+                            <!-- Lens tint filter overlay -->
+                            <div id="lens-sim-tint" style="position: absolute; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0); pointer-events: none; transition: background-color 0.4s ease, backdrop-filter 0.4s ease; top: 0; left: 0;"></div>
+                            
+                            <!-- Blue light ray simulation overlay (for Blue Block lens) -->
+                            <div id="lens-sim-blue-beam" style="position: absolute; top: 50%; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #3182ce, transparent); transform: translateY(-50%); opacity: 0; transition: opacity 0.4s ease; box-shadow: 0 0 10px #3182ce; z-index: 2;"></div>
+                            <div id="lens-sim-blocked-label" style="position: absolute; top: 50%; right: 1rem; transform: translateY(-50%); background-color: #2f855a; color: #fff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700; opacity: 0; transition: opacity 0.4s ease; z-index: 3;">บล็อกแสงสีฟ้า 95%</div>
+                            
+                            <!-- Simulator HUD text -->
+                            <div id="lens-sim-text" style="position: absolute; bottom: 0.5rem; right: 0.5rem; background-color: rgba(0, 0, 0, 0.7); color: #fff; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;">
+                                เลนส์ธรรมดา (Normal Lens)
+                            </div>
+                        </div>
+
+                        <!-- UV Sunlight Slider controls (for Photochromic lens simulation) -->
+                        <div id="lens-sim-slider-group" style="display: none; align-items: center; gap: 0.8rem; margin-top: 0.2rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; font-weight: 600;">จำลองแดด / UV:</span>
+                            <input type="range" id="lens-uv-slider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;" oninput="updateLensSimulationSlider(this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Prescription Option Accordion/Checkbox -->
+                    <div id="prescription-toggle-group" style="border: 1px dashed var(--border-color); border-radius: 12px; padding: 0.85rem 1rem; background: var(--bg-primary);">
+                        <label style="display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.88rem; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="enter-presc-check" onchange="togglePrescriptionFields()" style="width: 17px; height: 17px; accent-color: var(--accent);">
+                            <span>ระบุค่าสายตาสำหรับตัดเลนส์ (หากต้องการ)</span>
+                        </label>
+                        
+                        <!-- Prescription Input fields (Initially collapsed) -->
+                        <div id="prescription-fields" style="display: none; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border-color);">
+                            <h4 style="font-size: 0.85rem; margin-bottom: 0.8rem; font-weight: 700; color: var(--accent);">ใบสั่งค่าสายตา (Prescription Form)</h4>
+                            <div class="presc-form" style="gap: 0.6rem;">
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">ค่าสายตาซ้าย (SPH L)</label>
+                                    <input type="number" step="0.25" id="sph-left" value="0.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">ค่าสายตาขวา (SPH R)</label>
+                                    <input type="number" step="0.25" id="sph-right" value="0.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">เอียงซ้าย (CYL L)</label>
+                                    <input type="number" step="0.25" id="cyl-left" value="0.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">เอียงขวา (CYL R)</label>
+                                    <input type="number" step="0.25" id="cyl-right" value="0.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">องศาซ้าย (AXIS L)</label>
+                                    <input type="number" id="axis-left" value="0" min="0" max="180">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">องศาขวา (AXIS R)</label>
+                                    <input type="number" id="axis-right" value="0" min="0" max="180">
+                                </div>
+                                <div class="form-group" style="grid-column: span 2; margin-bottom: 0.4rem;">
+                                    <label style="font-size: 0.75rem;">ระยะห่างรูม่านตา (PD) มิลลิเมตร</label>
+                                    <input type="number" step="0.5" id="pd-value" value="62" min="40" max="80">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons Row (Add to Cart + Wishlist) -->
+                    <div class="quickview-actions-grid">
+                        <button class="btn btn-primary quickview-add-btn" id="confirm-add-cart-btn">
+                            <ion-icon name="cart-outline" style="font-size: 1.25rem;"></ion-icon> เพิ่มลงตะกร้าสินค้า
+                        </button>
+                        <button class="quickview-icon-btn" id="qv-wishlist-btn" onclick="toggleQuickViewWishlist()" title="บันทึกไว้ในรายการโปรด">
+                            <ion-icon name="heart-outline" id="qv-wishlist-icon"></ion-icon>
+                        </button>
+                    </div>
+
+                    <!-- Extra Quick Links (VTO Camera & 3D Model placeholder) -->
+                    <div class="quickview-extra-links">
+                        <a href="/tryon.html" id="qv-vto-link" class="quickview-extra-btn" title="ลองสวมแว่นบนใบหน้าจริงผ่านกล้อง">
+                            <ion-icon name="camera-outline" style="font-size: 1.15rem; color: var(--accent);"></ion-icon>
+                            <span>ลองแว่นตาเสมือนจริง (Virtual Try-On)</span>
+                        </a>
+                        <button type="button" class="quickview-extra-btn disabled-feature" onclick="showToast('ระบบแสดงโมเดล 3 มิติ (3D Viewer) อยู่ระหว่างการพัฒนา', 'info')" title="กำลังพัฒนา">
+                            <ion-icon name="cube-outline" style="font-size: 1.15rem;"></ion-icon>
+                            <span>ดูโมเดล 3D (เร็วๆ นี้)</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
-
-            <div style="margin: 1.5rem 0;" id="prescription-toggle-group">
-                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem; cursor: pointer;">
-                    <input type="checkbox" id="enter-presc-check" onchange="togglePrescriptionFields()">
-                    ระบุค่าสายตาสำหรับตัดเลนส์ (หากต้องการ)
-                </label>
-            </div>
-
-            <!-- Prescription Input fields (Initially collapsed) -->
-            <div id="prescription-fields" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; background-color: var(--bg-primary);">
-                <h4 style="font-size: 0.95rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">ใบสั่งค่าสายตา</h4>
-                <div class="presc-form">
-                    <div class="form-group">
-                        <label>ค่าสายตาซ้าย (SPH L)</label>
-                        <input type="number" step="0.25" id="sph-left" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>ค่าสายตาขวา (SPH R)</label>
-                        <input type="number" step="0.25" id="sph-right" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>เอียงซ้าย (CYL L)</label>
-                        <input type="number" step="0.25" id="cyl-left" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>เอียงขวา (CYL R)</label>
-                        <input type="number" step="0.25" id="cyl-right" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>องศาซ้าย (AXIS L)</label>
-                        <input type="number" id="axis-left" value="0" min="0" max="180">
-                    </div>
-                    <div class="form-group">
-                        <label>องศาขวา (AXIS R)</label>
-                        <input type="number" id="axis-right" value="0" min="0" max="180">
-                    </div>
-                    <div class="form-group" style="grid-column: span 2;">
-                        <label>ระยะห่างรูม่านตา (PD) มิลลิเมตร</label>
-                        <input type="number" step="0.5" id="pd-value" value="62" min="40" max="80">
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
-                <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('lens-modal')">ยกเลิก</button>
-                <button class="btn btn-primary" style="flex: 2;" id="confirm-add-cart-btn">
-                    <ion-icon name="cart-outline"></ion-icon> ใส่ตะกร้าสินค้า
-                </button>
-                <!-- Hidden total price tracker to prevent JS crash -->
-                <span id="lens-total-price" style="display: none;">0</span>
             </div>
         </div>
     </div>
