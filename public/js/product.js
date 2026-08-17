@@ -198,7 +198,6 @@ function renderProductGallery() {
         thumbsContainer.innerHTML = currentProductGallery.map((img, idx) => `
             <div class="gallery-thumb-item ${idx === currentGalleryIdx ? 'active' : ''}" onclick="setProductImageIndex(${idx})" title="${img.label}">
                 <img src="${img.src}" alt="${img.label}">
-                <span>${img.label}</span>
             </div>
         `).join('');
     }

@@ -93,32 +93,30 @@
                     <span class="gallery-stock-badge" id="product-stock-badge">มีสินค้าพร้อมส่ง</span>
                 </div>
 
-                <div class="gallery-main-viewport" id="product-carousel-view">
-                    <button class="gallery-nav-btn prev" onclick="navigateProductImage(-1)" aria-label="Previous image">
-                        <ion-icon name="chevron-back-outline"></ion-icon>
-                    </button>
-                    <img src="" alt="แว่นตา" id="product-page-main-img" class="gallery-main-img">
-                    <button class="gallery-nav-btn next" onclick="navigateProductImage(1)" aria-label="Next image">
-                        <ion-icon name="chevron-forward-outline"></ion-icon>
-                    </button>
-                </div>
+                <div class="gallery-layout-wrapper">
+                    <!-- Thumbnails Bar (Moved to left) -->
+                    <div class="gallery-thumbnails" id="product-page-thumbs">
+                        <!-- Dynamic Thumbnails -->
+                    </div>
 
-                <!-- 3D Viewer Container (Hidden by default) -->
-                <div id="product-3d-view" style="display: none; width: 100%; height: 400px; background-color: var(--bg-secondary); border-radius: 16px; overflow: hidden; margin-bottom: 1rem;">
-                    <model-viewer id="product-model-viewer" 
-                        alt="3D Glasses Model" 
-                        auto-rotate 
-                        camera-controls 
-                        shadow-intensity="1"
-                        exposure="1.2"
-                        environment-image="legacy"
-                        style="width: 100%; height: 100%;">
-                    </model-viewer>
-                </div>
+                    <div class="gallery-main-display">
+                        <div class="gallery-main-viewport" id="product-carousel-view">
+                            <img src="" alt="แว่นตา" id="product-page-main-img" class="gallery-main-img">
+                        </div>
 
-                <!-- Thumbnails Bar -->
-                <div class="gallery-thumbnails" id="product-page-thumbs">
-                    <!-- Dynamic Thumbnails -->
+                        <!-- 3D Viewer Container (Hidden by default) -->
+                        <div id="product-3d-view" style="display: none; width: 100%; height: 480px; background-color: transparent; overflow: hidden;">
+                            <model-viewer id="product-model-viewer" 
+                                alt="3D Glasses Model" 
+                                auto-rotate 
+                                camera-controls 
+                                shadow-intensity="1"
+                                exposure="1.2"
+                                environment-image="legacy"
+                                style="width: 100%; height: 100%;">
+                            </model-viewer>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Feature Highlights Under Gallery -->
