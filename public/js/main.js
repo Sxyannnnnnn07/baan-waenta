@@ -420,8 +420,9 @@ async function handleLogout() {
     } finally {
         currentUser = null;
         csrfToken = null;
+        sessionStorage.removeItem('baan_waenta_guest');
         alert('ออกจากระบบแล้ว');
-        window.location.reload();
+        window.location.replace('/login.html');
     }
 }
 

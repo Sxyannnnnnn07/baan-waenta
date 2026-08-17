@@ -340,3 +340,10 @@ async function handleGoogleTokenResponse(tokenResponse) {
         }
     }
 }
+
+function allowGuestMode(event) {
+    if (event) event.preventDefault();
+    sessionStorage.setItem('baan_waenta_guest', 'true');
+    window.location.href = '/';
+}
+
