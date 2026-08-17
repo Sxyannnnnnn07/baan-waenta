@@ -3251,17 +3251,17 @@ input, select, textarea {
 }
 
 /* Dark Mode overrides for the right side of the modal */
-body.dark-mode .ar-3d-details-side {
+[data-theme="dark"] .ar-3d-details-side {
     background-color: var(--bg-primary);
 }
-body.dark-mode .modal-close-btn:hover {
+[data-theme="dark"] .modal-close-btn:hover {
     background-color: var(--bg-secondary);
     color: #fff;
 }
-body.dark-mode .ar-3d-toggle-pill {
+[data-theme="dark"] .ar-3d-toggle-pill {
     background: rgba(0, 0, 0, 0.6);
 }
-body.dark-mode .ar-3d-toggle-pill button.active {
+[data-theme="dark"] .ar-3d-toggle-pill button.active {
     background: var(--bg-secondary);
     color: #fff;
 }

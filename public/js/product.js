@@ -322,8 +322,9 @@ function openAR3DModal(mode = 'ar') {
         const selectedOption = lensSelect.options[lensSelect.selectedIndex];
         if (selectedOption) addon = parseInt(selectedOption.getAttribute('data-addon') || 0);
     }
-    const totalPrice = currentProduct.price + addon;
-    document.getElementById('modal-product-price').textContent = `THB ${totalPrice.toLocaleString()}`;
+    const basePrice = typeof currentProduct.price === 'string' ? parseFloat(currentProduct.price.replace(/,/g, '')) : currentProduct.price;
+    const totalPrice = basePrice + addon;
+    document.getElementById('modal-product-price').textContent = `THB ${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
     
     // Check if 3D model exists
     const modelViewer = document.getElementById('product-model-viewer');
