@@ -19,17 +19,17 @@
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
     <!-- Ionicons for clean minimalist icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <!-- Authentication Gatekeeper: Redirect to /login.html if not authenticated -->
+    <!-- Authentication Gatekeeper: Redirect to login.html if not authenticated -->
     <script>
         (async function() {
             if (sessionStorage.getItem('baan_waenta_guest') === 'true') return;
             try {
                 const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
                 if (!res.ok) {
-                    window.location.replace('/login.html');
+                    window.location.replace('login.html');
                 }
             } catch (_) {
-                window.location.replace('/login.html');
+                window.location.replace('login.html');
             }
         })();
     </script>

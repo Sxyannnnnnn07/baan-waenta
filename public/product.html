@@ -23,10 +23,10 @@
             try {
                 const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
                 if (!res.ok) {
-                    window.location.replace('/login.html');
+                    window.location.replace('login.html');
                 }
             } catch (_) {
-                window.location.replace('/login.html');
+                window.location.replace('login.html');
             }
         })();
     </script>
