@@ -1746,5 +1746,261 @@ input, select, textarea {
     }
 }
 
+/* ==========================================
+   14. MODERN LUXURY TOAST NOTIFICATIONS & MODAL ALERTS
+   ========================================== */
+.toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 600px) {
+    .toast-container {
+        top: 16px;
+        left: 16px;
+        right: 16px;
+        align-items: center;
+    }
+}
+
+.custom-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    font-size: 0.92rem;
+    font-weight: 500;
+    min-width: 260px;
+    max-width: 400px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .custom-toast {
+    background: rgba(30, 32, 36, 0.92);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+}
+
+.custom-toast.hide {
+    animation: toastFadeOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes toastFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+    }
+}
+
+.toast-icon {
+    font-size: 1.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+
+.custom-toast.success .toast-icon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.custom-toast.error .toast-icon {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.custom-toast.info .toast-icon {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.custom-toast.warning .toast-icon {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.toast-text {
+    flex: 1;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.toast-close {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 4px;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+/* Custom Modern Modal Dialog (For confirm / prompt / alerts) */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: alertOverlayFadeIn 0.25s ease forwards;
+}
+
+@keyframes alertOverlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.custom-alert-box {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: var(--shadow-md);
+    width: 100%;
+    max-width: 420px;
+    padding: 1.8rem;
+    text-align: center;
+    animation: alertBoxPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes alertBoxPop {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.custom-alert-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.2rem auto;
+}
+
+.custom-alert-box.success .custom-alert-icon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.custom-alert-box.error .custom-alert-icon {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.custom-alert-box.info .custom-alert-icon {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.custom-alert-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.custom-alert-msg {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+.custom-alert-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+}
+
+.custom-alert-btn {
+    flex: 1;
+    padding: 0.75rem 1.2rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+}
+
+.custom-alert-btn.primary {
+    background: var(--accent);
+    color: var(--bg-secondary);
+}
+
+.custom-alert-btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.custom-alert-btn.cancel {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.custom-alert-btn.cancel:hover {
+    background: var(--accent-light);
+    color: var(--text-primary);
+}
+
+
 
 
