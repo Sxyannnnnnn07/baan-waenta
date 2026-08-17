@@ -813,7 +813,11 @@ function addActiveProductToCart() {
 
     updateCartUI();
     closeModal('lens-modal');
-    alert('เพิ่มสินค้าลงในตะกร้าเรียบร้อยแล้ว!');
+    if (typeof showToast === 'function') {
+        showToast(`เพิ่ม ${activeLensProduct.name} ลงในตะกร้าแล้ว!`, 'success');
+    } else {
+        alert('เพิ่มสินค้าลงในตะกร้าเรียบร้อยแล้ว!');
+    }
 }
 
 function updateCartUI() {
