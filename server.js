@@ -104,7 +104,7 @@ const DB_CONFIG = {
     database: process.env.DB_NAME || 'baan_waenta',
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
-    connectionLimit: 4,
+    connectionLimit: 1,
     queueLimit: 0,
     ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
