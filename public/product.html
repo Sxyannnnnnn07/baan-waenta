@@ -119,23 +119,6 @@
                     </div>
                 </div>
 
-                <!-- Feature Highlights Under Gallery -->
-                <div class="gallery-features-grid">
-                    <div class="gallery-feature-item">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <div>
-                            <strong>รับประกันของแท้ 100%</strong>
-                            <span>กรอบและเลนส์คุณภาพมาตรฐานสากล</span>
-                        </div>
-                    </div>
-                    <div class="gallery-feature-item">
-                        <ion-icon name="airplane-outline"></ion-icon>
-                        <div>
-                            <strong>จัดส่งฟรีทั่วประเทศ</strong>
-                            <span>พร้อมกล่องแว่นและผ้าเช็ดเลนส์ไมโครไฟเบอร์</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Right Side: Product Details & Configurator -->
@@ -146,6 +129,29 @@
                 <div class="product-meta-row">
                     <span class="meta-tag" id="product-shape-tag">ทรง: ทรงกลม</span>
                     <span class="meta-tag" id="product-sku-tag">รหัสสินค้า: #BW-001</span>
+                </div>
+
+                <!-- Extra Links: VTO & 3D Model -->
+                <div class="product-secondary-actions">
+                    <a href="/tryon.html" id="product-vto-link" class="action-card-btn">
+                        <div class="action-card-icon">
+                            <ion-icon name="camera-outline"></ion-icon>
+                        </div>
+                        <div class="action-card-text">
+                            <strong>ลองแว่นตาเสมือนจริง (Virtual Try-On)</strong>
+                            <span>สแกนใบหน้าและสวมแว่นตาแบบ Realtime 60 FPS</span>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" class="action-card-arrow"></ion-icon>
+                    </a>
+                    <button type="button" id="product-3d-btn" class="action-card-btn" onclick="toggleProduct3DView()" style="display: none;">
+                        <div class="action-card-icon">
+                            <ion-icon name="cube-outline"></ion-icon>
+                        </div>
+                        <div class="action-card-text">
+                            <strong>ดูโมเดล 3D (360°)</strong>
+                            <span>หมุนดูวัสดุและกรอบแว่น 360 องศา</span>
+                        </div>
+                    </button>
                 </div>
 
                 <!-- Price Section -->
@@ -282,27 +288,22 @@
                     </button>
                 </div>
 
-                <!-- Extra Links: VTO & 3D Model -->
-                <div class="product-secondary-actions">
-                    <a href="/tryon.html" id="product-vto-link" class="action-card-btn">
-                        <div class="action-card-icon">
-                            <ion-icon name="camera-outline"></ion-icon>
+                <!-- Feature Highlights Under Gallery -->
+                <div class="gallery-features-grid">
+                    <div class="gallery-feature-item">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <div>
+                            <strong>รับประกันของแท้ 100%</strong>
+                            <span>กรอบและเลนส์คุณภาพมาตรฐานสากล</span>
                         </div>
-                        <div class="action-card-text">
-                            <strong>ลองแว่นตาเสมือนจริง (Virtual Try-On)</strong>
-                            <span>สแกนใบหน้าและสวมแว่นตาแบบ Realtime 60 FPS</span>
+                    </div>
+                    <div class="gallery-feature-item">
+                        <ion-icon name="airplane-outline"></ion-icon>
+                        <div>
+                            <strong>จัดส่งฟรีทั่วประเทศ</strong>
+                            <span>พร้อมกล่องแว่นและผ้าเช็ดเลนส์ไมโครไฟเบอร์</span>
                         </div>
-                        <ion-icon name="chevron-forward-outline" class="action-card-arrow"></ion-icon>
-                    </a>
-                    <button type="button" id="product-3d-btn" class="action-card-btn" onclick="toggleProduct3DView()" style="display: none;">
-                        <div class="action-card-icon">
-                            <ion-icon name="cube-outline"></ion-icon>
-                        </div>
-                        <div class="action-card-text">
-                            <strong>ดูโมเดล 3D (360°)</strong>
-                            <span>หมุนดูวัสดุและกรอบแว่น 360 องศา</span>
-                        </div>
-                    </button>
+                    </div>
                 </div>
             </div>
         </div>
