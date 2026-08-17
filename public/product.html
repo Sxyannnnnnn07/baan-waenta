@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>รายละเอียดแว่นตา | บ้านแว่นตา Store</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="บ้านแว่นตา">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script>
+        (async function() {
+            if (sessionStorage.getItem('baan_waenta_guest') === 'true') return;
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                if (!res.ok) {
+                    window.location.replace('/login.html');
+                }
+            } catch (_) {
+                window.location.replace('/login.html');
+            }
+        })();
+    </script>
+</head>
+<body class="product-page-body">
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress-bar" id="scroll-progress"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="/" class="logo">
+            บ้านแว่นตา<span>.store</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="/">หน้าแรก</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropdown-trigger">
+                    บริการของร้าน <ion-icon name="chevron-down-outline" style="font-size: 0.8rem; margin-left: 2px; vertical-align: middle;"></ion-icon>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/#catalog">รายการแว่นตาทั้งหมด</a></li>
+                    <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
+                    <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
+                </ul>
+            </li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;" title="สลับโหมดมืด-สว่าง">
+                <ion-icon id="theme-icon" name="moon-outline" style="font-size: 1.25rem;"></ion-icon>
+            </button>
+            <button class="btn btn-outline" id="orders-history-btn" onclick="openOrdersModal()" style="display: none; margin-right: 0.5rem; border-radius: 30px;">
+                <ion-icon name="list-outline"></ion-icon> ประวัติการสั่งซื้อ
+            </button>
+            <button class="btn btn-outline" id="cart-btn" onclick="openCartModal()" style="border-radius: 30px;">
+                <ion-icon name="cart-outline"></ion-icon>
+                ตะกร้า (<span id="cart-count">0</span>)
+            </button>
+            <div id="auth-status">
+                <a href="/login.html" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <ion-icon name="log-in-outline"></ion-icon> เข้าสู่ระบบ
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Full Dedicated Product Page Layout -->
+    <main class="product-page-main">
+        <!-- Breadcrumb & Back Navigation -->
+        <div class="product-page-top-nav">
+            <a href="/#catalog" class="back-link-btn">
+                <ion-icon name="arrow-back-outline"></ion-icon> ย้อนกลับไปเลือกแว่นตา
+            </a>
+            <div class="breadcrumb-trail">
+                <a href="/">หน้าแรก</a> / <a href="/#catalog">แว่นตาทั้งหมด</a> / <span id="breadcrumb-prod-name">รายละเอียดแว่นตา</span>
+            </div>
+        </div>
+
+        <div class="product-page-container">
+            <!-- Left Side: Image Gallery & Carousel -->
+            <div class="product-page-gallery" data-aos="fade-right">
+                <div class="gallery-badge-wrap">
+                    <span class="gallery-badge" id="product-category-badge">Optical</span>
+                    <span class="gallery-stock-badge" id="product-stock-badge">มีสินค้าพร้อมส่ง</span>
+                </div>
+
+                <div class="gallery-main-viewport">
+                    <button class="gallery-nav-btn prev" onclick="navigateProductImage(-1)" aria-label="Previous image">
+                        <ion-icon name="chevron-back-outline"></ion-icon>
+                    </button>
+                    <img src="" alt="แว่นตา" id="product-page-main-img" class="gallery-main-img">
+                    <button class="gallery-nav-btn next" onclick="navigateProductImage(1)" aria-label="Next image">
+                        <ion-icon name="chevron-forward-outline"></ion-icon>
+                    </button>
+                </div>
+
+                <!-- Thumbnails Bar -->
+                <div class="gallery-thumbnails" id="product-page-thumbs">
+                    <!-- Dynamic Thumbnails -->
+                </div>
+
+                <!-- Feature Highlights Under Gallery -->
+                <div class="gallery-features-grid">
+                    <div class="gallery-feature-item">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <div>
+                            <strong>รับประกันของแท้ 100%</strong>
+                            <span>กรอบและเลนส์คุณภาพมาตรฐานสากล</span>
+                        </div>
+                    </div>
+                    <div class="gallery-feature-item">
+                        <ion-icon name="airplane-outline"></ion-icon>
+                        <div>
+                            <strong>จัดส่งฟรีทั่วประเทศ</strong>
+                            <span>พร้อมกล่องแว่นและผ้าเช็ดเลนส์ไมโครไฟเบอร์</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Product Details & Configurator -->
+            <div class="product-page-details" data-aos="fade-left">
+                <div class="product-brand-tag" id="product-brand">Ray-Ban</div>
+                <h1 class="product-title" id="product-name">กำลังโหลดข้อมูลแว่นตา...</h1>
+                
+                <div class="product-meta-row">
+                    <span class="meta-tag" id="product-shape-tag">ทรง: ทรงกลม</span>
+                    <span class="meta-tag" id="product-sku-tag">รหัสสินค้า: #BW-001</span>
+                </div>
+
+                <!-- Price Section -->
+                <div class="product-price-section">
+                    <div class="current-price-display">
+                        <span class="price-number" id="product-total-price">0</span>
+                        <span class="currency-symbol">บาท</span>
+                    </div>
+                    <div class="price-subnote" id="product-price-subnote">ราคารวมเลนส์ที่เลือกเรียบร้อยแล้ว</div>
+                </div>
+
+                <p class="product-description" id="product-description">
+                    กรอบแว่นตาดีไซน์พรีเมียม น้ำหนักเบา สวมใส่สบาย ออกแบบตามหลักสรีรศาสตร์ ผลิตจากวัสดุคุณภาพสูง ทนทานและยืดหยุ่นได้ดี
+                </p>
+
+                <!-- Lens Options Section -->
+                <div class="product-section-box" id="product-lens-selection-group">
+                    <div class="section-box-header">
+                        <label class="section-box-title">
+                            <ion-icon name="options-outline"></ion-icon> เลือกประเภทเลนส์ (Lens Options)
+                        </label>
+                        <span class="active-lens-indicator" id="product-active-lens-name">เลนส์ธรรมดา</span>
+                    </div>
+
+                    <div class="lens-cards-grid">
+                        <div class="lens-card active" onclick="selectPageLens(1)" id="page-lens-card-1">
+                            <div class="lens-card-radio"></div>
+                            <div class="lens-card-info">
+                                <span class="lens-card-title">เลนส์ธรรมดา (Normal Lens)</span>
+                                <span class="lens-card-desc">เลนส์ใสมาตรฐาน สำหรับใช้งานทั่วไป</span>
+                            </div>
+                            <span class="lens-card-price">+0 ฿</span>
+                        </div>
+                        <div class="lens-card" onclick="selectPageLens(2)" id="page-lens-card-2">
+                            <div class="lens-card-radio"></div>
+                            <div class="lens-card-info">
+                                <span class="lens-card-title">เลนส์กรองแสงสีฟ้า (Blue Block)</span>
+                                <span class="lens-card-desc">ตัดแสงสีฟ้าจากจอคอมพิวเตอร์และมือถือ 95%</span>
+                            </div>
+                            <span class="lens-card-price">+500 ฿</span>
+                        </div>
+                        <div class="lens-card" onclick="selectPageLens(3)" id="page-lens-card-3">
+                            <div class="lens-card-radio"></div>
+                            <div class="lens-card-info">
+                                <span class="lens-card-title">เลนส์ปรับแสงออโต้ (Photochromic)</span>
+                                <span class="lens-card-desc">เปลี่ยนสีเข้มขึ้นอัตโนมัติเมื่อออกแดด UV</span>
+                            </div>
+                            <span class="lens-card-price">+1,000 ฿</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden select for compatibility -->
+                <select id="lens-type-select" style="display: none;" onchange="updatePageLensPricing()">
+                    <option value="1" data-addon="0">เลนส์ธรรมดา (Normal Lens) +0 บาท</option>
+                    <option value="2" data-addon="500">เลนส์กรองแสงสีฟ้า (Blue Block) +500 บาท</option>
+                    <option value="3" data-addon="1000">เลนส์ปรับแสงออโต้ตามแดด (Photochromic) +1000 บาท</option>
+                </select>
+                <span id="lens-total-price" style="display: none;">0</span>
+
+                <!-- Realtime Lens Simulator Section -->
+                <div class="product-section-box" id="lens-simulator-container">
+                    <div class="section-box-header">
+                        <label class="section-box-title">
+                            <ion-icon name="sparkles-outline" style="color: #3182ce;"></ion-icon> ระบบจำลองเลนส์อัจฉริยะ (Lens Simulator)
+                        </label>
+                        <span class="badge-tag live-badge">Live Preview</span>
+                    </div>
+
+                    <div class="lens-simulator-viewport">
+                        <img src="/assets/model3.jpg" id="lens-sim-bg" class="lens-sim-image" alt="จำลองมุมมองเลนส์">
+                        <div id="lens-sim-tint" class="lens-sim-tint-layer"></div>
+                        <div id="lens-sim-blue-beam" class="lens-sim-blue-beam-layer"></div>
+                        <div id="lens-sim-blocked-label" class="lens-sim-blocked-tag">บล็อกแสงสีฟ้า 95%</div>
+                        <div id="lens-sim-text" class="lens-sim-status-hud">เลนส์ธรรมดา (Normal Lens) : รับภาพปกติทั่วไป</div>
+                    </div>
+
+                    <!-- UV Sunlight Slider controls -->
+                    <div id="lens-sim-slider-group" class="lens-uv-control" style="display: none;">
+                        <span class="uv-slider-label">ระดับแสงแดด / UV:</span>
+                        <input type="range" id="lens-uv-slider" min="0" max="100" value="0" class="uv-slider-input" oninput="updateLensSimulationSlider(this.value)">
+                    </div>
+                </div>
+
+                <!-- Prescription Option Form -->
+                <div class="product-section-box" id="prescription-toggle-group">
+                    <label class="presc-checkbox-label">
+                        <input type="checkbox" id="enter-presc-check" onchange="togglePrescriptionFields()" class="custom-checkbox">
+                        <span>ระบุค่าสายตาสำหรับตัดเลนส์ (หากต้องการ)</span>
+                    </label>
+
+                    <div id="prescription-fields" class="presc-fields-wrapper" style="display: none;">
+                        <h4 class="presc-form-heading">ใบสั่งค่าสายตา (Prescription Form)</h4>
+                        <div class="presc-form">
+                            <div class="form-group">
+                                <label>ค่าสายตาซ้าย (SPH L)</label>
+                                <input type="number" step="0.25" id="sph-left" value="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>ค่าสายตาขวา (SPH R)</label>
+                                <input type="number" step="0.25" id="sph-right" value="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>เอียงซ้าย (CYL L)</label>
+                                <input type="number" step="0.25" id="cyl-left" value="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>เอียงขวา (CYL R)</label>
+                                <input type="number" step="0.25" id="cyl-right" value="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>องศาซ้าย (AXIS L)</label>
+                                <input type="number" id="axis-left" value="0" min="0" max="180">
+                            </div>
+                            <div class="form-group">
+                                <label>องศาขวา (AXIS R)</label>
+                                <input type="number" id="axis-right" value="0" min="0" max="180">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>ระยะห่างรูม่านตา (PD) มิลลิเมตร</label>
+                                <input type="number" step="0.5" id="pd-value" value="62" min="40" max="80">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primary Action Buttons -->
+                <div class="product-actions-bar">
+                    <button class="btn btn-primary product-add-cart-btn" id="product-add-cart-btn" onclick="addProductPageToCart()">
+                        <ion-icon name="cart-outline"></ion-icon> เพิ่มลงตะกร้าสินค้า
+                    </button>
+                    <button class="product-wishlist-btn" id="product-wishlist-btn" onclick="toggleProductWishlist()" title="บันทึกรายการโปรด">
+                        <ion-icon name="heart-outline" id="product-wishlist-icon"></ion-icon>
+                    </button>
+                </div>
+
+                <!-- Extra Links: VTO & 3D Model -->
+                <div class="product-secondary-actions">
+                    <a href="/tryon.html" id="product-vto-link" class="action-card-btn">
+                        <div class="action-card-icon">
+                            <ion-icon name="camera-outline"></ion-icon>
+                        </div>
+                        <div class="action-card-text">
+                            <strong>ลองแว่นตาเสมือนจริง (Virtual Try-On)</strong>
+                            <span>สแกนใบหน้าและสวมแว่นตาแบบ Realtime 60 FPS</span>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" class="action-card-arrow"></ion-icon>
+                    </a>
+                    <button type="button" class="action-card-btn disabled-card" onclick="showToast('ระบบแสดงโมเดล 3 มิติ (3D Viewer) อยู่ระหว่างการพัฒนา', 'info')">
+                        <div class="action-card-icon">
+                            <ion-icon name="cube-outline"></ion-icon>
+                        </div>
+                        <div class="action-card-text">
+                            <strong>ดูโมเดล 3D รอบทิศทาง (3D Viewer)</strong>
+                            <span>หมุนดูวัสดุและกรอบแว่น 360 องศา (เร็วๆ นี้)</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SHOPPING CART MODAL (For checkout flow) -->
+    <div class="modal" id="cart-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="modal-close" onclick="closeModal('cart-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem;">ตะกร้าสินค้าของคุณ</h3>
+            
+            <div id="cart-items-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 1.5rem;">
+                <!-- Loaded dynamically via JS -->
+            </div>
+
+            <!-- Shipping Address Form (Initially Hidden, shown on checkout step) -->
+            <div id="shipping-info-form" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1rem;">
+                <h4 style="margin-bottom: 1rem; font-size: 1rem;">ข้อมูลและที่อยู่การจัดส่ง</h4>
+                <div class="form-group">
+                    <label>ชื่อ-นามสกุล ผู้รับ *</label>
+                    <input type="text" id="ship-name" required placeholder="เช่น สมศักดิ์ รักดี">
+                </div>
+                <div class="form-group">
+                    <label>เบอร์โทรศัพท์ติดต่อ *</label>
+                    <input type="tel" id="ship-phone" required placeholder="เช่น 0812345678">
+                </div>
+                <div class="form-group">
+                    <label>ที่อยู่จัดส่งสินค้าโดยละเอียด *</label>
+                    <textarea id="ship-address" rows="3" required placeholder="บ้านเลขที่, หมู่, ถนน, ตำบล/แขวง, อำเภอ/เขต, จังหวัด, รหัสไปรษณีย์" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+            </div>
+
+            <div class="cart-total" style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2rem; border-top: 1px solid var(--border-color); padding-top: 1rem; margin-bottom: 1.5rem;">
+                <span>ยอดรวมทั้งหมด:</span>
+                <span id="cart-total-price">0 ฿</span>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 1rem;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('cart-modal')">เลือกซื้อสินค้าต่อ</button>
+                <button class="btn btn-primary" style="flex: 1.5;" id="checkout-action-btn" onclick="proceedCheckoutStep()">
+                    ดำเนินการสั่งซื้อสินค้า
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders History Modal -->
+    <div class="modal" id="orders-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="modal-close" onclick="closeModal('orders-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem;">ประวัติการสั่งซื้อของคุณ</h3>
+            <div id="orders-list-content" style="max-height: 400px; overflow-y: auto;">
+                <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">กำลังโหลดข้อมูลคำสั่งซื้อ...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal" id="payment-modal">
+        <div class="modal-content" style="max-width: 500px; text-align: center;">
+            <span class="modal-close" onclick="closeModal('payment-modal')">&times;</span>
+            <h3 style="margin-bottom: 0.5rem;">ชำระเงิน</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">ยอดชำระเงินทั้งหมด: <span id="payment-amount" style="font-weight: 700; color: var(--accent); font-size: 1.2rem;">0</span> บาท</p>
+            
+            <div style="background: var(--bg-primary); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                <img src="/assets/qr_payment.jpg" alt="พร้อมเพย์ QR Code" style="max-width: 220px; width: 100%; border-radius: 8px; margin: 0 auto; display: block;">
+                <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-secondary);">สแกน QR Code หรือโอนเงินผ่านบัญชีธนาคารกสิกรไทย<br><strong>เลขที่บัญชี: 157-1-2-6845-7 (นายซาฮีรัม เจ๊ะหะ)</strong></p>
+            </div>
+
+            <div class="form-group" style="text-align: left;">
+                <label>แนบสลิปหลักฐานการชำระเงิน *</label>
+                <input type="file" id="payment-slip" accept="image/*" onchange="handleSlipUpload(event)">
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('payment-modal')">ยกเลิก</button>
+                <button class="btn btn-primary" style="flex: 1.5;" id="confirm-payment-btn" onclick="submitOrder()">
+                    ยืนยันการแจ้งชำระเงิน
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button id="back-to-top-btn" class="back-to-top-btn" onclick="scrollToTop()" title="เลื่อนกลับขึ้นบนสุด">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+    </button>
+
+    <!-- Footer -->
+    <footer class="footer" style="margin-top: 5rem;">
+        <div class="footer-grid">
+            <div>
+                <div class="footer-logo">
+                    บ้านแว่นตา<span>.store</span>
+                </div>
+                <p>บริการตัดแว่นสายตา เลนส์คุณภาพสูง และระบบทดลองสวมแว่นตาเสมือนจริงออนไลน์</p>
+            </div>
+            <div>
+                <h4 class="footer-title">บริการของเรา</h4>
+                <ul class="footer-links">
+                    <li><a href="/#catalog">กรอบแว่นสายตา</a></li>
+                    <li><a href="/#catalog">แว่นตากันแดด</a></li>
+                    <li><a href="/tryon.html">ลองแว่นออนไลน์ (VTO)</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-title">ติดต่อเรา</h4>
+                <ul class="footer-links">
+                    <li>เบอร์โทร: 098-968-7435</li>
+                    <li>ที่อยู่: ร้านบ้านแว่นตา ถ.รามคำแหง กรุงเทพฯ</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 บ้านแว่นตา Store. All rights reserved. จัดทำโดย นายซาฮีรัม เจ๊ะหะ (6003)</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/js/toast.js"></script>
+    <script src="/js/main.js"></script>
+    <script src="/js/product.js"></script>
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof AOS !== 'undefined') {
+                AOS.init({ duration: 800, once: true });
+            }
+        });
+    </script>
+</body>
+</html>

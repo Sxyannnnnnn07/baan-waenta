@@ -203,7 +203,7 @@ function renderProducts(products) {
         }
 
         card.style.cursor = 'pointer';
-        card.setAttribute('onclick', `openLensModal(${prod.id})`);
+        card.setAttribute('onclick', `window.location.href='/product.html?id=${prod.id}'`);
 
         card.innerHTML = `
             ${badgeHtml}
@@ -222,7 +222,9 @@ function renderProducts(products) {
                     <a href="/tryon.html?product=${prod.id}" class="btn btn-outline" style="padding: 0.5rem 0.8rem; font-size: 0.8rem;" title="ลองแว่น">
                         <ion-icon name="camera-outline" style="font-size: 1.2rem;"></ion-icon>
                     </a>
-                    ${buttonHtml}
+                    <a href="/product.html?id=${prod.id}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-decoration: none;">
+                        ดูรายละเอียด
+                    </a>
                 </div>
             </div>
         `;

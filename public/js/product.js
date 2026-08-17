@@ -1,0 +1,273 @@
+// Baan Waenta - Dedicated Product Detail Page Logic
+let currentProduct = null;
+let currentProductGallery = [];
+let currentGalleryIdx = 0;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Get product ID from URL query string
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = parseInt(urlParams.get('id'));
+
+    if (!productId) {
+        window.location.replace('/#catalog');
+        return;
+    }
+
+    // 2. Fetch product information from allProducts or API
+    await loadProductPageData(productId);
+});
+
+async function loadProductPageData(productId) {
+    try {
+        const res = await apiFetch('/api/products');
+        const data = await res.json();
+        
+        if (data.success && data.products) {
+            allProducts = data.products;
+            currentProduct = allProducts.find(p => p.id === productId);
+        }
+
+        if (!currentProduct) {
+            alert('ไม่พบข้อมูลแว่นตารุ่นนี้');
+            window.location.replace('/#catalog');
+            return;
+        }
+
+        // Assign to global activeLensProduct for cart compatibility
+        activeLensProduct = currentProduct;
+
+        // Set document title
+        document.title = `${currentProduct.name} - ${currentProduct.brand} | บ้านแว่นตา Store`;
+
+        // Update Text & Meta Elements
+        const breadcrumbEl = document.getElementById('breadcrumb-prod-name');
+        const nameEl = document.getElementById('product-name');
+        const brandEl = document.getElementById('product-brand');
+        const catBadge = document.getElementById('product-category-badge');
+        const shapeTag = document.getElementById('product-shape-tag');
+        const skuTag = document.getElementById('product-sku-tag');
+        const descEl = document.getElementById('product-description');
+        const stockBadge = document.getElementById('product-stock-badge');
+        const vtoLink = document.getElementById('product-vto-link');
+
+        if (breadcrumbEl) breadcrumbEl.innerText = currentProduct.name;
+        if (nameEl) nameEl.innerText = currentProduct.name;
+        if (brandEl) brandEl.innerText = currentProduct.brand || 'Baan Waenta';
+        if (catBadge) catBadge.innerText = currentProduct.category === 'Optical' ? 'แว่นสายตา' : 'แว่นกันแดด';
+        if (shapeTag) shapeTag.innerText = `ทรง: ${getThaiShape(currentProduct.frame_shape)}`;
+        if (skuTag) skuTag.innerText = `รหัสสินค้า: #BW-${String(currentProduct.id).padStart(3, '0')}`;
+        if (vtoLink) vtoLink.href = `/tryon.html?product=${currentProduct.id}`;
+        
+        if (descEl) {
+            descEl.innerText = `กรอบแว่นตาแบรนด์ ${currentProduct.brand || ''} รุ่น ${currentProduct.name} ทรง ${getThaiShape(currentProduct.frame_shape)} ผลิตจากวัสดุคุณภาพสูง ทนทาน น้ำหนักเบา สวมใส่สบาย ออกแบบตามหลักสรีรศาสตร์ เหมาะสำหรับสวมใส่ในชีวิตประจำวันและการทำงาน`;
+        }
+
+        if (stockBadge) {
+            if (parseInt(currentProduct.stock) <= 0) {
+                stockBadge.innerText = 'สินค้าหมดชั่วคราว';
+                stockBadge.style.background = '#e53e3e';
+                const addBtn = document.getElementById('product-add-cart-btn');
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.innerText = 'สินค้าหมดชั่วคราว';
+                    addBtn.style.opacity = '0.6';
+                    addBtn.style.cursor = 'not-allowed';
+                }
+            } else if (parseInt(currentProduct.stock) < 5) {
+                stockBadge.innerText = `เหลือเพียง ${currentProduct.stock} ชิ้นสุดท้าย`;
+                stockBadge.style.background = '#dd6b20';
+            } else {
+                stockBadge.innerText = 'มีสินค้าพร้อมส่งในคลัง';
+                stockBadge.style.background = '#2f855a';
+            }
+        }
+
+        // Setup Carousel Images
+        let modelImg = '/assets/model1.jpg';
+        if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+        if (currentProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+
+        let sideImg = '/assets/vto_model.jpg';
+        if (currentProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+
+        currentProductGallery = [
+            { src: currentProduct.image_url, label: 'มุมตรง' },
+            { src: modelImg, label: 'ขณะสวมใส่' },
+            { src: sideImg, label: 'มุมเฉียง' }
+        ];
+        currentGalleryIdx = 0;
+        renderProductGallery();
+
+        // Lens selection & Simulator reset
+        selectPageLens(1);
+
+        // Sunglasses check
+        const isSunglasses = currentProduct.category === 'Sunglasses';
+        const lensGroup = document.getElementById('product-lens-selection-group');
+        const simContainer = document.getElementById('lens-simulator-container');
+        const prescGroup = document.getElementById('prescription-toggle-group');
+
+        if (isSunglasses) {
+            if (lensGroup) lensGroup.style.display = 'none';
+            if (simContainer) simContainer.style.display = 'none';
+            if (prescGroup) prescGroup.style.display = 'none';
+        } else {
+            if (lensGroup) lensGroup.style.display = 'block';
+            if (simContainer) simContainer.style.display = 'block';
+            if (prescGroup) prescGroup.style.display = 'block';
+        }
+
+        // Wishlist state
+        updateProductPageWishlistUI();
+
+        // Check if user has prescription history
+        if (currentUser && !isSunglasses) {
+            try {
+                const prescRes = await apiFetch(`/api/prescriptions/${currentUser.id}`);
+                const prescData = await prescRes.json();
+                if (prescData.success && prescData.prescription) {
+                    const presc = prescData.prescription;
+                    document.getElementById('sph-left').value = presc.sphere_left;
+                    document.getElementById('sph-right').value = presc.sphere_right;
+                    document.getElementById('cyl-left').value = presc.cylinder_left;
+                    document.getElementById('cyl-right').value = presc.cylinder_right;
+                    document.getElementById('axis-left').value = presc.axis_left;
+                    document.getElementById('axis-right').value = presc.axis_right;
+                    document.getElementById('pd-value').value = presc.pd;
+
+                    const pCheck = document.getElementById('enter-presc-check');
+                    const pFields = document.getElementById('prescription-fields');
+                    if (pCheck) pCheck.checked = true;
+                    if (pFields) pFields.style.display = 'block';
+                }
+            } catch (err) {
+                console.warn('Could not load user prescription history', err);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading product page:', error);
+        alert('เกิดข้อผิดพลาดในการโหลดข้อมูลสินค้า');
+    }
+}
+
+function renderProductGallery() {
+    const mainImg = document.getElementById('product-page-main-img');
+    const thumbsContainer = document.getElementById('product-page-thumbs');
+
+    if (mainImg && currentProductGallery.length > 0) {
+        mainImg.style.opacity = '0';
+        setTimeout(() => {
+            mainImg.src = currentProductGallery[currentGalleryIdx].src;
+            mainImg.style.opacity = '1';
+        }, 150);
+    }
+
+    if (thumbsContainer) {
+        thumbsContainer.innerHTML = currentProductGallery.map((img, idx) => `
+            <div class="gallery-thumb-item ${idx === currentGalleryIdx ? 'active' : ''}" onclick="setProductImageIndex(${idx})" title="${img.label}">
+                <img src="${img.src}" alt="${img.label}">
+                <span>${img.label}</span>
+            </div>
+        `).join('');
+    }
+}
+
+function navigateProductImage(direction) {
+    if (!currentProductGallery.length) return;
+    currentGalleryIdx = (currentGalleryIdx + direction + currentProductGallery.length) % currentProductGallery.length;
+    renderProductGallery();
+}
+
+function setProductImageIndex(index) {
+    if (index >= 0 && index < currentProductGallery.length) {
+        currentGalleryIdx = index;
+        renderProductGallery();
+    }
+}
+
+function selectPageLens(lensVal) {
+    const lensSelect = document.getElementById('lens-type-select');
+    if (lensSelect) lensSelect.value = String(lensVal);
+
+    [1, 2, 3].forEach(id => {
+        const card = document.getElementById(`page-lens-card-${id}`);
+        if (card) {
+            if (id === lensVal) card.classList.add('active');
+            else card.classList.remove('active');
+        }
+    });
+
+    const labelMap = {
+        1: 'เลนส์ธรรมดา (+0฿)',
+        2: 'เลนส์กรองแสงสีฟ้า (+500฿)',
+        3: 'เลนส์ปรับแสงออโต้ตามแดด (+1,000฿)'
+    };
+    const activeLabel = document.getElementById('product-active-lens-name');
+    if (activeLabel) activeLabel.innerText = labelMap[lensVal] || '';
+
+    updatePageLensPricing();
+}
+
+function updatePageLensPricing() {
+    if (!currentProduct) return;
+    const lensSelect = document.getElementById('lens-type-select');
+    let addonPrice = 0;
+    if (lensSelect) {
+        const activeOption = lensSelect.options[lensSelect.selectedIndex];
+        if (activeOption) {
+            addonPrice = parseFloat(activeOption.getAttribute('data-addon')) || 0;
+        }
+    }
+    const totalPrice = parseFloat(currentProduct.price) + addonPrice;
+
+    const priceDisplay = document.getElementById('product-total-price');
+    const legacyTotal = document.getElementById('lens-total-price');
+    if (priceDisplay) priceDisplay.innerText = totalPrice.toLocaleString();
+    if (legacyTotal) legacyTotal.innerText = totalPrice.toLocaleString();
+
+    if (typeof updateLensSimulation === 'function' && lensSelect) {
+        updateLensSimulation(parseInt(lensSelect.value));
+    }
+}
+
+function toggleProductWishlist() {
+    if (!currentProduct) return;
+    const prodId = currentProduct.id;
+    let localWishlist = JSON.parse(localStorage.getItem('baan_waenta_wishlist') || '[]');
+    const idx = localWishlist.indexOf(prodId);
+
+    if (idx > -1) {
+        localWishlist.splice(idx, 1);
+        showToast(`นำ "${currentProduct.name}" ออกจากรายการโปรดแล้ว`, 'info');
+    } else {
+        localWishlist.push(prodId);
+        showToast(`บันทึก "${currentProduct.name}" ลงรายการโปรดเรียบร้อย ❤️`, 'success');
+    }
+
+    localStorage.setItem('baan_waenta_wishlist', JSON.stringify(localWishlist));
+    updateProductPageWishlistUI();
+}
+
+function updateProductPageWishlistUI() {
+    if (!currentProduct) return;
+    const localWishlist = JSON.parse(localStorage.getItem('baan_waenta_wishlist') || '[]');
+    const isFav = localWishlist.includes(currentProduct.id);
+    const btn = document.getElementById('product-wishlist-btn');
+    const icon = document.getElementById('product-wishlist-icon');
+
+    if (btn && icon) {
+        if (isFav) {
+            btn.classList.add('wishlist-active');
+            icon.setAttribute('name', 'heart');
+        } else {
+            btn.classList.remove('wishlist-active');
+            icon.setAttribute('name', 'heart-outline');
+        }
+    }
+}
+
+function addProductPageToCart() {
+    if (!currentProduct) return;
+    activeLensProduct = currentProduct;
+    addActiveProductToCart();
+}
