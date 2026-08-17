@@ -85,10 +85,10 @@ async function loadProductPageData(productId) {
         // Setup Carousel Images (5 angles for Prada / dynamic products)
         if (currentProduct.name && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada')) {
             currentProductGallery = [
-                { src: '/assets/prada_front.png', label: 'มุมตรง' },
-                { src: '/assets/prada_angle1.png', label: 'มุมเฉียง 1' },
-                { src: '/assets/prada_detail.png', label: 'ดีเทลโลโก้ดาว' },
-                { src: '/assets/prada_angle2.png', label: 'มุมข้าง' },
+                { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
+                { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
+                { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
+                { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
                 { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
             ];
         } else {
