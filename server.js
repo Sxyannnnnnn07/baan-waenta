@@ -1,3 +1,8 @@
+// Load local configuration before reading any process.env values below.
+// Deployment platforms can still provide environment variables normally;
+// dotenv does not overwrite values that are already set by the host.
+require('dotenv').config();
+
 const express = require('express');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -98,6 +103,9 @@ const DB_CONFIG = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'baan_waenta',
     port: Number(process.env.DB_PORT) || 3306,
+    waitForConnections: true,
+    connectionLimit: 4,
+    queueLimit: 0,
     ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
 
@@ -129,7 +137,7 @@ async function initDB() {
 
         // Idempotent schema migrations must also run against hosted databases.
         await setupTables();
-        if (isLocal) await seedData();
+        await seedData();
 
         console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
 
