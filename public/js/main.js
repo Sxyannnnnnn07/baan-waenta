@@ -103,7 +103,7 @@ async function checkLoginStatus() {
         currentUser = null;
         if (adminNav) adminNav.style.display = 'none';
         if (ordersHistoryBtn) ordersHistoryBtn.style.display = 'none';
-        if (authStatusDiv) authStatusDiv.innerHTML = `<button class="btn btn-primary" onclick="openAuthModal('login')">เข้าสู่ระบบ</button>`;
+        if (authStatusDiv) authStatusDiv.innerHTML = `<a href="/login.html" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;"><ion-icon name="log-in-outline"></ion-icon> เข้าสู่ระบบ</a>`;
 
         // Toggle review submission UI
         if (reviewAuthPrompt && reviewForm) {
