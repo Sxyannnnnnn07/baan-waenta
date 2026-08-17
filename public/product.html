@@ -76,10 +76,7 @@
     <!-- Main Full Dedicated Product Page Layout -->
     <main class="product-page-main">
         <!-- Breadcrumb & Back Navigation -->
-        <div class="product-page-top-nav">
-            <a href="/#catalog" class="back-link-btn">
-                <ion-icon name="arrow-back-outline"></ion-icon> ย้อนกลับไปเลือกแว่นตา
-            </a>
+        <div class="product-page-top-nav" style="justify-content: flex-end;">
             <div class="breadcrumb-trail">
                 <a href="/">หน้าแรก</a> / <a href="/#catalog">แว่นตาทั้งหมด</a> / <span id="breadcrumb-prod-name">รายละเอียดแว่นตา</span>
             </div>
@@ -89,8 +86,9 @@
             <!-- Left Side: Image Gallery & Carousel -->
             <div class="product-page-gallery" data-aos="fade-right">
                 <div class="gallery-badge-wrap">
-                    <span class="gallery-badge" id="product-category-badge">Optical</span>
-                    <span class="gallery-stock-badge" id="product-stock-badge">มีสินค้าพร้อมส่ง</span>
+                    <a href="/#catalog" class="gallery-back-btn">
+                        <ion-icon name="arrow-back-outline"></ion-icon> ย้อนกลับไปเลือกแว่นตา
+                    </a>
                 </div>
 
                 <div class="gallery-layout-wrapper">
@@ -113,9 +111,10 @@
                 <div class="product-brand-tag" id="product-brand">Ray-Ban</div>
                 <h1 class="product-title" id="product-name">กำลังโหลดข้อมูลแว่นตา...</h1>
                 
-                <div class="product-meta-row">
+                <div class="product-meta-row" style="align-items: center; flex-wrap: wrap;">
                     <span class="meta-tag" id="product-shape-tag">ทรง: ทรงกลม</span>
                     <span class="meta-tag" id="product-sku-tag">รหัสสินค้า: #BW-001</span>
+                    <span class="gallery-stock-badge" id="product-stock-badge" style="margin-left: auto;">มีสินค้าพร้อมส่งในคลัง</span>
                 </div>
 
                 <!-- Extra Links: VTO & 3D Model -->

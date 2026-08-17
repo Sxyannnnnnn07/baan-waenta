@@ -77,7 +77,7 @@ async function loadProductPageData(productId) {
                 stockBadge.innerText = `เหลือเพียง ${currentProduct.stock} ชิ้นสุดท้าย`;
                 stockBadge.style.background = '#dd6b20';
             } else {
-                stockBadge.innerText = 'มีสินค้าพร้อมส่งในคลัง';
+                stockBadge.innerText = `มีสินค้าพร้อมส่งในคลัง ${currentProduct.stock} ชิ้น`;
                 stockBadge.style.background = '#2f855a';
             }
         }

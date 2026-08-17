@@ -2522,16 +2522,24 @@ input, select, textarea {
     gap: 0.6rem;
 }
 
-.gallery-badge {
-    background: var(--accent);
-    color: var(--bg-secondary);
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 0.35rem 0.85rem;
-    border-radius: 20px;
-    text-transform: uppercase;
+.gallery-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #111317; /* Dark pill color matching screenshot */
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-decoration: none;
+    transition: all 0.2s ease;
 }
 
+.gallery-back-btn:hover {
+    background: #2a2d35;
+}
 .gallery-stock-badge {
     background: #2f855a;
     color: #fff;
