@@ -18,11 +18,6 @@ let uploadedImage = null;
 let glassesImage = new Image();
 let isGlassesLoaded = false;
 
-// Three.js variables (Phase 3)
-let threeScene, threeCamera, threeRenderer;
-let current3DModel = null;
-let headOccluder = null;
-
 // Glasses positioning properties (Defaults)
 let glassesState = {
     x: 200,          // Canvas X coordinate
@@ -50,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchTryOnProducts();
     setupCanvasInteractivity();
     initScrollEffects();
-    initThreeJS();
     
     // Check URL parameters for pre-selected product
     const urlParams = new URLSearchParams(window.location.search);
@@ -132,17 +126,12 @@ function selectProduct(productId) {
     selectedProduct = products.find(p => p.id === productId);
     if (!selectedProduct) return;
 
-    // Load 3D Model if available
-    if (selectedProduct.model_3d_url && threeScene) {
-        load3DModel(selectedProduct);
-    } else {
-        // Fallback to 2D
-        glassesImage.src = selectedProduct.tryon_image_url;
-        glassesImage.onload = () => {
-            isGlassesLoaded = true;
-            drawCanvas();
-        };
-    }
+    // Load Glasses Image
+    glassesImage.src = selectedProduct.tryon_image_url;
+    glassesImage.onload = () => {
+        isGlassesLoaded = true;
+        drawCanvas();
+    };
 
     // Update bottom panel info
     document.getElementById('selected-frame-title').innerText = selectedProduct.name;
@@ -151,92 +140,6 @@ function selectProduct(productId) {
     // Enable order button
     const orderBtn = document.getElementById('vto-order-btn');
     orderBtn.disabled = false;
-}
-
-// ==========================================
-// THREE.JS 3D ENGINE SETUP (PHASE 3)
-// ==========================================
-function initThreeJS() {
-    const wrapper = document.getElementById('video-wrapper');
-    if (!wrapper || typeof THREE === 'undefined') return;
-
-    // 1. Scene
-    threeScene = new THREE.Scene();
-
-    // 2. Camera
-    const aspect = wrapper.clientWidth / wrapper.clientHeight;
-    threeCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-    threeCamera.position.set(0, 0, 100);
-
-    // 3. Renderer (Transparent background)
-    threeRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    threeRenderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
-    threeRenderer.setPixelRatio(window.devicePixelRatio);
-    
-    // Layer it over the 2D canvas/video
-    threeRenderer.domElement.style.position = 'absolute';
-    threeRenderer.domElement.style.top = '0';
-    threeRenderer.domElement.style.left = '0';
-    threeRenderer.domElement.style.width = '100%';
-    threeRenderer.domElement.style.height = '100%';
-    threeRenderer.domElement.style.pointerEvents = 'none'; // Let clicks pass through to 2D canvas sliders
-    threeRenderer.domElement.style.zIndex = '5'; // Above 2D canvas
-    
-    // CSS Mirroring for camera
-    threeRenderer.domElement.style.transform = 'scaleX(-1)';
-    
-    wrapper.appendChild(threeRenderer.domElement);
-
-    // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    threeScene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(10, 20, 20);
-    threeScene.add(directionalLight);
-    
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-    hemiLight.position.set(0, 20, 0);
-    threeScene.add(hemiLight);
-
-    // Render loop integration
-    animateThreeJS();
-}
-
-function animateThreeJS() {
-    requestAnimationFrame(animateThreeJS);
-    if (threeRenderer && threeScene && threeCamera) {
-        threeRenderer.render(threeScene, threeCamera);
-    }
-}
-
-function load3DModel(prod) {
-    if (current3DModel) {
-        threeScene.remove(current3DModel);
-        current3DModel = null;
-    }
-
-    const loader = new THREE.GLTFLoader();
-    loader.load(prod.model_3d_url, (gltf) => {
-        current3DModel = gltf.scene;
-        
-        // Apply DB scales and offsets
-        const sX = prod.scale_x || 1;
-        const sY = prod.scale_y || 1;
-        const sZ = prod.scale_z || 1;
-        
-        // Base scale adjustment for typical GLB files to fit our coordinate system
-        const baseScale = 20; 
-        current3DModel.scale.set(baseScale * sX, baseScale * sY, baseScale * sZ);
-        
-        // Hide it initially until face is detected (Phase 4)
-        current3DModel.visible = false;
-        
-        threeScene.add(current3DModel);
-        isGlassesLoaded = true;
-    }, undefined, (error) => {
-        console.error("Error loading 3D model:", error);
-    });
 }
 
 // ==========================================
@@ -313,6 +216,13 @@ function adjustCanvasSize() {
     if (glassesState.x === 0 || glassesState.x === 200 || glassesState.x === canvas.width / 2) {
         glassesState.x = canvas.width / 2;
         glassesState.y = canvas.height / 2.2;
+    }
+
+    // Set Three.js renderer size (Phase 3/4)
+    if (threeRenderer && threeCamera) {
+        threeRenderer.setSize(canvas.width, canvas.height);
+        threeCamera.aspect = canvas.width / canvas.height;
+        threeCamera.updateProjectionMatrix();
     }
 }
 
@@ -450,8 +360,8 @@ function cameraLoop() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
-    // Draw the glasses frame on top
-    if (isGlassesLoaded && selectedProduct) {
+    // Draw the glasses frame on top ONLY if not using 3D model
+    if (isGlassesLoaded && selectedProduct && (!selectedProduct.model_3d_url || !threeScene)) {
         drawGlasses();
     }
     
@@ -471,8 +381,8 @@ function drawCanvas() {
         ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
     }
 
-    // Draw glasses overlay
-    if (isGlassesLoaded && selectedProduct) {
+    // Draw glasses overlay ONLY if not using 3D model
+    if (isGlassesLoaded && selectedProduct && (!selectedProduct.model_3d_url || !threeScene)) {
         drawGlasses();
     }
 }
@@ -889,112 +799,214 @@ function onFaceMeshResults(results) {
         const videoWidth = video.videoWidth;
         const videoHeight = video.videoHeight;
 
-        let rawLeftX, rawLeftY, rawRightX, rawRightY;
+        // Extract landmarks
+        const leftPupil = landmarks[468];
+        const rightPupil = landmarks[473];
+        const noseBridge = landmarks[168];
+        const noseTip = landmarks[4];
+        
+        // -------------------------------------------------------------
+        // THREE.JS 3D AR TRY-ON PROCESSOR (PHASE 4 & 5)
+        // -------------------------------------------------------------
+        if (selectedProduct && selectedProduct.model_3d_url && current3DModel && threeScene) {
+            // Make the 3D model visible since face is detected
+            current3DModel.visible = true;
 
-        // Use iris landmarks (pupils 468 & 473) for ultimate precision
-        if (landmarks[468] && landmarks[473]) {
-            rawLeftX = landmarks[468].x * videoWidth;
-            rawLeftY = landmarks[468].y * videoHeight;
-            rawRightX = landmarks[473].x * videoWidth;
-            rawRightY = landmarks[473].y * videoHeight;
+            // 1. Calculate camera dimensions at focus plane (Z = 0)
+            const aspect = canvas.width / canvas.height;
+            const fovRad = threeCamera.fov * (Math.PI / 180);
+            const heightAtZero = 2 * threeCamera.position.z * Math.tan(fovRad / 2);
+            const widthAtZero = heightAtZero * aspect;
+
+            // 2. Coords in video pixel space
+            const pLeft = new THREE.Vector3(leftPupil.x * videoWidth, leftPupil.y * videoHeight, leftPupil.z * videoWidth);
+            const pRight = new THREE.Vector3(rightPupil.x * videoWidth, rightPupil.y * videoHeight, rightPupil.z * videoWidth);
+            const pBridge = new THREE.Vector3(noseBridge.x * videoWidth, noseBridge.y * videoHeight, noseBridge.z * videoWidth);
+            const pNose = new THREE.Vector3(noseTip.x * videoWidth, noseTip.y * videoHeight, noseTip.z * videoWidth);
+
+            // 3. Create Orthogonal 3D Rotation Matrix from face vectors (6-DoF Yaw, Pitch, Roll)
+            const vX = new THREE.Vector3().subVectors(pRight, pLeft).normalize(); // Right vector
+            const vNose = new THREE.Vector3().subVectors(pNose, pBridge).normalize(); // Nose bridge down vector
+            const vZ = new THREE.Vector3().crossVectors(vX, vNose).normalize(); // Forward vector
+            const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize(); // Up vector
+
+            // Build target rotation matrix
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.makeBasis(vX, vY, vZ);
+            const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
+
+            // Apply manual rotation offsets from slider (Roll adjustment)
+            const userRot = parseInt(document.getElementById('rotation-slider').value) * Math.PI / 180;
+            if (userRot !== 0) {
+                const rollOffset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), userRot);
+                targetQuaternion.multiply(rollOffset);
+            }
+
+            // Exponential Moving Average (EMA) Smoothing filter for Rotation (Phase 5)
+            current3DModel.quaternion.slerp(targetQuaternion, 0.28); // 0.28 factor reduces jitter while maintaining response
+
+            // 4. Calculate Position
+            // Translate normalized coordinates to Three.js world coordinates
+            const targetX = (noseBridge.x - 0.5) * widthAtZero;
+            const targetY = -(noseBridge.y - 0.5) * heightAtZero;
+            
+            // Slider manual X, Y offsets
+            const userOffsetX = parseInt(document.getElementById('x-slider').value) / canvas.width * widthAtZero;
+            const userOffsetY = -parseInt(document.getElementById('y-slider').value) / canvas.height * heightAtZero;
+            
+            // Map depth along face Z axis
+            const targetZ = noseBridge.z * widthAtZero;
+            const targetPos = new THREE.Vector3(targetX + userOffsetX, targetY + userOffsetY, targetZ);
+            
+            // Push model slightly forward along face's Z axis to sit naturally on the nose bridge
+            const modelBaseScale = selectedProduct.scale_x || 1.0;
+            const forwardOffset = vZ.clone().multiplyScalar(4.5 * modelBaseScale);
+            targetPos.add(forwardOffset);
+
+            // Add manual height offset (offset_y) from product DB
+            const dbOffsetY = (selectedProduct.offset_y || 0.0) * heightAtZero;
+            targetPos.y += dbOffsetY;
+
+            // EMA Smoothing filter for Position (Phase 5)
+            current3DModel.position.lerp(targetPos, 0.28);
+
+            // 5. Calculate Scale (Responsive Scaling based on eye distance)
+            const eyeDistPixels = pLeft.distanceTo(pRight);
+            const userScale = parseInt(document.getElementById('scale-slider').value) / 100;
+            
+            // Base scaling factor to match typical model size to face dimensions
+            const targetScaleVal = eyeDistPixels * 0.165 * modelBaseScale * userScale;
+
+            // EMA Smoothing filter for Scale (Phase 5)
+            const currentScaleX = current3DModel.scale.x;
+            const newScale = THREE.MathUtils.lerp(currentScaleX, targetScaleVal, 0.28);
+            current3DModel.scale.set(newScale, newScale, newScale);
+
+            // 6. Head Occluder Integration (Phase 4)
+            if (!headOccluder) {
+                const occluderGeometry = new THREE.SphereGeometry(1, 32, 32);
+                const occluderMaterial = new THREE.MeshBasicMaterial({ colorWrite: false }); // Render only to depth buffer
+                headOccluder = new THREE.Mesh(occluderGeometry, occluderMaterial);
+                threeScene.add(headOccluder);
+            }
+            
+            // Position the head occluder slightly behind the nose bridge (in the center of the skull)
+            const headBackOffset = vZ.clone().multiplyScalar(-9.5 * modelBaseScale);
+            const headPos = targetPos.clone().add(headBackOffset);
+            headOccluder.position.copy(headPos);
+            
+            // Set occluder dimensions based on face size
+            const occluderScaleVal = eyeDistPixels * 0.16 * modelBaseScale;
+            // Oblong shape (deeper on Z-axis) to completely hide the temple arms of the glasses
+            headOccluder.scale.set(occluderScaleVal, occluderScaleVal * 1.15, occluderScaleVal * 1.35);
+            // Rotate the occluder along with the head
+            headOccluder.quaternion.copy(current3DModel.quaternion);
+            headOccluder.visible = true;
+
         } else {
-            // Fallback to standard eye landmarks if iris tracking is not supported/ready
-            const leftOuter = landmarks[33];
-            const leftInner = landmarks[133];
-            const rightInner = landmarks[362];
-            const rightOuter = landmarks[263];
+            // -------------------------------------------------------------
+            // 2D FALLBACK OVERLAY MODE
+            // -------------------------------------------------------------
+            if (current3DModel) current3DModel.visible = false;
+            if (headOccluder) headOccluder.visible = false;
 
-            if (leftOuter && leftInner && rightInner && rightOuter) {
-                rawLeftX = ((leftOuter.x + leftInner.x) / 2) * videoWidth;
-                rawLeftY = ((leftOuter.y + leftInner.y) / 2) * videoHeight;
-                rawRightX = ((rightInner.x + rightOuter.x) / 2) * videoWidth;
-                rawRightY = ((rightInner.y + rightOuter.y) / 2) * videoHeight;
-            }
-        }
-
-        if (rawLeftX !== undefined && rawRightX !== undefined) {
-            // Calculate crop factor just like in cameraLoop
-            const videoRatio = videoWidth / videoHeight;
-            const canvasRatio = canvas.width / canvas.height;
-            
-            let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
-            if (videoRatio > canvasRatio) {
-                sWidth = videoHeight * canvasRatio;
-                sx = (videoWidth - sWidth) / 2;
+            let rawLeftX, rawLeftY, rawRightX, rawRightY;
+            if (landmarks[468] && landmarks[473]) {
+                rawLeftX = landmarks[468].x * videoWidth;
+                rawLeftY = landmarks[468].y * videoHeight;
+                rawRightX = landmarks[473].x * videoWidth;
+                rawRightY = landmarks[473].y * videoHeight;
             } else {
-                sHeight = videoWidth / canvasRatio;
-                sy = (videoHeight - sHeight) / 2;
-            }
-            
-            const scaleX = canvas.width / sWidth;
-            const scaleY = canvas.height / sHeight;
-            
-            // Calculate eye center coordinates in video space
-            const rawEyeX = (rawLeftX + rawRightX) / 2;
-            const rawEyeY = (rawLeftY + rawRightY) / 2;
-            
-            // Mapped positions directly (no inversion since CSS scales/mirrors the canvas)
-            const eyeX = (rawEyeX - sx) * scaleX;
-            const eyeY = (rawEyeY - sy) * scaleY;
-            
-            // Calculate distance between eyes to scale glasses
-            const dx = rawRightX - rawLeftX;
-            const dy = rawRightY - rawLeftY;
-            const eyeDist = Math.sqrt(dx*dx + dy*dy);
-            
-            // Calculate tilt rotation angle in degrees
-            const angleRad = Math.atan2(dy, dx);
-            const angleDeg = angleRad * (180 / Math.PI);
-            
-            // Autoupdate states and sliders directly
-            const finalScale = Math.round(eyeDist * 2.2 * scaleX);
-            document.getElementById('scale-slider').value = finalScale;
-            document.getElementById('rotation-slider').value = Math.round(angleDeg);
-            
-            // Directly map position coordinates
-            glassesState.x = eyeX;
-            glassesState.y = eyeY;
-            
-            // Reset manual offsets since AI tracking is active
-            document.getElementById('x-slider').value = 0;
-            document.getElementById('y-slider').value = 0;
+                const leftOuter = landmarks[33];
+                const leftInner = landmarks[133];
+                const rightInner = landmarks[362];
+                const rightOuter = landmarks[263];
 
-            // --- AI Face Shape & Auto-Size HUD Updates ---
-            const shapeResult = analyzeFaceShape(landmarks, videoWidth, videoHeight);
-            const stableResult = getStableFaceShape(shapeResult);
-            
-            if (stableResult) {
-                const shapeEl = document.getElementById('hud-face-shape');
-                const recEl = document.getElementById('hud-recommendation');
+                if (leftOuter && leftInner && rightInner && rightOuter) {
+                    rawLeftX = ((leftOuter.x + leftInner.x) / 2) * videoWidth;
+                    rawLeftY = ((leftOuter.y + leftInner.y) / 2) * videoHeight;
+                    rawRightX = ((rightInner.x + rightOuter.x) / 2) * videoWidth;
+                    rawRightY = ((rightInner.y + rightOuter.y) / 2) * videoHeight;
+                }
+            }
+
+            if (rawLeftX !== undefined && rawRightX !== undefined) {
+                const videoRatio = videoWidth / videoHeight;
+                const canvasRatio = canvas.width / canvas.height;
                 
-                if (shapeEl && recEl) {
-                    shapeEl.innerText = stableResult.shape;
-                    recEl.innerHTML = `💡 <strong>แนะนำสำหรับคุณ:</strong> ${stableResult.recommendation}`;
+                let sx = 0, sy = 0, sWidth = videoWidth, sHeight = videoHeight;
+                if (videoRatio > canvasRatio) {
+                    sWidth = videoHeight * canvasRatio;
+                    sx = (videoWidth - sWidth) / 2;
+                } else {
+                    sHeight = videoWidth / canvasRatio;
+                    sy = (videoHeight - sHeight) / 2;
                 }
                 
-                // Extract recommendation shape key for highlighting catalog
-                let shapeKey = "";
-                if (stableResult.shape.includes("กลม")) {
-                    shapeKey = "Square";
-                } else if (stableResult.shape.includes("เหลี่ยม")) {
-                    shapeKey = "Round";
-                } else if (stableResult.shape.includes("ยาว")) {
-                    shapeKey = "Square";
-                } else if (stableResult.shape.includes("หัวใจ")) {
-                    shapeKey = "Oval";
-                } else if (stableResult.shape.includes("เพชร")) {
-                    shapeKey = "CatEye";
-                } else if (stableResult.shape.includes("สามเหลี่ยม")) {
-                    shapeKey = "CatEye";
-                } else if (stableResult.shape.includes("รี")) {
-                    shapeKey = "Round";
-                }
+                const scaleX = canvas.width / sWidth;
+                const scaleY = canvas.height / sHeight;
                 
-                if (shapeKey) {
-                    highlightRecommendedProducts(shapeKey);
-                }
+                const rawEyeX = (rawLeftX + rawRightX) / 2;
+                const rawEyeY = (rawLeftY + rawRightY) / 2;
+                
+                const eyeX = (rawEyeX - sx) * scaleX;
+                const eyeY = (rawEyeY - sy) * scaleY;
+                
+                const dx = rawRightX - rawLeftX;
+                const dy = rawRightY - rawLeftY;
+                const eyeDist = Math.sqrt(dx*dx + dy*dy);
+                const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+                
+                const finalScale = Math.round(eyeDist * 2.2 * scaleX);
+                document.getElementById('scale-slider').value = finalScale;
+                document.getElementById('rotation-slider').value = Math.round(angleDeg);
+                
+                glassesState.x = eyeX;
+                glassesState.y = eyeY;
+                
+                document.getElementById('x-slider').value = 0;
+                document.getElementById('y-slider').value = 0;
             }
         }
+
+        // --- AI Face Shape & Recommendation HUD ---
+        const shapeResult = analyzeFaceShape(landmarks, videoWidth, videoHeight);
+        const stableResult = getStableFaceShape(shapeResult);
+        
+        if (stableResult) {
+            const shapeEl = document.getElementById('hud-face-shape');
+            const recEl = document.getElementById('hud-recommendation');
+            
+            if (shapeEl && recEl) {
+                shapeEl.innerText = stableResult.shape;
+                recEl.innerHTML = `💡 <strong>แนะนำสำหรับคุณ:</strong> ${stableResult.recommendation}`;
+            }
+            
+            let shapeKey = "";
+            if (stableResult.shape.includes("กลม")) {
+                shapeKey = "Square";
+            } else if (stableResult.shape.includes("เหลี่ยม")) {
+                shapeKey = "Round";
+            } else if (stableResult.shape.includes("ยาว")) {
+                shapeKey = "Square";
+            } else if (stableResult.shape.includes("หัวใจ")) {
+                shapeKey = "Oval";
+            } else if (stableResult.shape.includes("เพชร")) {
+                shapeKey = "CatEye";
+            } else if (stableResult.shape.includes("สามเหลี่ยม")) {
+                shapeKey = "CatEye";
+            } else if (stableResult.shape.includes("รี")) {
+                shapeKey = "Round";
+            }
+            
+            if (shapeKey) {
+                highlightRecommendedProducts(shapeKey);
+            }
+        }
+    } else {
+        // No face detected - hide 3D models
+        if (current3DModel) current3DModel.visible = false;
+        if (headOccluder) headOccluder.visible = false;
     }
 }
 
@@ -1066,8 +1078,15 @@ function takeSnapshot() {
             tempCtx.scale(-1, 1);
         }
 
-        // Draw main canvas onto temp canvas
+        // Draw main 2D canvas (video feed) onto temp canvas
         tempCtx.drawImage(canvas, 0, 0);
+
+        // Draw 3D Glasses Canvas on top if in 3D Mode
+        if (selectedProduct.model_3d_url && threeRenderer) {
+            // Render the Three.js scene once to ensure buffer is loaded
+            threeRenderer.render(threeScene, threeCamera);
+            tempCtx.drawImage(threeRenderer.domElement, 0, 0);
+        }
 
         // Convert to data URL and download
         const dataURL = tempCanvas.toDataURL('image/jpeg', 0.9);
