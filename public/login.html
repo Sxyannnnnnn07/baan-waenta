@@ -381,16 +381,6 @@
     </style>
 </head>
 <body>
-    <!-- Top Actions -->
-    <div class="login-top-bar">
-        <a href="/" class="login-top-btn" title="กลับสู่หน้าหลัก">
-            <ion-icon name="arrow-back-outline"></ion-icon> หน้าหลักร้านค้า
-        </a>
-        <button class="theme-circle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="สลับโหมดมืด-สว่าง">
-            <ion-icon id="theme-icon" name="moon-outline" style="font-size: 1.25rem;"></ion-icon>
-        </button>
-    </div>
-
     <div class="login-wrapper">
         <div class="login-card">
             <!-- Brand Header -->
@@ -438,12 +428,20 @@
                 </div>
 
                 <!-- Password -->
-                <div class="form-floating-group">
+                <div class="form-floating-group" style="margin-bottom: 0.8rem;">
                     <label for="auth-password">รหัสผ่าน</label>
                     <div class="input-with-icon">
                         <ion-icon name="lock-closed-outline"></ion-icon>
                         <input type="password" id="auth-password" required placeholder="กรอกรหัสผ่าน" autocomplete="current-password">
                     </div>
+                </div>
+
+                <!-- Remember Me Checkbox -->
+                <div id="remember-me-container" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; font-size: 0.88rem; color: var(--text-secondary);">
+                    <label style="display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; user-select: none; font-size: 0.88rem; color: var(--text-primary);">
+                        <input type="checkbox" id="remember-me-checkbox" style="width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; border-radius: 4px;">
+                        <span>จำรหัสผ่านในเครื่องนี้</span>
+                    </label>
                 </div>
 
                 <!-- Password Strength Checklist (Registration Only) -->

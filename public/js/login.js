@@ -8,9 +8,31 @@ let googleTokenClient = null;
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initPasswordStrengthListener();
+    loadRememberedCredentials();
     await checkInitialSession();
     initGoogleAuth();
 });
+
+// Load Remembered Credentials
+function loadRememberedCredentials() {
+    const rememberedUser = localStorage.getItem('baan_waenta_remember_user');
+    const rememberedPass = localStorage.getItem('baan_waenta_remember_pass');
+    const rememberCheckbox = document.getElementById('remember-me-checkbox');
+    const usernameInput = document.getElementById('auth-username');
+    const passwordInput = document.getElementById('auth-password');
+
+    if (rememberedUser && rememberCheckbox && usernameInput) {
+        usernameInput.value = rememberedUser;
+        rememberCheckbox.checked = true;
+        if (rememberedPass && passwordInput) {
+            try {
+                passwordInput.value = atob(rememberedPass);
+            } catch (_) {
+                passwordInput.value = rememberedPass;
+            }
+        }
+    }
+}
 
 // 2. Theme Handling
 function initTheme() {
@@ -152,6 +174,15 @@ async function handleAuthSubmit(e) {
 
         if (data.success) {
             if (currentMode === 'login') {
+                const rememberCheckbox = document.getElementById('remember-me-checkbox');
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    localStorage.setItem('baan_waenta_remember_user', username);
+                    localStorage.setItem('baan_waenta_remember_pass', btoa(password));
+                } else {
+                    localStorage.removeItem('baan_waenta_remember_user');
+                    localStorage.removeItem('baan_waenta_remember_pass');
+                }
+
                 showAlert('success', 'เข้าสู่ระบบสำเร็จ! กำลังพาท่านไปหน้าหลัก...');
                 setTimeout(() => {
                     if (data.user && data.user.role === 'admin') {
