@@ -1039,7 +1039,13 @@ async function openOrdersModal() {
     if (!currentUser) return;
     
     const modal = document.getElementById('orders-modal');
-    const listDiv = document.getElementById('orders-history-list');
+    // The home and product pages use different containers for order history.
+    const listDiv = document.getElementById('orders-history-list')
+        || document.getElementById('orders-list-content');
+    if (!listDiv) {
+        console.error('Orders history container was not found');
+        return;
+    }
     listDiv.innerHTML = '<div style="text-align: center; padding: 2rem;">กำลังโหลดประวัติการสั่งซื้อ...</div>';
     modal.style.display = 'flex';
 
