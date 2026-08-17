@@ -18,11 +18,6 @@ let uploadedImage = null;
 let glassesImage = new Image();
 let isGlassesLoaded = false;
 
-// Three.js variables (Phase 3)
-let threeScene, threeCamera, threeRenderer;
-let current3DModel = null;
-let headOccluder = null;
-
 // Glasses positioning properties (Defaults)
 let glassesState = {
     x: 200,          // Canvas X coordinate
@@ -50,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchTryOnProducts();
     setupCanvasInteractivity();
     initScrollEffects();
-    initThreeJS();
     
     // Check URL parameters for pre-selected product
     const urlParams = new URLSearchParams(window.location.search);
@@ -132,17 +126,12 @@ function selectProduct(productId) {
     selectedProduct = products.find(p => p.id === productId);
     if (!selectedProduct) return;
 
-    // Load 3D Model if available
-    if (selectedProduct.model_3d_url && threeScene) {
-        load3DModel(selectedProduct);
-    } else {
-        // Fallback to 2D
-        glassesImage.src = selectedProduct.tryon_image_url;
-        glassesImage.onload = () => {
-            isGlassesLoaded = true;
-            drawCanvas();
-        };
-    }
+    // Load Glasses Image
+    glassesImage.src = selectedProduct.tryon_image_url;
+    glassesImage.onload = () => {
+        isGlassesLoaded = true;
+        drawCanvas();
+    };
 
     // Update bottom panel info
     document.getElementById('selected-frame-title').innerText = selectedProduct.name;
@@ -151,92 +140,6 @@ function selectProduct(productId) {
     // Enable order button
     const orderBtn = document.getElementById('vto-order-btn');
     orderBtn.disabled = false;
-}
-
-// ==========================================
-// THREE.JS 3D ENGINE SETUP (PHASE 3)
-// ==========================================
-function initThreeJS() {
-    const wrapper = document.getElementById('video-wrapper');
-    if (!wrapper || typeof THREE === 'undefined') return;
-
-    // 1. Scene
-    threeScene = new THREE.Scene();
-
-    // 2. Camera
-    const aspect = wrapper.clientWidth / wrapper.clientHeight;
-    threeCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-    threeCamera.position.set(0, 0, 100);
-
-    // 3. Renderer (Transparent background)
-    threeRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    threeRenderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
-    threeRenderer.setPixelRatio(window.devicePixelRatio);
-    
-    // Layer it over the 2D canvas/video
-    threeRenderer.domElement.style.position = 'absolute';
-    threeRenderer.domElement.style.top = '0';
-    threeRenderer.domElement.style.left = '0';
-    threeRenderer.domElement.style.width = '100%';
-    threeRenderer.domElement.style.height = '100%';
-    threeRenderer.domElement.style.pointerEvents = 'none'; // Let clicks pass through to 2D canvas sliders
-    threeRenderer.domElement.style.zIndex = '5'; // Above 2D canvas
-    
-    // CSS Mirroring for camera
-    threeRenderer.domElement.style.transform = 'scaleX(-1)';
-    
-    wrapper.appendChild(threeRenderer.domElement);
-
-    // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    threeScene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(10, 20, 20);
-    threeScene.add(directionalLight);
-    
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-    hemiLight.position.set(0, 20, 0);
-    threeScene.add(hemiLight);
-
-    // Render loop integration
-    animateThreeJS();
-}
-
-function animateThreeJS() {
-    requestAnimationFrame(animateThreeJS);
-    if (threeRenderer && threeScene && threeCamera) {
-        threeRenderer.render(threeScene, threeCamera);
-    }
-}
-
-function load3DModel(prod) {
-    if (current3DModel) {
-        threeScene.remove(current3DModel);
-        current3DModel = null;
-    }
-
-    const loader = new THREE.GLTFLoader();
-    loader.load(prod.model_3d_url, (gltf) => {
-        current3DModel = gltf.scene;
-        
-        // Apply DB scales and offsets
-        const sX = prod.scale_x || 1;
-        const sY = prod.scale_y || 1;
-        const sZ = prod.scale_z || 1;
-        
-        // Base scale adjustment for typical GLB files to fit our coordinate system
-        const baseScale = 20; 
-        current3DModel.scale.set(baseScale * sX, baseScale * sY, baseScale * sZ);
-        
-        // Hide it initially until face is detected (Phase 4)
-        current3DModel.visible = false;
-        
-        threeScene.add(current3DModel);
-        isGlassesLoaded = true;
-    }, undefined, (error) => {
-        console.error("Error loading 3D model:", error);
-    });
 }
 
 // ==========================================
