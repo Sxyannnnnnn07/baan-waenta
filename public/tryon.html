@@ -21,6 +21,23 @@
     <!-- Three.js & GLTFLoader for 3D AR Try-On (Phase 3) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Embed Mode logic -->
+    <script>
+        if (new URLSearchParams(window.location.search).get('embed') === 'true') {
+            document.documentElement.classList.add('embed-mode');
+        }
+    </script>
+    <style>
+        html.embed-mode { background: transparent; }
+        .embed-mode body { background: transparent; }
+        .embed-mode .navbar { display: none !important; }
+        .embed-mode .tryon-workspace { padding: 0 !important; min-height: auto !important; height: 100%; display: flex; flex-direction: column; }
+        .embed-mode .tryon-workspace > div > h2, 
+        .embed-mode .tryon-workspace > div > p { display: none !important; }
+        .embed-mode .tryon-main-layout { gap: 0 !important; margin: 0 !important; height: 100%; }
+        .embed-mode .tryon-camera-panel { border-radius: 0 !important; border: none !important; }
+    </style>
 </head>
 <body>
 

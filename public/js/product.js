@@ -303,46 +303,83 @@ function addProductPageToCart() {
     addActiveProductToCart();
 }
 
-function toggleProduct3DView() {
-    const view3D = document.getElementById('product-3d-view');
-    const viewCarousel = document.getElementById('product-carousel-view');
-    const btn3D = document.getElementById('product-3d-btn');
+// AR/3D Modal Logic
+function openAR3DModal(mode = 'ar') {
+    if (!currentProduct) return;
     
-    if (!view3D || !viewCarousel || !btn3D) return;
+    const modal = document.getElementById('ar-3d-modal');
+    if (!modal) return;
     
-    if (view3D.style.display === 'none') {
-        // Switch to 3D Mode
-        viewCarousel.style.display = 'none';
-        view3D.style.display = 'block';
-        
-        const textContainer = btn3D.querySelector('.action-card-text');
-        const iconContainer = btn3D.querySelector('.action-card-icon ion-icon');
-        
-        if (textContainer) {
-            textContainer.innerHTML = '<strong>ดูรูปภาพสินค้า (2D)</strong><span>กลับไปดูรูปถ่ายสินค้าปกติ</span>';
+    // Populate Right Side Details
+    document.getElementById('modal-product-brand').textContent = currentProduct.brand;
+    document.getElementById('modal-product-title').textContent = currentProduct.name;
+    document.getElementById('modal-product-sku').textContent = `SKU: #${currentProduct.id.toString().padStart(3, '0')}`;
+    
+    // Set Price (Calculate with current lens selection)
+    const lensSelect = document.getElementById('lens-type-select');
+    let addon = 0;
+    if (lensSelect) {
+        const selectedOption = lensSelect.options[lensSelect.selectedIndex];
+        if (selectedOption) addon = parseInt(selectedOption.getAttribute('data-addon') || 0);
+    }
+    const totalPrice = currentProduct.price + addon;
+    document.getElementById('modal-product-price').textContent = `THB ${totalPrice.toLocaleString()}`;
+    
+    // Check if 3D model exists
+    const modelViewer = document.getElementById('product-model-viewer');
+    if (modelViewer && currentProduct.model3d) {
+        modelViewer.src = currentProduct.model3d;
+    }
+    
+    // Set iframe for AR
+    const arIframe = document.getElementById('ar-tryon-iframe');
+    if (arIframe) {
+        // Load the iframe only when modal opens to save resources
+        if (!arIframe.src || !arIframe.src.includes('embed=true')) {
+            arIframe.src = `/tryon.html?embed=true&id=${currentProduct.id}`;
         }
-        if (iconContainer) {
-            iconContainer.name = 'image-outline';
-        }
-        btn3D.classList.add('active');
-        btn3D.style.backgroundColor = 'var(--bg-secondary)';
-        btn3D.style.borderColor = 'var(--accent)';
+    }
+    
+    modal.style.display = 'block';
+    
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+    
+    switchAR3DView(mode);
+}
+
+function closeAR3DModal() {
+    const modal = document.getElementById('ar-3d-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    // Release body scroll lock
+    document.body.style.overflow = '';
+}
+
+function switchAR3DView(mode) {
+    const arContainer = document.getElementById('modal-ar-view-container');
+    const tdContainer = document.getElementById('modal-3d-view-container');
+    const arBtn = document.getElementById('ar-toggle-btn');
+    const tdBtn = document.getElementById('3d-toggle-btn');
+    
+    if (mode === 'ar') {
+        if(arContainer) arContainer.classList.add('active');
+        if(tdContainer) tdContainer.classList.remove('active');
+        if(arBtn) arBtn.classList.add('active');
+        if(tdBtn) tdBtn.classList.remove('active');
     } else {
-        // Switch to 2D Carousel Mode
-        view3D.style.display = 'none';
-        viewCarousel.style.display = 'block';
-        
-        const textContainer = btn3D.querySelector('.action-card-text');
-        const iconContainer = btn3D.querySelector('.action-card-icon ion-icon');
-        
-        if (textContainer) {
-            textContainer.innerHTML = '<strong>ดูโมเดล 3D (360°)</strong><span>หมุนดูวัสดุและกรอบแว่น 360 องศา</span>';
-        }
-        if (iconContainer) {
-            iconContainer.name = 'cube-outline';
-        }
-        btn3D.classList.remove('active');
-        btn3D.style.backgroundColor = '';
-        btn3D.style.borderColor = '';
+        if(arContainer) arContainer.classList.remove('active');
+        if(tdContainer) tdContainer.classList.add('active');
+        if(arBtn) arBtn.classList.remove('active');
+        if(tdBtn) tdBtn.classList.add('active');
     }
 }
+
+// Close modal when clicking outside
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('ar-3d-modal');
+    if (event.target === modal) {
+        closeAR3DModal();
+    }
+});

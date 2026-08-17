@@ -103,19 +103,6 @@
                         <div class="gallery-main-viewport" id="product-carousel-view">
                             <img src="" alt="แว่นตา" id="product-page-main-img" class="gallery-main-img">
                         </div>
-
-                        <!-- 3D Viewer Container (Hidden by default) -->
-                        <div id="product-3d-view" style="display: none; width: 100%; height: 480px; background-color: transparent; overflow: hidden;">
-                            <model-viewer id="product-model-viewer" 
-                                alt="3D Glasses Model" 
-                                auto-rotate 
-                                camera-controls 
-                                shadow-intensity="1"
-                                exposure="1.2"
-                                environment-image="legacy"
-                                style="width: 100%; height: 100%;">
-                            </model-viewer>
-                        </div>
                     </div>
                 </div>
 
@@ -133,7 +120,7 @@
 
                 <!-- Extra Links: VTO & 3D Model -->
                 <div class="product-secondary-actions">
-                    <a href="/tryon.html" id="product-vto-link" class="action-card-btn">
+                    <button type="button" id="product-vto-link" class="action-card-btn" onclick="openAR3DModal('ar')">
                         <div class="action-card-icon">
                             <ion-icon name="camera-outline"></ion-icon>
                         </div>
@@ -142,8 +129,8 @@
                             <span>สแกนใบหน้าและสวมแว่นตาแบบ Realtime 60 FPS</span>
                         </div>
                         <ion-icon name="chevron-forward-outline" class="action-card-arrow"></ion-icon>
-                    </a>
-                    <button type="button" id="product-3d-btn" class="action-card-btn" onclick="toggleProduct3DView()" style="display: none;">
+                    </button>
+                    <button type="button" id="product-3d-btn" class="action-card-btn" onclick="openAR3DModal('3d')" style="display: none;">
                         <div class="action-card-icon">
                             <ion-icon name="cube-outline"></ion-icon>
                         </div>
@@ -391,6 +378,67 @@
     <button id="back-to-top-btn" class="back-to-top-btn" onclick="scrollToTop()" title="เลื่อนกลับขึ้นบนสุด">
         <ion-icon name="arrow-up-outline"></ion-icon>
     </button>
+
+    <!-- AR/3D Popup Modal -->
+    <div class="modal ar-3d-modal-wrapper" id="ar-3d-modal">
+        <div class="modal-content ar-3d-modal-content">
+            <!-- Left Side: Viewer (AR iframe or 3D model-viewer) -->
+            <div class="ar-3d-viewer-side">
+                <div class="ar-3d-toggle-pill">
+                    <button id="ar-toggle-btn" onclick="switchAR3DView('ar')">AR</button>
+                    <button id="3d-toggle-btn" class="active" onclick="switchAR3DView('3d')">3D</button>
+                </div>
+                
+                <div id="modal-3d-view-container" class="viewer-container active">
+                    <model-viewer id="product-model-viewer" 
+                        alt="3D Glasses Model" 
+                        auto-rotate 
+                        camera-controls 
+                        shadow-intensity="1"
+                        exposure="1.2"
+                        environment-image="legacy"
+                        style="width: 100%; height: 100%;">
+                    </model-viewer>
+                </div>
+                
+                <div id="modal-ar-view-container" class="viewer-container">
+                    <iframe id="ar-tryon-iframe" src="" frameborder="0" allow="camera"></iframe>
+                </div>
+            </div>
+
+            <!-- Right Side: Details & Add to Cart -->
+            <div class="ar-3d-details-side">
+                <span class="modal-close-btn" onclick="closeAR3DModal()"><ion-icon name="close-outline"></ion-icon></span>
+                
+                <div class="ar-3d-product-info">
+                    <h3 id="modal-product-brand" class="modal-brand">Brand</h3>
+                    <h2 id="modal-product-title" class="modal-title">Product Name</h2>
+                    <p id="modal-product-sku" class="modal-sku">SKU: #BW-000</p>
+                    
+                    <div class="modal-color-swatches">
+                        <!-- Placeholder swatches matching the design -->
+                        <div class="swatch" style="background: #a37b5a;"></div>
+                        <div class="swatch" style="background: #4a3e36;"></div>
+                    </div>
+                </div>
+
+                <div class="ar-3d-action-area">
+                    <button class="modal-wishlist-btn" onclick="toggleProductWishlist()">
+                        <ion-icon name="heart-outline" id="modal-wishlist-icon"></ion-icon>
+                    </button>
+                    
+                    <div class="modal-price-display">
+                        <span class="modal-price-label">Total</span>
+                        <span class="modal-price-value" id="modal-product-price">THB 0.00</span>
+                    </div>
+                    
+                    <button class="btn btn-primary modal-add-cart-btn" onclick="addProductPageToCart(); closeAR3DModal();">
+                        <ion-icon name="cart-outline"></ion-icon> เพิ่มลงตะกร้า
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="footer" style="margin-top: 5rem;">
