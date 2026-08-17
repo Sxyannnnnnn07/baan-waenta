@@ -17,6 +17,7 @@
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <script>
         (async function() {
             if (sessionStorage.getItem('baan_waenta_guest') === 'true') return;
@@ -92,7 +93,7 @@
                     <span class="gallery-stock-badge" id="product-stock-badge">มีสินค้าพร้อมส่ง</span>
                 </div>
 
-                <div class="gallery-main-viewport">
+                <div class="gallery-main-viewport" id="product-carousel-view">
                     <button class="gallery-nav-btn prev" onclick="navigateProductImage(-1)" aria-label="Previous image">
                         <ion-icon name="chevron-back-outline"></ion-icon>
                     </button>
@@ -100,6 +101,19 @@
                     <button class="gallery-nav-btn next" onclick="navigateProductImage(1)" aria-label="Next image">
                         <ion-icon name="chevron-forward-outline"></ion-icon>
                     </button>
+                </div>
+
+                <!-- 3D Viewer Container (Hidden by default) -->
+                <div id="product-3d-view" style="display: none; width: 100%; height: 400px; background-color: var(--bg-secondary); border-radius: 16px; overflow: hidden; margin-bottom: 1rem;">
+                    <model-viewer id="product-model-viewer" 
+                        alt="3D Glasses Model" 
+                        auto-rotate 
+                        camera-controls 
+                        shadow-intensity="1"
+                        exposure="1.2"
+                        environment-image="legacy"
+                        style="width: 100%; height: 100%;">
+                    </model-viewer>
                 </div>
 
                 <!-- Thumbnails Bar -->
@@ -282,13 +296,13 @@
                         </div>
                         <ion-icon name="chevron-forward-outline" class="action-card-arrow"></ion-icon>
                     </a>
-                    <button type="button" class="action-card-btn disabled-card" onclick="showToast('ระบบแสดงโมเดล 3 มิติ (3D Viewer) อยู่ระหว่างการพัฒนา', 'info')">
+                    <button type="button" id="product-3d-btn" class="action-card-btn" onclick="toggleProduct3DView()" style="display: none;">
                         <div class="action-card-icon">
                             <ion-icon name="cube-outline"></ion-icon>
                         </div>
                         <div class="action-card-text">
-                            <strong>ดูโมเดล 3D รอบทิศทาง (3D Viewer)</strong>
-                            <span>หมุนดูวัสดุและกรอบแว่น 360 องศา (เร็วๆ นี้)</span>
+                            <strong>ดูโมเดล 3D (360°)</strong>
+                            <span>หมุนดูวัสดุและกรอบแว่น 360 องศา</span>
                         </div>
                     </button>
                 </div>

@@ -144,6 +144,28 @@ async function loadProductPageData(productId) {
                 console.warn('Could not load user prescription history', err);
             }
         }
+        
+        // Setup 3D Viewer if available
+        const btn3D = document.getElementById('product-3d-btn');
+        const view3D = document.getElementById('product-3d-view');
+        const viewCarousel = document.getElementById('product-carousel-view');
+        const modelViewer = document.getElementById('product-model-viewer');
+        
+        // Always reset to 2D view on page load
+        if (viewCarousel) viewCarousel.style.display = 'block';
+        if (view3D) view3D.style.display = 'none';
+        if (btn3D) {
+            if (currentProduct.model_3d_url) {
+                btn3D.style.display = 'flex';
+                btn3D.classList.remove('disabled-card');
+                if (modelViewer) {
+                    modelViewer.src = currentProduct.model_3d_url;
+                }
+            } else {
+                btn3D.style.display = 'none';
+            }
+        }
+
     } catch (error) {
         console.error('Error loading product page:', error);
         alert('เกิดข้อผิดพลาดในการโหลดข้อมูลสินค้า');
@@ -270,4 +292,48 @@ function addProductPageToCart() {
     if (!currentProduct) return;
     activeLensProduct = currentProduct;
     addActiveProductToCart();
+}
+
+function toggleProduct3DView() {
+    const view3D = document.getElementById('product-3d-view');
+    const viewCarousel = document.getElementById('product-carousel-view');
+    const btn3D = document.getElementById('product-3d-btn');
+    
+    if (!view3D || !viewCarousel || !btn3D) return;
+    
+    if (view3D.style.display === 'none') {
+        // Switch to 3D Mode
+        viewCarousel.style.display = 'none';
+        view3D.style.display = 'block';
+        
+        const textContainer = btn3D.querySelector('.action-card-text');
+        const iconContainer = btn3D.querySelector('.action-card-icon ion-icon');
+        
+        if (textContainer) {
+            textContainer.innerHTML = '<strong>ดูรูปภาพสินค้า (2D)</strong><span>กลับไปดูรูปถ่ายสินค้าปกติ</span>';
+        }
+        if (iconContainer) {
+            iconContainer.name = 'image-outline';
+        }
+        btn3D.classList.add('active');
+        btn3D.style.backgroundColor = 'var(--bg-secondary)';
+        btn3D.style.borderColor = 'var(--accent)';
+    } else {
+        // Switch to 2D Carousel Mode
+        view3D.style.display = 'none';
+        viewCarousel.style.display = 'block';
+        
+        const textContainer = btn3D.querySelector('.action-card-text');
+        const iconContainer = btn3D.querySelector('.action-card-icon ion-icon');
+        
+        if (textContainer) {
+            textContainer.innerHTML = '<strong>ดูโมเดล 3D (360°)</strong><span>หมุนดูวัสดุและกรอบแว่น 360 องศา</span>';
+        }
+        if (iconContainer) {
+            iconContainer.name = 'cube-outline';
+        }
+        btn3D.classList.remove('active');
+        btn3D.style.backgroundColor = '';
+        btn3D.style.borderColor = '';
+    }
 }
