@@ -981,34 +981,41 @@ a {
 /* Facial tracking points */
 .face-point {
     position: absolute;
-    width: 6px;
-    height: 6px;
-    background-color: #48bb78;
+    width: 7px;
+    height: 7px;
+    background-color: #10b981;
     border-radius: 50%;
-    box-shadow: 0 0 6px #48bb78;
+    box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.6);
     z-index: 4;
+    animation: pointPulse 2s ease-in-out infinite;
 }
 
-.face-point.eye-l { top: 38.5%; left: 43.5%; }
-.face-point.eye-r { top: 38.5%; left: 56.5%; }
-.face-point.nose { top: 45%; left: 50%; }
-.face-point.chin { top: 54%; left: 50%; }
+@keyframes pointPulse {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.35); opacity: 1; }
+}
+
+.face-point.eye-l { top: 36%; left: 41%; }
+.face-point.eye-r { top: 36%; left: 59%; }
+.face-point.nose { top: 44%; left: 50%; }
+.face-point.chin { top: 58%; left: 50%; }
 
 .glasses-overlay-mockup {
     position: absolute;
-    top: 38.5%;
+    top: 36.5%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 135px;
+    width: 148px;
     height: auto;
     z-index: 10;
-    animation: floatAnimation 3s ease-in-out infinite;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.28));
+    animation: floatAnimation 3.2s ease-in-out infinite;
 }
 
 @keyframes floatAnimation {
-    0% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
-    50% { transform: translate(-50%, -50%) translateY(-2px) rotate(1deg); }
-    100% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
+    0% { transform: translate(-50%, -50%) translateY(0px); }
+    50% { transform: translate(-50%, -50%) translateY(-7px); }
+    100% { transform: translate(-50%, -50%) translateY(0px); }
 }
 
 /* Steps list */
