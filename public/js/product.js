@@ -25,6 +25,10 @@ async function loadProductPageData(productId) {
         if (data.success && data.products) {
             allProducts = data.products;
             currentProduct = allProducts.find(p => p.id === productId);
+            if (currentProduct && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada' || currentProduct.id === 23)) {
+                currentProduct.image_url = '/assets/prada_front.jpg';
+                currentProduct.tryon_image_url = '/assets/prada_front.jpg';
+            }
         }
 
         if (!currentProduct) {

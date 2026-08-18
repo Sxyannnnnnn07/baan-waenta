@@ -386,8 +386,8 @@ async function seedData() {
             brand: "Prada",
             category: "Sunglasses",
             frame_shape: "Square",
-            image_url: "/assets/prada_front.png",
-            tryon_image_url: "/assets/prada_front.png",
+            image_url: "/assets/prada_front.jpg",
+            tryon_image_url: "/assets/prada_front.jpg",
             model_3d_url: "/assets/models/prada_vintage.glb",
             scale_x: 1.0,
             scale_y: 1.0,
@@ -401,7 +401,7 @@ async function seedData() {
     let seededCount = 0;
     let updatedCount = 0;
     for (const prod of defaultProducts) {
-        const [existing] = await dbPool.query('SELECT id FROM products WHERE name = ?', [prod.name]);
+        const [existing] = await dbPool.query('SELECT id, image_url, tryon_image_url FROM products WHERE name = ?', [prod.name]);
         if (existing.length === 0) {
             await dbPool.query(
                 `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, scale_x, scale_y, scale_z, offset_y, price, stock) 
@@ -410,16 +410,21 @@ async function seedData() {
             );
             seededCount++;
         } else {
-            // Update image URLs if they changed (to support transparent PNG paths)
-            if (existing[0].image_url !== prod.image_url || existing[0].tryon_image_url !== prod.tryon_image_url) {
-                await dbPool.query(
-                    'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
-                    [prod.image_url, prod.tryon_image_url, existing[0].id]
-                );
-                updatedCount++;
-            }
+            // Update image URLs if they changed (to support transparent PNG/JPG paths)
+            await dbPool.query(
+                'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
+                [prod.image_url, prod.tryon_image_url, existing[0].id]
+            );
+            updatedCount++;
         }
     }
+    // Also explicitly ensure any Prada products are set to prada_front.jpg
+    try {
+        await dbPool.query("UPDATE products SET image_url = '/assets/prada_front.jpg', tryon_image_url = '/assets/prada_front.jpg' WHERE name LIKE '%Prada%' OR brand = 'Prada' OR id = 23");
+    } catch (e) {
+        console.error('Failed to sync Prada image paths:', e.message);
+    }
+
     if (seededCount > 0 || updatedCount > 0) {
         console.log(`Products seeding complete. Seeded: ${seededCount}, Updated Image Paths: ${updatedCount}`);
     }
@@ -1023,7 +1028,7 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
     try {
         const query = `
             SELECT o.id as order_id, o.total_amount, o.status, o.created_at, u.name as customer_name,
-                   oi.quantity, oi.unit_price, p.name as product_name, l.lens_type,
+                   oi.quantity, oi.unit_price, p.name as product_name, p.image_url as product_image, l.lens_type,
                    o.shipping_name, o.shipping_phone, o.shipping_address, o.payment_method, o.slip_image, o.tracking_number
             FROM orders o
             JOIN users u ON o.user_id = u.id
@@ -1189,7 +1194,7 @@ app.get('/api/orders/user/:userId', requireAuth, async (req, res) => {
     try {
         const query = `
             SELECT o.id as order_id, o.total_amount, o.status, o.created_at,
-                   oi.quantity, oi.unit_price, p.name as product_name, l.lens_type,
+                   oi.quantity, oi.unit_price, p.name as product_name, p.image_url as product_image, l.lens_type,
                    o.shipping_name, o.shipping_phone, o.shipping_address, o.payment_method, o.slip_image, o.tracking_number
             FROM orders o
             JOIN order_items oi ON o.id = oi.order_id

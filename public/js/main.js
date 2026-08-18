@@ -121,7 +121,13 @@ async function fetchProducts() {
         const data = await response.json();
         
         if (data.success) {
-            allProducts = data.products;
+            allProducts = (data.products || []).map(p => {
+                if (p.name && (p.name.includes('Prada') || p.brand === 'Prada' || p.id === 23)) {
+                    p.image_url = '/assets/prada_front.jpg';
+                    p.tryon_image_url = '/assets/prada_front.jpg';
+                }
+                return p;
+            });
             renderProducts(allProducts);
             populateReviewProductSelect();
         } else {
@@ -799,11 +805,16 @@ function addActiveProductToCart() {
 
     const itemPrice = parseFloat(activeLensProduct.price) + priceAddon;
 
+    let prodImg = activeLensProduct.image_url;
+    if (activeLensProduct.name && (activeLensProduct.name.includes('Prada') || activeLensProduct.brand === 'Prada' || activeLensProduct.id === 23)) {
+        prodImg = '/assets/prada_front.jpg';
+    }
+
     cart.push({
         product_id: activeLensProduct.id,
         name: activeLensProduct.name,
         brand: activeLensProduct.brand,
-        image_url: activeLensProduct.image_url,
+        image_url: prodImg,
         lens_id: lensId,
         lens_type: lensType,
         unit_price: itemPrice,
@@ -1083,7 +1094,17 @@ async function openOrdersModal() {
                         items: []
                     };
                 }
-                grouped[row.order_id].items.push(`${row.product_name} x${row.quantity} (${row.lens_type})`);
+                let itemImg = row.product_image || row.image_url;
+                if (!itemImg || (row.product_name && (row.product_name.includes('Prada') || row.product_id === 23))) {
+                    itemImg = '/assets/prada_front.jpg';
+                }
+                grouped[row.order_id].items.push({
+                    name: row.product_name,
+                    quantity: row.quantity,
+                    lens_type: row.lens_type,
+                    unit_price: row.unit_price,
+                    image_url: itemImg
+                });
             });
 
             Object.values(grouped).forEach(order => {
@@ -1137,8 +1158,21 @@ async function openOrdersModal() {
                             <span class="badge ${badgeClass}" style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${statusText}</span>
                         </div>
                     </div>
-                    <div style="font-size: 0.9rem; margin-bottom: 0.8rem; line-height: 1.5;">
-                        ${order.items.map(item => `<div style="color: var(--text-primary); font-weight: 500;">• ${escapeHtml(item)}</div>`).join('')}
+                    <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.8rem;">
+                        ${order.items.map(item => `
+                            <div style="display: flex; align-items: center; gap: 0.8rem; background: var(--bg-primary); padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <div style="width: 50px; height: 38px; background: #ffffff; border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                                    <img src="${item.image_url || '/assets/prada_front.jpg'}" alt="${escapeHtml(item.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="color: var(--text-primary); font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(item.name)}</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(item.lens_type || '')} <span style="font-weight: 600; color: var(--text-primary);">x${item.quantity}</span></div>
+                                </div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
+                                    ${parseFloat(item.unit_price * item.quantity).toLocaleString()} ฿
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary); background-color: var(--bg-primary); padding: 0.6rem; border-radius: 8px; margin-bottom: 0.6rem; line-height: 1.5;">
                         <strong>ที่อยู่จัดส่ง:</strong> ${escapeHtml(order.shipping_name || 'ไม่ระบุ')} (${escapeHtml(order.shipping_phone || 'ไม่ระบุ')})<br>
@@ -1147,7 +1181,7 @@ async function openOrdersModal() {
                         ${slipHtml}
                         ${trackingHtml}
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid var(--border-color); margin-top: 0.6rem;">
                         <span style="font-size: 0.85rem; color: var(--text-secondary);">ยอดรวมทั้งสิ้น:</span>
                         <span style="font-weight: 700; color: var(--accent); font-size: 1.1rem; font-family: var(--font-heading);">${parseFloat(order.total).toLocaleString()} ฿</span>
                     </div>
