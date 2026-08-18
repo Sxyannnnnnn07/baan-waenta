@@ -307,17 +307,29 @@ function addProductPageToCart() {
     addActiveProductToCart();
 }
 
-// AR/3D Modal Logic
-function openAR3DModal(mode = 'ar') {
+// AR/3D Modal State
+let modalCameraStream = null;
+let modalCurrentModelIdx = 0;
+const modalSampleModels = [
+    '/assets/vto_model.jpg',
+    '/assets/prada_model.jpg',
+    '/assets/model1.jpg',
+    '/assets/model2.jpg'
+];
+
+function openAR3DModal(mode = '3d') {
     if (!currentProduct) return;
     
     const modal = document.getElementById('ar-3d-modal');
     if (!modal) return;
     
     // Populate Right Side Details
-    document.getElementById('modal-product-brand').textContent = currentProduct.brand;
-    document.getElementById('modal-product-title').textContent = currentProduct.name;
-    document.getElementById('modal-product-sku').textContent = `SKU: #${currentProduct.id.toString().padStart(3, '0')}`;
+    const brandEl = document.getElementById('modal-product-brand');
+    const titleEl = document.getElementById('modal-product-title');
+    const skuEl = document.getElementById('modal-product-sku');
+    if (brandEl) brandEl.textContent = currentProduct.brand || 'PRADA';
+    if (titleEl) titleEl.textContent = currentProduct.name;
+    if (skuEl) skuEl.textContent = `SKU: #BW-${currentProduct.id.toString().padStart(3, '0')}`;
     
     // Set Price (Calculate with current lens selection)
     const lensSelect = document.getElementById('lens-type-select');
@@ -328,26 +340,29 @@ function openAR3DModal(mode = 'ar') {
     }
     const basePrice = typeof currentProduct.price === 'string' ? parseFloat(currentProduct.price.replace(/,/g, '')) : currentProduct.price;
     const totalPrice = basePrice + addon;
-    document.getElementById('modal-product-price').textContent = `THB ${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+    const priceEl = document.getElementById('modal-product-price');
+    if (priceEl) {
+        priceEl.textContent = `THB ${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+    }
     
-    // Check if 3D model exists
+    // Set 3D Model in model-viewer
     const modelViewer = document.getElementById('product-model-viewer');
-    if (modelViewer && currentProduct.model3d) {
-        modelViewer.src = currentProduct.model3d;
+    const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
+    if (modelViewer && modelUrl) {
+        modelViewer.src = modelUrl;
     }
     
-    // Set iframe for AR
-    const arIframe = document.getElementById('ar-tryon-iframe');
-    if (arIframe) {
-        // Load the iframe only when modal opens to save resources
-        if (!arIframe.src || !arIframe.src.includes('embed=true')) {
-            arIframe.src = `/tryon.html?embed=true&id=${currentProduct.id}`;
-        }
+    // Set Glasses overlay image in AR viewer
+    const glassesOverlay = document.getElementById('modal-ar-glasses-img');
+    const tryonImg = currentProduct.tryon_image_url || currentProduct.image_url || '/assets/prada_front.jpg';
+    if (glassesOverlay) {
+        glassesOverlay.src = tryonImg;
     }
+
+    // Default AR source to model photo
+    setModalARSource('model');
     
     modal.style.display = 'block';
-    
-    // Lock body scroll
     document.body.style.overflow = 'hidden';
     
     switchAR3DView(mode);
@@ -358,7 +373,8 @@ function closeAR3DModal() {
     if (modal) {
         modal.style.display = 'none';
     }
-    // Release body scroll lock
+    // Stop camera stream if active
+    stopModalCamera();
     document.body.style.overflow = '';
 }
 
@@ -369,15 +385,83 @@ function switchAR3DView(mode) {
     const tdBtn = document.getElementById('3d-toggle-btn');
     
     if (mode === 'ar') {
-        if(arContainer) arContainer.classList.add('active');
-        if(tdContainer) tdContainer.classList.remove('active');
-        if(arBtn) arBtn.classList.add('active');
-        if(tdBtn) tdBtn.classList.remove('active');
+        if (arContainer) arContainer.classList.add('active');
+        if (tdContainer) tdContainer.classList.remove('active');
+        if (arBtn) arBtn.classList.add('active');
+        if (tdBtn) tdBtn.classList.remove('active');
     } else {
-        if(arContainer) arContainer.classList.remove('active');
-        if(tdContainer) tdContainer.classList.add('active');
-        if(arBtn) arBtn.classList.remove('active');
-        if(tdBtn) tdBtn.classList.add('active');
+        if (arContainer) arContainer.classList.remove('active');
+        if (tdContainer) tdContainer.classList.add('active');
+        if (arBtn) arBtn.classList.remove('active');
+        if (tdBtn) tdBtn.classList.add('active');
+        // Pause camera stream when in 3D mode
+        stopModalCamera();
+        const btnModel = document.getElementById('btn-mode-model');
+        const btnCam = document.getElementById('btn-mode-camera');
+        if (btnModel) btnModel.classList.add('active');
+        if (btnCam) btnCam.classList.remove('active');
+    }
+}
+
+async function setModalARSource(source) {
+    const videoEl = document.getElementById('modal-ar-video');
+    const modelImg = document.getElementById('modal-ar-model-img');
+    const btnModel = document.getElementById('btn-mode-model');
+    const btnCam = document.getElementById('btn-mode-camera');
+    const btnSwitch = document.getElementById('btn-switch-model');
+
+    if (source === 'camera') {
+        try {
+            if (btnCam) btnCam.classList.add('active');
+            if (btnModel) btnModel.classList.remove('active');
+            if (btnSwitch) btnSwitch.style.display = 'none';
+
+            if (!modalCameraStream) {
+                modalCameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+            }
+            if (videoEl) {
+                videoEl.srcObject = modalCameraStream;
+                videoEl.style.display = 'block';
+                videoEl.play();
+            }
+            if (modelImg) modelImg.style.display = 'none';
+        } catch (err) {
+            console.error('Camera access error:', err);
+            alert('ไม่สามารถเข้าถึงกล้องเว็บแคมได้ (กรุณากดอนุญาตสิทธิ์การใช้กล้อง หรือทดลองสวมผ่านภาพจำลอง)');
+            setModalARSource('model');
+        }
+    } else {
+        stopModalCamera();
+        if (btnModel) btnModel.classList.add('active');
+        if (btnCam) btnCam.classList.remove('active');
+        if (btnSwitch) btnSwitch.style.display = 'inline-flex';
+
+        if (videoEl) {
+            videoEl.style.display = 'none';
+            videoEl.srcObject = null;
+        }
+        if (modelImg) {
+            modelImg.style.display = 'block';
+            modelImg.src = modalSampleModels[modalCurrentModelIdx % modalSampleModels.length];
+        }
+    }
+}
+
+function toggleModalModelPhoto() {
+    modalCurrentModelIdx = (modalCurrentModelIdx + 1) % modalSampleModels.length;
+    const modelImg = document.getElementById('modal-ar-model-img');
+    if (modelImg) {
+        modelImg.src = modalSampleModels[modalCurrentModelIdx];
+    }
+}
+
+function stopModalCamera() {
+    if (modalCameraStream) {
+        modalCameraStream.getTracks().forEach(track => track.stop());
+        modalCameraStream = null;
     }
 }
 

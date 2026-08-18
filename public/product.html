@@ -381,27 +381,67 @@
     <!-- AR/3D Popup Modal -->
     <div class="modal ar-3d-modal-wrapper" id="ar-3d-modal">
         <div class="modal-content ar-3d-modal-content">
-            <!-- Left Side: Viewer (AR iframe or 3D model-viewer) -->
+            <!-- Left Side: Viewer (Native AR Try-On & 3D model-viewer) -->
             <div class="ar-3d-viewer-side">
                 <div class="ar-3d-toggle-pill">
-                    <button id="ar-toggle-btn" onclick="switchAR3DView('ar')">AR</button>
-                    <button id="3d-toggle-btn" class="active" onclick="switchAR3DView('3d')">3D</button>
+                    <button id="3d-toggle-btn" class="active" onclick="switchAR3DView('3d')">
+                        <ion-icon name="cube-outline"></ion-icon> 3D Model
+                    </button>
+                    <button id="ar-toggle-btn" onclick="switchAR3DView('ar')">
+                        <ion-icon name="camera-outline"></ion-icon> ลองสวมใส่ (AR)
+                    </button>
                 </div>
                 
+                <!-- 1. 3D Model 360° View Container -->
                 <div id="modal-3d-view-container" class="viewer-container active">
                     <model-viewer id="product-model-viewer" 
                         alt="3D Glasses Model" 
                         auto-rotate 
                         camera-controls 
-                        shadow-intensity="1"
-                        exposure="1.2"
-                        environment-image="legacy"
+                        shadow-intensity="1.5"
+                        shadow-softness="0.6"
+                        exposure="1.1"
+                        interaction-prompt="auto"
                         style="width: 100%; height: 100%;">
                     </model-viewer>
+                    <div class="viewer-hint-badge">
+                        <ion-icon name="sync-outline"></ion-icon> ลากเพื่อหมุน 360° / ซูมเข้า-ออกได้
+                    </div>
                 </div>
                 
+                <!-- 2. Native AR Try-On Container (No iframe) -->
                 <div id="modal-ar-view-container" class="viewer-container">
-                    <iframe id="ar-tryon-iframe" src="" frameborder="0" allow="camera"></iframe>
+                    <div class="ar-live-viewport" id="ar-live-viewport">
+                        <!-- Camera video stream -->
+                        <video id="modal-ar-video" autoplay playsinline muted style="display: none;"></video>
+                        <!-- Sample Model face image fallback -->
+                        <img id="modal-ar-model-img" src="/assets/vto_model.jpg" alt="Model Face" style="width: 100%; height: 100%; object-fit: cover;">
+                        
+                        <!-- Realtime Scanning Laser -->
+                        <div class="scan-line" id="modal-ar-scan-line"></div>
+                        
+                        <!-- AI Face Tracking Points -->
+                        <div class="face-point" style="top: 33.5%; left: 39.5%;"></div>
+                        <div class="face-point" style="top: 33.5%; left: 60.5%;"></div>
+                        <div class="face-point" style="top: 43.5%; left: 50.2%;"></div>
+                        <div class="face-point" style="top: 52.8%; left: 50.2%;"></div>
+                        
+                        <!-- Glasses Overlay -->
+                        <img id="modal-ar-glasses-img" src="/assets/prada_front.jpg" alt="Glasses overlay" class="modal-glasses-overlay">
+                    </div>
+
+                    <!-- AR Source Controls Bar -->
+                    <div class="ar-controls-bar">
+                        <button class="ar-mode-pill-btn active" id="btn-mode-model" onclick="setModalARSource('model')">
+                            <ion-icon name="person-outline"></ion-icon> ภาพจำลอง
+                        </button>
+                        <button class="ar-mode-pill-btn" id="btn-mode-camera" onclick="setModalARSource('camera')">
+                            <ion-icon name="videocam-outline"></ion-icon> เปิดกล้องสดของคุณ
+                        </button>
+                        <button class="ar-mode-pill-btn" id="btn-switch-model" onclick="toggleModalModelPhoto()" title="สลับภาพนายแบบ/นางแบบ">
+                            <ion-icon name="swap-horizontal-outline"></ion-icon> สลับแบบ
+                        </button>
+                    </div>
                 </div>
             </div>
 
