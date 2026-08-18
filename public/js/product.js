@@ -470,24 +470,57 @@ function onModalFaceMeshResults(results) {
     arModelViewer.style.left = `${xPct}%`;
     arModelViewer.style.top = `${yPct}%`;
     
-    // Calculate face width based on distance between eyes (very rough approximation)
+    // Calculate face width based on distance between eyes
     const dx = rightEye.x - leftEye.x;
     const dy = rightEye.y - leftEye.y;
     const eyeDist = Math.sqrt(dx*dx + dy*dy);
     
-    // Width of the container (since we use % for left/top, width should be relative to container)
-    // To make it responsive, we use vw or % or just compute based on viewport. 
-    // Usually eye distance is about 1/4 to 1/5 of face width.
-    // Let's use a dynamic pixel width relative to window
-    const containerW = document.getElementById('ar-live-viewport').clientWidth;
-    const faceWidthPx = (eyeDist * containerW) * 3.2; // 3.2 multiplier to cover eyes properly
+    const container = document.getElementById('ar-live-viewport');
+    const videoEl = document.getElementById('modal-ar-video');
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
     
-    arModelViewer.style.width = `${faceWidthPx}px`;
-    arModelViewer.style.height = `${faceWidthPx * 0.4}px`; // maintain approx ratio
+    // Account for object-fit: cover
+    const videoAspect = videoEl.videoWidth / videoEl.videoHeight;
+    const containerAspect = containerW / containerH;
+    
+    let renderWidth = containerW;
+    let renderHeight = containerH;
+    
+    if (videoAspect > containerAspect) {
+        renderHeight = containerH;
+        renderWidth = containerH * videoAspect;
+    } else {
+        renderWidth = containerW;
+        renderHeight = containerW / videoAspect;
+    }
+    
+    // Map normalized coordinates to pixel coordinates
+    let px_X = (1 - noseBridge.x) * renderWidth; // 1 - x because flipped
+    let px_Y = noseBridge.y * renderHeight;
+    
+    // Offset for object-fit centering
+    px_X -= (renderWidth - containerW) / 2;
+    px_Y -= (renderHeight - containerH) / 2;
+    
+    arModelViewer.style.left = `${px_X}px`;
+    arModelViewer.style.top = `${px_Y}px`;
+    
+    // Maintain a fixed container size for the model-viewer, scale via transform
+    const baseModelWidth = 300;
+    arModelViewer.style.width = `${baseModelWidth}px`;
+    arModelViewer.style.height = `150px`;
+    
+    // Target glasses width is roughly 2.4x the distance between eyes
+    const eyeDistPx = eyeDist * renderWidth;
+    const targetWidth = eyeDistPx * 2.4; 
+    const scale = targetWidth / baseModelWidth;
     
     // Rotation (tilt). Because of video flip, reverse angle.
     let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    arModelViewer.style.transform = `translate(-50%, -45%) rotateZ(${-angle}deg)`;
+    
+    // Apply transform (Y offset -15% to move glasses up slightly from nose bridge)
+    arModelViewer.style.transform = `translate(-50%, -65%) rotateZ(${-angle}deg) scale(${scale})`;
 }
 
 function stopModalCamera() {
