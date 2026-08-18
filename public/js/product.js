@@ -379,7 +379,7 @@ async function switchAR3DView(mode) {
         if (tdBtn) tdBtn.classList.remove('active');
         if (resetBtn) resetBtn.style.display = 'flex';
         
-        // Start Camera
+        // Start Camera and Face Tracking
         const videoEl = document.getElementById('modal-ar-video');
         if (videoEl && !modalCameraStream) {
             try {
@@ -389,6 +389,8 @@ async function switchAR3DView(mode) {
                 });
                 videoEl.srcObject = modalCameraStream;
                 videoEl.play();
+                
+                initFaceTracking(videoEl);
             } catch (err) {
                 console.error('Camera access error:', err);
             }
@@ -405,6 +407,89 @@ async function switchAR3DView(mode) {
     }
 }
 
+// Lightweight Face Tracking for AR Modal
+let modalFaceMesh = null;
+let modalCameraUtils = null;
+
+function initFaceTracking(videoEl) {
+    if (typeof FaceMesh === 'undefined') return;
+    
+    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
+    if (arModelViewer) {
+        arModelViewer.style.opacity = '0'; // Hide until face is detected
+        arModelViewer.style.transition = 'opacity 0.3s ease';
+    }
+
+    if (!modalFaceMesh) {
+        modalFaceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`});
+        modalFaceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        modalFaceMesh.onResults(onModalFaceMeshResults);
+    }
+    
+    if (!modalCameraUtils && typeof Camera !== 'undefined') {
+        modalCameraUtils = new Camera(videoEl, {
+            onFrame: async () => {
+                if (modalFaceMesh && videoEl.videoWidth > 0) {
+                    await modalFaceMesh.send({image: videoEl});
+                }
+            },
+            width: 1280,
+            height: 720
+        });
+        modalCameraUtils.start();
+    }
+}
+
+function onModalFaceMeshResults(results) {
+    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
+    if (!arModelViewer) return;
+    
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        arModelViewer.style.opacity = '0';
+        return;
+    }
+    
+    arModelViewer.style.opacity = '1';
+    
+    const landmarks = results.multiFaceLandmarks[0];
+    // Key face points
+    const leftEye = landmarks[33];   // left eye center
+    const rightEye = landmarks[263]; // right eye center
+    const noseBridge = landmarks[168]; // between eyes
+    
+    // Scale X-coordinates by -1 since we flip the video with transform: scaleX(-1)
+    const xPct = (1 - noseBridge.x) * 100;
+    const yPct = noseBridge.y * 100;
+    
+    // Position
+    arModelViewer.style.left = `${xPct}%`;
+    arModelViewer.style.top = `${yPct}%`;
+    
+    // Calculate face width based on distance between eyes (very rough approximation)
+    const dx = rightEye.x - leftEye.x;
+    const dy = rightEye.y - leftEye.y;
+    const eyeDist = Math.sqrt(dx*dx + dy*dy);
+    
+    // Width of the container (since we use % for left/top, width should be relative to container)
+    // To make it responsive, we use vw or % or just compute based on viewport. 
+    // Usually eye distance is about 1/4 to 1/5 of face width.
+    // Let's use a dynamic pixel width relative to window
+    const containerW = document.getElementById('ar-live-viewport').clientWidth;
+    const faceWidthPx = (eyeDist * containerW) * 3.2; // 3.2 multiplier to cover eyes properly
+    
+    arModelViewer.style.width = `${faceWidthPx}px`;
+    arModelViewer.style.height = `${faceWidthPx * 0.4}px`; // maintain approx ratio
+    
+    // Rotation (tilt). Because of video flip, reverse angle.
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    arModelViewer.style.transform = `translate(-50%, -45%) rotateZ(${-angle}deg)`;
+}
+
 function stopModalCamera() {
     const videoEl = document.getElementById('modal-ar-video');
     if (videoEl) {
@@ -414,6 +499,11 @@ function stopModalCamera() {
         modalCameraStream.getTracks().forEach(track => track.stop());
         modalCameraStream = null;
     }
+    if (modalCameraUtils) {
+        modalCameraUtils.stop();
+        modalCameraUtils = null;
+    }
+    // Note: Do not close faceMesh entirely here as it takes time to reload, just stop the camera loop.
 }
 
 function resetARView() {
