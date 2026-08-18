@@ -89,6 +89,26 @@ export async function startARVirtualTryOn(containerEl, modelUrl = '/assets/model
         await mindarThree.start();
         isARRunning = true;
 
+        // Ensure video is visible above container background and canvas is layered on top
+        if (mindarThree.video) {
+            mindarThree.video.style.zIndex = '1';
+        }
+        if (renderer && renderer.domElement) {
+            renderer.domElement.style.zIndex = '2';
+            renderer.domElement.style.pointerEvents = 'none';
+        }
+        if (mindarThree.cssRenderer && mindarThree.cssRenderer.domElement) {
+            mindarThree.cssRenderer.domElement.style.zIndex = '3';
+            mindarThree.cssRenderer.domElement.style.pointerEvents = 'none';
+        }
+
+        // Trigger resize once modal dimensions settle
+        setTimeout(() => {
+            if (mindarThree && typeof mindarThree._resize === 'function') {
+                mindarThree._resize();
+            }
+        }, 150);
+
         renderer.setAnimationLoop(() => {
             renderer.render(scene, camera);
         });

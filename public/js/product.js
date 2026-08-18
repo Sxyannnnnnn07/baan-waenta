@@ -346,7 +346,9 @@ function openAR3DModal(mode = '3d') {
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
     
-    switchAR3DView(mode);
+    requestAnimationFrame(() => {
+        switchAR3DView(mode);
+    });
 }
 
 function closeAR3DModal() {
