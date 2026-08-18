@@ -175,7 +175,7 @@ export function fitGlassesModelToFace(gltfScene, targetFaceWidth = 14.8) {
     scaledBox.getCenter(center);
 
     // Center on Landmark 168 (Nose bridge) with slight forward offset for nose pads and ear temples
-    gltfScene.position.set(-center.x, -center.y - 0.25, 0.65);
+    gltfScene.position.set(-center.x, -center.y - 0.25, 0.15);
 }
 
 // Attach to window for global access
