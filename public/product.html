@@ -16,8 +16,20 @@
     <meta name="apple-mobile-web-app-title" content="บ้านแว่นตา">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <!-- Three.js & MindAR Face Tracking Integration -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "mindar-face-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-three.prod.js"
+      }
+    }
+    </script>
+    <script type="module" src="/js/ar-tryon-engine.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script>
         (async function() {
             if (sessionStorage.getItem('baan_waenta_guest') === 'true') return;
@@ -406,20 +418,14 @@
                     </model-viewer>
                 </div>
                 
-                <!-- 2. Native AR Try-On Container (Camera + 3D Model Overlay) -->
+                <!-- 2. Native AR Try-On Container (MindAR Face Tracking + Three.js 6-DOF) -->
                 <div id="modal-ar-view-container" class="viewer-container active">
-                    <div class="ar-live-viewport" id="ar-live-viewport">
-                        <!-- Camera video stream -->
-                        <video id="modal-ar-video" autoplay playsinline muted></video>
-                        
-                        <!-- 3D Model Overlay -->
-                        <model-viewer id="modal-ar-glasses-3d" 
-                            alt="3D Glasses AR" 
-                            camera-controls
-                            interaction-prompt="none"
-                            disable-zoom
-                            style="position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 150px; z-index: 10; background-color: transparent;">
-                        </model-viewer>
+                    <div class="ar-live-viewport" id="mindar-ar-viewport" style="position: relative; width: 100%; height: 100%; overflow: hidden; background: #000;">
+                        <!-- AI Calibration Loading Spinner -->
+                        <div id="mindar-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; z-index: 30; display: none; font-size: 0.85rem; pointer-events: none; background: rgba(0,0,0,0.65); padding: 18px 24px; border-radius: 16px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15);">
+                            <ion-icon name="sync-outline" style="animation: spin 1s linear infinite; font-size: 2.2rem; margin-bottom: 0.5rem; color: #63b3ed; display: block; margin-inline: auto;"></ion-icon>
+                            <div style="font-weight: 600; letter-spacing: 0.02em;">กำลังเริ่มระบบลองแว่น 3D (MindAR)...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -466,10 +472,6 @@
     </footer>
 
     <!-- Scripts -->
-    <!-- Google MediaPipe Face Mesh for native lightweight AR tracking -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
-
     <script src="/js/toast.js"></script>
     <script src="/js/main.js"></script>
     <script src="/js/product.js"></script>

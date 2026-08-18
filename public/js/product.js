@@ -307,9 +307,7 @@ function addProductPageToCart() {
     addActiveProductToCart();
 }
 
-// AR/3D Modal State
-let modalCameraStream = null;
-
+// AR/3D Modal Logic (Powered by MindAR Face Tracking & Three.js 6-DOF)
 function openAR3DModal(mode = '3d') {
     if (!currentProduct) return;
     
@@ -338,15 +336,11 @@ function openAR3DModal(mode = '3d') {
         priceEl.textContent = `THB ${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
     }
     
-    // Set 3D Model in model-viewer for both 3D Viewer and AR Overlay
+    // Set 3D Model in model-viewer for 3D 360° preview
     const modelViewer = document.getElementById('product-model-viewer');
-    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
     const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
     if (modelViewer && modelUrl) {
         modelViewer.src = modelUrl;
-    }
-    if (arModelViewer && modelUrl) {
-        arModelViewer.src = modelUrl;
     }
     
     modal.style.display = 'block';
@@ -360,8 +354,10 @@ function closeAR3DModal() {
     if (modal) {
         modal.style.display = 'none';
     }
-    // Stop camera stream if active
-    stopModalCamera();
+    // Stop MindAR engine
+    if (typeof window.stopARVirtualTryOn === 'function') {
+        window.stopARVirtualTryOn();
+    }
     document.body.style.overflow = '';
 }
 
@@ -371,6 +367,7 @@ async function switchAR3DView(mode) {
     const arBtn = document.getElementById('ar-toggle-btn');
     const tdBtn = document.getElementById('3d-toggle-btn');
     const resetBtn = document.querySelector('.ar-reset-btn');
+    const modelUrl = currentProduct ? (currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb') : '/assets/models/prada_vintage.glb';
     
     if (mode === 'ar') {
         if (arContainer) arContainer.classList.add('active');
@@ -379,20 +376,16 @@ async function switchAR3DView(mode) {
         if (tdBtn) tdBtn.classList.remove('active');
         if (resetBtn) resetBtn.style.display = 'flex';
         
-        // Start Camera and Face Tracking
-        const videoEl = document.getElementById('modal-ar-video');
-        if (videoEl && !modalCameraStream) {
+        // Start MindAR Engine
+        const viewport = document.getElementById('mindar-ar-viewport');
+        if (viewport && typeof window.startARVirtualTryOn === 'function') {
             try {
-                modalCameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-                videoEl.srcObject = modalCameraStream;
-                videoEl.play();
-                
-                initFaceTracking(videoEl);
+                await window.startARVirtualTryOn(viewport, modelUrl);
             } catch (err) {
-                console.error('Camera access error:', err);
+                console.error('AR Virtual Try-On failed to start:', err);
+                if (typeof showToast === 'function') {
+                    showToast('ไม่สามารถเปิดกล้องเพื่อลองแว่นได้ กรุณาอนุญาตการใช้กล้อง', 'error');
+                }
             }
         }
     } else {
@@ -402,147 +395,21 @@ async function switchAR3DView(mode) {
         if (tdBtn) tdBtn.classList.add('active');
         if (resetBtn) resetBtn.style.display = 'none';
         
-        // Pause camera stream when in 3D mode
-        stopModalCamera();
+        // Stop AR when switching to 3D Orbit mode
+        if (typeof window.stopARVirtualTryOn === 'function') {
+            window.stopARVirtualTryOn();
+        }
     }
 }
 
-// Lightweight Face Tracking for AR Modal
-let modalFaceMesh = null;
-let modalCameraUtils = null;
-
-function initFaceTracking(videoEl) {
-    if (typeof FaceMesh === 'undefined') return;
-    
-    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
-    if (arModelViewer) {
-        arModelViewer.style.opacity = '0'; // Hide until face is detected
-        arModelViewer.style.transition = 'opacity 0.3s ease';
-    }
-
-    if (!modalFaceMesh) {
-        modalFaceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`});
-        modalFaceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        modalFaceMesh.onResults(onModalFaceMeshResults);
-    }
-    
-    if (!modalCameraUtils && typeof Camera !== 'undefined') {
-        modalCameraUtils = new Camera(videoEl, {
-            onFrame: async () => {
-                if (modalFaceMesh && videoEl.videoWidth > 0) {
-                    await modalFaceMesh.send({image: videoEl});
-                }
-            },
-            width: 1280,
-            height: 720
-        });
-        modalCameraUtils.start();
-    }
-}
-
-function onModalFaceMeshResults(results) {
-    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
-    if (!arModelViewer) return;
-    
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-        arModelViewer.style.opacity = '0';
-        return;
-    }
-    
-    arModelViewer.style.opacity = '1';
-    
-    const landmarks = results.multiFaceLandmarks[0];
-    // Key face points
-    const leftEye = landmarks[33];   // left eye center
-    const rightEye = landmarks[263]; // right eye center
-    const noseBridge = landmarks[168]; // between eyes
-    
-    // Scale X-coordinates by -1 since we flip the video with transform: scaleX(-1)
-    const xPct = (1 - noseBridge.x) * 100;
-    const yPct = noseBridge.y * 100;
-    
-    // Position
-    arModelViewer.style.left = `${xPct}%`;
-    arModelViewer.style.top = `${yPct}%`;
-    
-    // Calculate face width based on distance between eyes
-    const dx = rightEye.x - leftEye.x;
-    const dy = rightEye.y - leftEye.y;
-    const eyeDist = Math.sqrt(dx*dx + dy*dy);
-    
-    const container = document.getElementById('ar-live-viewport');
-    const videoEl = document.getElementById('modal-ar-video');
-    const containerW = container.clientWidth;
-    const containerH = container.clientHeight;
-    
-    // Account for object-fit: cover
-    const videoAspect = videoEl.videoWidth / videoEl.videoHeight;
-    const containerAspect = containerW / containerH;
-    
-    let renderWidth = containerW;
-    let renderHeight = containerH;
-    
-    if (videoAspect > containerAspect) {
-        renderHeight = containerH;
-        renderWidth = containerH * videoAspect;
-    } else {
-        renderWidth = containerW;
-        renderHeight = containerW / videoAspect;
-    }
-    
-    // Map normalized coordinates to pixel coordinates
-    let px_X = (1 - noseBridge.x) * renderWidth; // 1 - x because flipped
-    let px_Y = noseBridge.y * renderHeight;
-    
-    // Offset for object-fit centering
-    px_X -= (renderWidth - containerW) / 2;
-    px_Y -= (renderHeight - containerH) / 2;
-    
-    arModelViewer.style.left = `${px_X}px`;
-    arModelViewer.style.top = `${px_Y}px`;
-    
-    // Maintain a fixed container size for the model-viewer, scale via transform
-    const baseModelWidth = 300;
-    arModelViewer.style.width = `${baseModelWidth}px`;
-    arModelViewer.style.height = `150px`;
-    
-    // Target glasses width is roughly 2.4x the distance between eyes
-    const eyeDistPx = eyeDist * renderWidth;
-    const targetWidth = eyeDistPx * 2.4; 
-    const scale = targetWidth / baseModelWidth;
-    
-    // Rotation (tilt). Because of video flip, reverse angle.
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    
-    // Apply transform (Y offset -15% to move glasses up slightly from nose bridge)
-    arModelViewer.style.transform = `translate(-50%, -65%) rotateZ(${-angle}deg) scale(${scale})`;
-}
-
-function stopModalCamera() {
-    const videoEl = document.getElementById('modal-ar-video');
-    if (videoEl) {
-        videoEl.srcObject = null;
-    }
-    if (modalCameraStream) {
-        modalCameraStream.getTracks().forEach(track => track.stop());
-        modalCameraStream = null;
-    }
-    if (modalCameraUtils) {
-        modalCameraUtils.stop();
-        modalCameraUtils = null;
-    }
-    // Note: Do not close faceMesh entirely here as it takes time to reload, just stop the camera loop.
-}
-
-function resetARView() {
-    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
-    if (arModelViewer) {
-        arModelViewer.cameraOrbit = "0deg 90deg auto";
+async function resetARView() {
+    // Re-initialize or re-center AR tracking
+    if (currentProduct) {
+        const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
+        const viewport = document.getElementById('mindar-ar-viewport');
+        if (viewport && typeof window.startARVirtualTryOn === 'function') {
+            await window.startARVirtualTryOn(viewport, modelUrl);
+        }
     }
 }
 
