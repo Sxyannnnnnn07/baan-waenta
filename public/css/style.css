@@ -3138,7 +3138,7 @@ input, select, textarea {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #1a202c;
+    background-color: #000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3151,115 +3151,59 @@ input, select, textarea {
     transform: scaleX(-1);
 }
 
-#modal-ar-model-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.modal-glasses-overlay {
-    position: absolute;
-    top: 36.8%;
-    left: 50.2%;
-    transform: translate(-50%, -50%);
-    width: 160px;
-    height: auto;
-    z-index: 10;
-    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.35));
-    animation: floatAnimation 3.2s ease-in-out infinite;
-    pointer-events: none;
-}
-
-.ar-controls-bar {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(18, 20, 24, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 30px;
-    padding: 6px 12px;
-    display: flex;
-    gap: 8px;
-    z-index: 20;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-}
-
-.ar-mode-pill-btn {
-    background: transparent;
-    border: none;
-    color: #cbd5e0;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    transition: all 0.2s ease;
-}
-
-.ar-mode-pill-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.ar-mode-pill-btn.active {
-    background: var(--accent);
-    color: #fff;
-}
-
-.viewer-hint-badge {
-    position: absolute;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(18, 20, 24, 0.75);
-    backdrop-filter: blur(8px);
-    color: #edf2f7;
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    pointer-events: none;
-    z-index: 10;
-}
-
 .ar-3d-toggle-pill {
     position: absolute;
     top: 20px;
     left: 20px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.95);
     border-radius: 20px;
-    padding: 4px;
+    padding: 3px;
     display: flex;
-    gap: 4px;
+    gap: 0px;
     z-index: 15;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
 .ar-3d-toggle-pill button {
     background: transparent;
     border: none;
-    padding: 6px 16px;
-    border-radius: 16px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    padding: 6px 18px;
+    border-radius: 18px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #a0aec0;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .ar-3d-toggle-pill button.active {
     background: #fff;
-    color: var(--text-primary);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: #2d3748;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+
+.ar-reset-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #00a0e9;
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 15;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+
+.ar-reset-btn:hover {
+    transform: scale(1.05);
 }
 
 .ar-3d-details-side {

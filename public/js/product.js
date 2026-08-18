@@ -309,13 +309,6 @@ function addProductPageToCart() {
 
 // AR/3D Modal State
 let modalCameraStream = null;
-let modalCurrentModelIdx = 0;
-const modalSampleModels = [
-    '/assets/vto_model.jpg',
-    '/assets/prada_model.jpg',
-    '/assets/model1.jpg',
-    '/assets/model2.jpg'
-];
 
 function openAR3DModal(mode = '3d') {
     if (!currentProduct) return;
@@ -345,22 +338,16 @@ function openAR3DModal(mode = '3d') {
         priceEl.textContent = `THB ${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
     }
     
-    // Set 3D Model in model-viewer
+    // Set 3D Model in model-viewer for both 3D Viewer and AR Overlay
     const modelViewer = document.getElementById('product-model-viewer');
+    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
     const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
     if (modelViewer && modelUrl) {
         modelViewer.src = modelUrl;
     }
-    
-    // Set Glasses overlay image in AR viewer
-    const glassesOverlay = document.getElementById('modal-ar-glasses-img');
-    const tryonImg = currentProduct.tryon_image_url || currentProduct.image_url || '/assets/prada_front.jpg';
-    if (glassesOverlay) {
-        glassesOverlay.src = tryonImg;
+    if (arModelViewer && modelUrl) {
+        arModelViewer.src = modelUrl;
     }
-
-    // Default AR source to model photo
-    setModalARSource('model');
     
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
@@ -378,90 +365,61 @@ function closeAR3DModal() {
     document.body.style.overflow = '';
 }
 
-function switchAR3DView(mode) {
+async function switchAR3DView(mode) {
     const arContainer = document.getElementById('modal-ar-view-container');
     const tdContainer = document.getElementById('modal-3d-view-container');
     const arBtn = document.getElementById('ar-toggle-btn');
     const tdBtn = document.getElementById('3d-toggle-btn');
+    const resetBtn = document.querySelector('.ar-reset-btn');
     
     if (mode === 'ar') {
         if (arContainer) arContainer.classList.add('active');
         if (tdContainer) tdContainer.classList.remove('active');
         if (arBtn) arBtn.classList.add('active');
         if (tdBtn) tdBtn.classList.remove('active');
+        if (resetBtn) resetBtn.style.display = 'flex';
+        
+        // Start Camera
+        const videoEl = document.getElementById('modal-ar-video');
+        if (videoEl && !modalCameraStream) {
+            try {
+                modalCameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                videoEl.srcObject = modalCameraStream;
+                videoEl.play();
+            } catch (err) {
+                console.error('Camera access error:', err);
+            }
+        }
     } else {
         if (arContainer) arContainer.classList.remove('active');
         if (tdContainer) tdContainer.classList.add('active');
         if (arBtn) arBtn.classList.remove('active');
         if (tdBtn) tdBtn.classList.add('active');
+        if (resetBtn) resetBtn.style.display = 'none';
+        
         // Pause camera stream when in 3D mode
         stopModalCamera();
-        const btnModel = document.getElementById('btn-mode-model');
-        const btnCam = document.getElementById('btn-mode-camera');
-        if (btnModel) btnModel.classList.add('active');
-        if (btnCam) btnCam.classList.remove('active');
-    }
-}
-
-async function setModalARSource(source) {
-    const videoEl = document.getElementById('modal-ar-video');
-    const modelImg = document.getElementById('modal-ar-model-img');
-    const btnModel = document.getElementById('btn-mode-model');
-    const btnCam = document.getElementById('btn-mode-camera');
-    const btnSwitch = document.getElementById('btn-switch-model');
-
-    if (source === 'camera') {
-        try {
-            if (btnCam) btnCam.classList.add('active');
-            if (btnModel) btnModel.classList.remove('active');
-            if (btnSwitch) btnSwitch.style.display = 'none';
-
-            if (!modalCameraStream) {
-                modalCameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-            }
-            if (videoEl) {
-                videoEl.srcObject = modalCameraStream;
-                videoEl.style.display = 'block';
-                videoEl.play();
-            }
-            if (modelImg) modelImg.style.display = 'none';
-        } catch (err) {
-            console.error('Camera access error:', err);
-            alert('ไม่สามารถเข้าถึงกล้องเว็บแคมได้ (กรุณากดอนุญาตสิทธิ์การใช้กล้อง หรือทดลองสวมผ่านภาพจำลอง)');
-            setModalARSource('model');
-        }
-    } else {
-        stopModalCamera();
-        if (btnModel) btnModel.classList.add('active');
-        if (btnCam) btnCam.classList.remove('active');
-        if (btnSwitch) btnSwitch.style.display = 'inline-flex';
-
-        if (videoEl) {
-            videoEl.style.display = 'none';
-            videoEl.srcObject = null;
-        }
-        if (modelImg) {
-            modelImg.style.display = 'block';
-            modelImg.src = modalSampleModels[modalCurrentModelIdx % modalSampleModels.length];
-        }
-    }
-}
-
-function toggleModalModelPhoto() {
-    modalCurrentModelIdx = (modalCurrentModelIdx + 1) % modalSampleModels.length;
-    const modelImg = document.getElementById('modal-ar-model-img');
-    if (modelImg) {
-        modelImg.src = modalSampleModels[modalCurrentModelIdx];
     }
 }
 
 function stopModalCamera() {
+    const videoEl = document.getElementById('modal-ar-video');
+    if (videoEl) {
+        videoEl.srcObject = null;
+    }
     if (modalCameraStream) {
         modalCameraStream.getTracks().forEach(track => track.stop());
         modalCameraStream = null;
+    }
+}
+
+function resetARView() {
+    const arModelViewer = document.getElementById('modal-ar-glasses-3d');
+    if (arModelViewer) {
+        arModelViewer.cameraOrbit = "0deg 90deg auto";
     }
 }
 
