@@ -105,6 +105,8 @@ const DB_CONFIG = {
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
     connectionLimit: 1,
+    maxIdle: 1, // max idle connections, the default value is the same as `connectionLimit`
+    idleTimeout: 10000, // idle connections timeout, in milliseconds, the default value 60000
     queueLimit: 0,
     ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
