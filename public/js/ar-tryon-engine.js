@@ -69,8 +69,8 @@ export async function startARVirtualTryOn(containerEl, modelUrl = '/assets/model
                     }
                     currentLoadedModel = gltf.scene;
                     
-                    // Auto-fit bounding box to human head dimensions (~14.5 cm width)
-                    fitGlassesModelToFace(currentLoadedModel, 0.145);
+                    // Auto-fit bounding box to human head dimensions (~14.8 MindAR units)
+                    fitGlassesModelToFace(currentLoadedModel, 14.8);
                     
                     currentLoadedModel.renderOrder = 1;
                     if (currentAnchor) {
@@ -147,9 +147,14 @@ export function stopARVirtualTryOn() {
 /**
  * Automatically calculates bounding box of any 3D glasses model and fits it to realistic face dimensions
  * @param {THREE.Object3D} gltfScene 
- * @param {number} targetFaceWidth - Target width in meters (default 0.145m = 14.5cm)
+ * @param {number} targetFaceWidth - Target width in MindAR metric units (default 14.8 units)
  */
-export function fitGlassesModelToFace(gltfScene, targetFaceWidth = 0.145) {
+export function fitGlassesModelToFace(gltfScene, targetFaceWidth = 14.8) {
+    gltfScene.position.set(0, 0, 0);
+    gltfScene.rotation.set(0, 0, 0);
+    gltfScene.scale.set(1, 1, 1);
+    gltfScene.updateMatrixWorld(true);
+
     const box = new THREE.Box3().setFromObject(gltfScene);
     const size = new THREE.Vector3();
     box.getSize(size);
@@ -164,12 +169,13 @@ export function fitGlassesModelToFace(gltfScene, targetFaceWidth = 0.145) {
         gltfScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
 
+    gltfScene.updateMatrixWorld(true);
     const scaledBox = new THREE.Box3().setFromObject(gltfScene);
     const center = new THREE.Vector3();
     scaledBox.getCenter(center);
 
-    // Center on Landmark 168 (Nose bridge) with slight forward offset for nose pads
-    gltfScene.position.set(-center.x, -center.y, 0.015);
+    // Center on Landmark 168 (Nose bridge) with slight forward offset for nose pads and ear temples
+    gltfScene.position.set(-center.x, -center.y - 0.25, 0.65);
 }
 
 // Attach to window for global access
