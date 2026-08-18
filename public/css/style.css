@@ -996,8 +996,8 @@ a {
     50% { transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
 }
 
-.face-point.eye-l { top: 36.8%; left: 39.8%; }
-.face-point.eye-r { top: 36.8%; left: 60.5%; }
+.face-point.eye-l { top: 33.5%; left: 39.5%; }
+.face-point.eye-r { top: 33.5%; left: 60.5%; }
 .face-point.nose { top: 43.5%; left: 50.2%; }
 .face-point.chin { top: 52.8%; left: 50.2%; }
 
