@@ -407,21 +407,34 @@ function getCameraPermissionErrorMessage(error) {
 }
 
 async function startProductAR() {
-    if (isARStarting || !cameraPermissionGranted || !currentProduct) return;
+    if (isARStarting || !currentProduct) return;
 
     const viewport = document.getElementById('mindar-ar-viewport');
-    if (!viewport || typeof window.startARVirtualTryOn !== 'function') return;
+    if (!viewport) return;
+
+    if (typeof window.startARVirtualTryOn !== 'function') {
+        let tries = 0;
+        while (typeof window.startARVirtualTryOn !== 'function' && tries < 20) {
+            await new Promise(r => setTimeout(r, 100));
+            tries++;
+        }
+        if (typeof window.startARVirtualTryOn !== 'function') {
+            showCameraPermissionGate('กำลังโหลดระบบติดตามใบหน้า กรุณากดลองใหม่อีกครั้ง', true);
+            return;
+        }
+    }
 
     isARStarting = true;
     hideCameraPermissionGate();
     try {
         await window.startARVirtualTryOn(viewport, currentProduct);
+        cameraPermissionGranted = true;
     } catch (error) {
-        console.error('AR Virtual Try-On failed after camera permission was granted:', error);
+        console.error('AR Virtual Try-On failed:', error);
         cameraPermissionGranted = false;
-        showCameraPermissionGate('อนุญาตกล้องแล้ว แต่ระบบติดตามใบหน้าเริ่มไม่สำเร็จ โปรดตรวจสอบอินเทอร์เน็ต การเร่งฮาร์ดแวร์ หรือทดลองใช้ Chrome/Safari รุ่นล่าสุด', true);
+        showCameraPermissionGate(getCameraPermissionErrorMessage(error), true);
         if (typeof showToast === 'function') {
-            showToast('เปิดกล้องได้ แต่ระบบติดตามใบหน้าเริ่มไม่สำเร็จ', 'error');
+            showToast('เปิดกล้องไม่สำเร็จ กรุณาตรวจสอบสิทธิ์กล้อง', 'error');
         }
     } finally {
         isARStarting = false;
@@ -442,19 +455,12 @@ async function requestCameraPermissionAndStart() {
         messageEl.classList.remove('error');
     }
 
-    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showCameraPermissionGate('เบราว์เซอร์นี้ไม่รองรับการเปิดกล้องบนหน้าเว็บ กรุณาเปิดผ่าน HTTPS ด้วย Chrome หรือ Safari รุ่นล่าสุด', true);
         return;
     }
 
-    try {
-        cameraPermissionGranted = true;
-        await startProductAR();
-    } catch (error) {
-        console.error('Camera permission request failed:', error);
-        cameraPermissionGranted = false;
-        showCameraPermissionGate(getCameraPermissionErrorMessage(error), true);
-    }
+    await startProductAR();
 }
 
 async function switchAR3DView(mode) {
@@ -471,12 +477,7 @@ async function switchAR3DView(mode) {
         if (tdBtn) tdBtn.classList.remove('active');
         if (resetBtn) resetBtn.style.display = 'flex';
         
-        // Camera access must begin from the explicit permission button.
-        if (cameraPermissionGranted) {
-            await startProductAR();
-        } else {
-            showCameraPermissionGate();
-        }
+        await requestCameraPermissionAndStart();
     } else {
         if (arContainer) arContainer.classList.remove('active');
         if (tdContainer) tdContainer.classList.add('active');
@@ -497,13 +498,11 @@ async function switchAR3DView(mode) {
 async function resetARView() {
     // Re-initialize or re-center AR tracking
     if (currentProduct) {
-        if (cameraPermissionGranted) {
-            if (typeof window.stopARVirtualTryOn === 'function') {
-                window.stopARVirtualTryOn();
-            }
-            await startProductAR();
-        } else {
-            showCameraPermissionGate('กดปุ่มด้านล่างเพื่ออนุญาตใช้กล้องก่อนเริ่มลองแว่น');
+        if (typeof window.resetARView === 'function') {
+            window.resetARView();
+        }
+        if (typeof window.isARVirtualTryOnRunning === 'function' && !window.isARVirtualTryOnRunning()) {
+            await requestCameraPermissionAndStart();
         }
     }
 }
