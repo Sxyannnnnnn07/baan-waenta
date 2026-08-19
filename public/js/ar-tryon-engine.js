@@ -276,7 +276,7 @@
         hemiLight.position.set(0, 30, 0);
         threeScene.add(hemiLight);
 
-        // Head Occluder Mask
+        // Head Occluder Mask (Spherical depth buffer mask to hide temples behind head)
         const occluderGeo = new THREE.SphereGeometry(1, 32, 32);
         const occluderMat = new THREE.MeshBasicMaterial({ colorWrite: false }); // Render only to depth buffer
         headOccluder = new THREE.Mesh(occluderGeo, occluderMat);
@@ -323,10 +323,9 @@
                     const center = new THREE.Vector3();
                     box.getCenter(center);
 
-                    // Center horizontally (X) and align the front lenses flush at Z=0
+                    // Center laterally (X) and align the front lenses flush at origin
                     // Keep Y=0 to preserve the model's natural nose bridge level
-                    const frontZ = box.max.z;
-                    current3DModel.position.set(-center.x, 0, -frontZ * 0.35);
+                    current3DModel.position.set(-center.x, 0, 0);
 
                     // Normalize raw model width to exactly 1.0 unit
                     const rawWidth = size.x > 0 ? size.x : 1.0;
@@ -579,18 +578,17 @@
             }
             modelWrapperGroup.quaternion.copy(smoothQuat);
 
-            // Responsive Scaling (IPD scaled to 1.95x for realistic tailored fit on temples)
+            // Responsive Scaling (IPD scaled to 2.12x for realistic fitted proportions)
             const eyeDistWorld = wLeft.distanceTo(wRight);
             const modelScaleMult = currentProductData.scale_x || 1.0;
-            const targetGlassesWidth = eyeDistWorld * 1.95 * modelScaleMult;
+            const targetGlassesWidth = eyeDistWorld * 2.12 * modelScaleMult;
 
             // Anchor Position: Eye level & Nose Bridge
             const wEyeCenter = new THREE.Vector3().addVectors(wLeft, wRight).multiplyScalar(0.5);
-            // Blend eye center and nose bridge for perfect natural fit on bridge
-            const targetPos = wEyeCenter.clone().lerp(wBridge, 0.45);
+            const targetPos = wEyeCenter.clone().lerp(wBridge, 0.4);
 
-            // Snug forward offset so nose pads rest naturally on nose bridge skin
-            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.05);
+            // Forward offset along face normal (vZ) so lenses and nose pads sit in front of skin
+            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.16);
             targetPos.add(forwardOffset);
 
             // Product database manual Y offset if provided
@@ -610,13 +608,15 @@
             smoothScale = THREE.MathUtils.lerp(smoothScale || targetGlassesWidth, targetGlassesWidth, SMOOTH_FACTOR);
             modelWrapperGroup.scale.set(smoothScale, smoothScale, smoothScale);
 
-            // Head Occluder Mask (Spherical mask hiding temple arms behind the head/ears when turning)
+            // Head Occluder Mask (Spherical mask deep inside skull to hide temple arms behind ears without clipping front frame)
             if (headOccluder) {
-                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.35);
+                const occluderRadius = smoothScale * 0.42;
+                // Place occluder deep behind the nose bridge (distance = 0.55 x glasses width)
+                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.55);
                 const headPos = smoothPos.clone().add(headBackOffset);
                 headOccluder.position.copy(headPos);
                 headOccluder.quaternion.copy(smoothQuat);
-                headOccluder.scale.set(smoothScale * 0.48, smoothScale * 0.58, smoothScale * 0.65);
+                headOccluder.scale.set(occluderRadius, occluderRadius * 1.1, occluderRadius * 0.9);
                 headOccluder.visible = true;
             }
         } else if (is2DGlassesLoaded && glasses2DImage && ctx2D && canvas2D) {
@@ -633,7 +633,7 @@
                 y: (sLeft.y + sRight.y) / 2
             };
 
-            const glassesWidth = eyeDist * 2.05 * (currentProductData.scale_x || 1.0);
+            const glassesWidth = eyeDist * 2.12 * (currentProductData.scale_x || 1.0);
             const aspect = glasses2DImage.naturalWidth / (glasses2DImage.naturalHeight || 1);
             const glassesHeight = glassesWidth / aspect;
 
