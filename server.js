@@ -1324,3 +1324,25 @@ initialization.then(() => {
 module.exports = app;
 module.exports.initialization = initialization;
 module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser };
+
+// Graceful shutdown for Serverless environments (e.g. Vercel)
+// This ensures that when Vercel tears down the instance (especially on new deployments),
+// the database connections are properly closed and not left sleeping,
+// preventing "User has exceeded max_user_connections" errors.
+function gracefulShutdown(signal) {
+    console.log(`Received ${signal}, closing database connections...`);
+    if (dbPool) {
+        dbPool.end().then(() => {
+            console.log('Database pool closed gracefully.');
+            process.exit(0);
+        }).catch(err => {
+            console.error('Error closing database pool:', err);
+            process.exit(1);
+        });
+    } else {
+        process.exit(0);
+    }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
