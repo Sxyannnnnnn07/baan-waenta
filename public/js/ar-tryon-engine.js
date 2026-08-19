@@ -31,7 +31,7 @@
     let smoothPos = null;
     let smoothQuat = null;
     let smoothScale = 1.0;
-    const SMOOTH_FACTOR = 0.35; // Responsive and smooth without jitter
+    const SMOOTH_FACTOR = 0.40; // Highly responsive tracking for head turns & nods
 
     /**
      * Dynamically loads an external script if not already present
@@ -323,8 +323,7 @@
                     const center = new THREE.Vector3();
                     box.getCenter(center);
 
-                    // Center laterally (X) and align the front lenses flush at origin
-                    // Keep Y=0 to preserve the model's natural nose bridge level
+                    // Center horizontally (X) and align the front lenses flush at origin
                     current3DModel.position.set(-center.x, 0, 0);
 
                     // Normalize raw model width to exactly 1.0 unit
@@ -501,9 +500,10 @@
             z: (pt.z || 0) * rendW
         });
 
-        // Key Facial Landmarks
+        // Key Facial Landmarks (Rigid Skull Bones for Pitch/Yaw/Roll Stability)
         const pForehead = landmarks[10] || { x: 0.5, y: 0.2, z: 0 };
-        const pChin = landmarks[152] || { x: 0.5, y: 0.8, z: 0 };
+        const pBridgeLow = landmarks[6] || landmarks[168] || { x: 0.5, y: 0.4, z: 0 };
+        const pBridgeHigh = landmarks[168] || landmarks[6] || { x: 0.5, y: 0.38, z: 0 };
 
         let leftPupil = landmarks[468];
         let rightPupil = landmarks[473];
@@ -522,13 +522,11 @@
                 : landmarks[386] || { x: 0.6, y: 0.4, z: 0 };
         }
 
-        const noseBridge = landmarks[168] || landmarks[6] || { x: (leftPupil.x + rightPupil.x) / 2, y: (leftPupil.y + rightPupil.y) / 2, z: 0 };
-
         const sLeft = toScreen(leftPupil);
         const sRight = toScreen(rightPupil);
-        const sBridge = toScreen(noseBridge);
+        const sBridge = toScreen(pBridgeHigh);
+        const sBridgeLow = toScreen(pBridgeLow);
         const sForehead = toScreen(pForehead);
-        const sChin = toScreen(pChin);
 
         // Three.js World Dimensions at focus plane (Z = 0)
         if (threeCamera && threeScene && modelWrapperGroup) {
@@ -552,17 +550,17 @@
 
             const wLeft = toWorld(sLeft, leftPupil.z);
             const wRight = toWorld(sRight, rightPupil.z);
-            const wBridge = toWorld(sBridge, noseBridge.z);
+            const wBridge = toWorld(sBridge, pBridgeHigh.z);
+            const wBridgeLow = toWorld(sBridgeLow, pBridgeLow.z);
             const wForehead = toWorld(sForehead, pForehead.z);
-            const wChin = toWorld(sChin, pChin.z);
 
-            // 6-DOF Orthogonal Rotation Basis from True Coronal Facial Plane
-            // Horizontal Eye Axis
+            // 6-DOF Orthogonal Rotation Basis from Rigid Frontal Skull Plane
+            // Horizontal Eye Axis (Left to Right)
             const vX = new THREE.Vector3().subVectors(wRight, wLeft).normalize();
-            // Vertical Facial Plane Midline (from Chin to Forehead)
-            const vUpFace = new THREE.Vector3().subVectors(wForehead, wChin).normalize();
+            // Rigid Frontal Midline (Bridge to Forehead on rigid frontal bone)
+            const vUp = new THREE.Vector3().subVectors(wForehead, wBridgeLow).normalize();
             // True Forward Normal facing camera viewer
-            const vZ = new THREE.Vector3().crossVectors(vX, vUpFace).normalize();
+            const vZ = new THREE.Vector3().crossVectors(vX, vUp).normalize();
             // True Orthogonal Up Vector
             const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize();
 
@@ -570,7 +568,7 @@
             rotMatrix.makeBasis(vX, vY, vZ);
             const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
 
-            // EMA Filter for Rotation
+            // EMA Filter for Rotation (0.40 for snappy tracking on head turns & nods)
             if (!smoothQuat) {
                 smoothQuat = targetQuat.clone();
             } else {
@@ -578,17 +576,17 @@
             }
             modelWrapperGroup.quaternion.copy(smoothQuat);
 
-            // Responsive Scaling (IPD scaled to 2.12x for realistic fitted proportions)
+            // Responsive Scaling (IPD scaled to 2.10x for tailored fit)
             const eyeDistWorld = wLeft.distanceTo(wRight);
             const modelScaleMult = currentProductData.scale_x || 1.0;
-            const targetGlassesWidth = eyeDistWorld * 2.12 * modelScaleMult;
+            const targetGlassesWidth = eyeDistWorld * 2.10 * modelScaleMult;
 
-            // Anchor Position: Eye level & Nose Bridge
+            // Anchor Position: Exactly at Nose Bridge & Eye Level
             const wEyeCenter = new THREE.Vector3().addVectors(wLeft, wRight).multiplyScalar(0.5);
-            const targetPos = wEyeCenter.clone().lerp(wBridge, 0.4);
+            const targetPos = wBridge.clone().lerp(wEyeCenter, 0.3);
 
-            // Forward offset along face normal (vZ) so lenses and nose pads sit in front of skin
-            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.16);
+            // Snug forward offset (4% of width) so lenses and nose pads sit right on nose bridge skin
+            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.04);
             targetPos.add(forwardOffset);
 
             // Product database manual Y offset if provided
@@ -610,13 +608,13 @@
 
             // Head Occluder Mask (Spherical mask deep inside skull to hide temple arms behind ears without clipping front frame)
             if (headOccluder) {
-                const occluderRadius = smoothScale * 0.42;
-                // Place occluder deep behind the nose bridge (distance = 0.55 x glasses width)
-                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.55);
+                const occluderRadius = smoothScale * 0.40;
+                // Place occluder deep behind the nose bridge (distance = 0.52 x glasses width)
+                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.52);
                 const headPos = smoothPos.clone().add(headBackOffset);
                 headOccluder.position.copy(headPos);
                 headOccluder.quaternion.copy(smoothQuat);
-                headOccluder.scale.set(occluderRadius, occluderRadius * 1.1, occluderRadius * 0.9);
+                headOccluder.scale.set(occluderRadius, occluderRadius * 1.05, occluderRadius * 0.85);
                 headOccluder.visible = true;
             }
         } else if (is2DGlassesLoaded && glasses2DImage && ctx2D && canvas2D) {
@@ -633,7 +631,7 @@
                 y: (sLeft.y + sRight.y) / 2
             };
 
-            const glassesWidth = eyeDist * 2.12 * (currentProductData.scale_x || 1.0);
+            const glassesWidth = eyeDist * 2.10 * (currentProductData.scale_x || 1.0);
             const aspect = glasses2DImage.naturalWidth / (glasses2DImage.naturalHeight || 1);
             const glassesHeight = glassesWidth / aspect;
 
