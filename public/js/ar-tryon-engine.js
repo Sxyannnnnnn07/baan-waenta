@@ -312,7 +312,6 @@
                 (gltf) => {
                     current3DModel = gltf.scene;
 
-                    // Center model pivot at (0, 0, 0)
                     current3DModel.position.set(0, 0, 0);
                     current3DModel.rotation.set(0, 0, 0);
                     current3DModel.scale.set(1, 1, 1);
@@ -324,14 +323,14 @@
                     const center = new THREE.Vector3();
                     box.getCenter(center);
 
-                    current3DModel.position.set(-center.x, -center.y, -center.z);
+                    // Center only X (horizontal symmetry) and Z (depth)
+                    // Keep Y at 0 to preserve model's intended nose bridge line
+                    current3DModel.position.set(-center.x, 0, -center.z);
 
                     // Normalize raw model width to exactly 1.0 unit
-                    const rawWidth = Math.max(size.x, size.z > size.x ? size.z : size.x);
-                    if (rawWidth > 0) {
-                        const normScale = 1.0 / rawWidth;
-                        current3DModel.scale.set(normScale, normScale, normScale);
-                    }
+                    const rawWidth = size.x > 0 ? size.x : 1.0;
+                    const normScale = 1.0 / rawWidth;
+                    current3DModel.scale.set(normScale, normScale, normScale);
 
                     // Wrap in parent group for 6-DOF transform control
                     modelWrapperGroup = new THREE.Group();
@@ -520,7 +519,7 @@
                 : landmarks[386] || { x: 0.6, y: 0.4, z: 0 };
         }
 
-        const noseBridge = landmarks[168] || landmarks[6] || { x: (leftPupil.x + rightPupil.x) / 2, y: leftPupil.y, z: 0 };
+        const noseBridge = landmarks[168] || landmarks[6] || { x: (leftPupil.x + rightPupil.x) / 2, y: (leftPupil.y + rightPupil.y) / 2, z: 0 };
         const noseTip = landmarks[4] || landmarks[1] || { x: noseBridge.x, y: noseBridge.y + 0.1, z: -0.05 };
 
         const sLeft = toScreen(leftPupil);
@@ -537,16 +536,27 @@
             const heightAtZero = 2 * threeCamera.position.z * Math.tan(fovRad / 2);
             const widthAtZero = heightAtZero * aspect;
 
-            // 6-DOF Orthogonal Rotation Matrix
-            const pLeft = new THREE.Vector3(sLeft.x, sLeft.y, sLeft.z);
-            const pRight = new THREE.Vector3(sRight.x, sRight.y, sRight.z);
-            const pBridge = new THREE.Vector3(sBridge.x, sBridge.y, sBridge.z);
-            const pNose = new THREE.Vector3(sNose.x, sNose.y, sNose.z);
+            // Convert points to Three.js World Space (where +Y is UP, +X is Right, +Z is Towards Viewer)
+            const toWorld = (sPt, rawZ) => {
+                const nx = sPt.x / boxWidth - 0.5;
+                const ny = -(sPt.y / boxHeight - 0.5); // Invert Y so UP is positive
+                return new THREE.Vector3(
+                    nx * widthAtZero,
+                    ny * heightAtZero,
+                    -(rawZ || 0) * widthAtZero
+                );
+            };
 
-            const vX = new THREE.Vector3().subVectors(pRight, pLeft).normalize(); // Right
-            const vNose = new THREE.Vector3().subVectors(pNose, pBridge).normalize(); // Down
-            const vZ = new THREE.Vector3().crossVectors(vX, vNose).normalize(); // Forward normal
-            const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize(); // Up
+            const wLeft = toWorld(sLeft, leftPupil.z);
+            const wRight = toWorld(sRight, rightPupil.z);
+            const wBridge = toWorld(sBridge, noseBridge.z);
+            const wNoseTip = toWorld(sNose, noseTip.z);
+
+            // 6-DOF Orthogonal Rotation Matrix
+            const vX = new THREE.Vector3().subVectors(wRight, wLeft).normalize(); // Right vector
+            const vUp = new THREE.Vector3().subVectors(wBridge, wNoseTip).normalize(); // Up vector along nose bridge
+            const vZ = new THREE.Vector3().crossVectors(vX, vUp).normalize(); // Forward normal facing viewer
+            const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize(); // True orthogonal Up vector
 
             const rotMatrix = new THREE.Matrix4();
             rotMatrix.makeBasis(vX, vY, vZ);
@@ -560,29 +570,24 @@
             }
             modelWrapperGroup.quaternion.copy(smoothQuat);
 
-            // Calculate 3D Position
-            const targetNormX = sBridge.x / boxWidth - 0.5;
-            const targetNormY = -(sBridge.y / boxHeight - 0.5);
-
-            const worldX = targetNormX * widthAtZero;
-            const worldY = targetNormY * heightAtZero;
-            const worldZ = (noseBridge.z || 0) * widthAtZero;
-
-            const targetPos = new THREE.Vector3(worldX, worldY, worldZ);
-
             // Calculate responsive scale based on interpupillary distance (IPD)
-            const eyeDistScreen = pLeft.distanceTo(pRight);
+            const eyeDistWorld = wLeft.distanceTo(wRight);
             const modelScaleMult = currentProductData.scale_x || 1.0;
             // Human glasses frame is ~2.22x eye pupil distance
-            const targetGlassesWidth = (eyeDistScreen / boxWidth) * widthAtZero * 2.22 * modelScaleMult;
+            const targetGlassesWidth = eyeDistWorld * 2.22 * modelScaleMult;
 
-            // Push model slightly forward along face normal to sit naturally on the nose bridge
-            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.12);
+            // Calculate 3D Position: Anchor directly at eye-pupil level & nose bridge
+            const wEyeCenter = new THREE.Vector3().addVectors(wLeft, wRight).multiplyScalar(0.5);
+            // Blend 65% eye center and 35% nose bridge for perfect natural fit across eye level
+            const targetPos = wEyeCenter.clone().lerp(wBridge, 0.35);
+
+            // Push model slightly forward along face normal (vZ) so it sits naturally on nose bridge
+            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.15);
             targetPos.add(forwardOffset);
 
-            // Product database manual Y offset
+            // Product database manual Y offset if provided
             if (currentProductData.offset_y) {
-                targetPos.y += currentProductData.offset_y * heightAtZero;
+                targetPos.add(vY.clone().multiplyScalar(currentProductData.offset_y * heightAtZero));
             }
 
             // EMA Filter for Position
@@ -615,12 +620,17 @@
             const eyeDist = Math.hypot(dxEyes, dyEyes);
             const angle = Math.atan2(dyEyes, dxEyes);
 
+            const sEyeCenter = {
+                x: (sLeft.x + sRight.x) / 2,
+                y: (sLeft.y + sRight.y) / 2
+            };
+
             const glassesWidth = eyeDist * 2.25 * (currentProductData.scale_x || 1.0);
             const aspect = glasses2DImage.naturalWidth / (glasses2DImage.naturalHeight || 1);
             const glassesHeight = glassesWidth / aspect;
 
             ctx2D.save();
-            ctx2D.translate(sBridge.x, sBridge.y);
+            ctx2D.translate(sEyeCenter.x, sEyeCenter.y);
             ctx2D.rotate(angle);
             ctx2D.drawImage(glasses2DImage, -glassesWidth / 2, -glassesHeight / 2, glassesWidth, glassesHeight);
             ctx2D.restore();
