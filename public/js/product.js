@@ -410,13 +410,12 @@ async function startProductAR() {
     if (isARStarting || !cameraPermissionGranted || !currentProduct) return;
 
     const viewport = document.getElementById('mindar-ar-viewport');
-    const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
     if (!viewport || typeof window.startARVirtualTryOn !== 'function') return;
 
     isARStarting = true;
     hideCameraPermissionGate();
     try {
-        await window.startARVirtualTryOn(viewport, modelUrl);
+        await window.startARVirtualTryOn(viewport, currentProduct);
     } catch (error) {
         console.error('AR Virtual Try-On failed after camera permission was granted:', error);
         cameraPermissionGranted = false;
@@ -436,7 +435,7 @@ async function requestCameraPermissionAndStart() {
     const messageEl = document.getElementById('camera-permission-message');
     if (button) {
         button.disabled = true;
-        button.innerHTML = '<ion-icon name="sync-outline"></ion-icon> กำลังขอสิทธิ์กล้อง...';
+        button.innerHTML = '<ion-icon name="sync-outline" style="animation: spin 1s linear infinite;"></ion-icon> กำลังขอสิทธิ์กล้อง...';
     }
     if (messageEl) {
         messageEl.textContent = 'เมื่อเบราว์เซอร์แสดงคำถาม โปรดเลือก “อนุญาต” เพื่อเริ่มลองแว่น';
@@ -449,22 +448,6 @@ async function requestCameraPermissionAndStart() {
     }
 
     try {
-        let permissionStream;
-        try {
-            permissionStream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: { facingMode: 'user' }
-            });
-        } catch (e) {
-            console.warn('facingMode constraint failed, trying generic video constraint', e);
-            permissionStream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: true
-            });
-        }
-        permissionStream.getTracks().forEach(track => track.stop());
-        // Give mobile camera hardware a moment to release before MindAR requests its stream.
-        await new Promise(resolve => setTimeout(resolve, 150));
         cameraPermissionGranted = true;
         await startProductAR();
     } catch (error) {

@@ -16,17 +16,16 @@
     <meta name="apple-mobile-web-app-title" content="บ้านแว่นตา">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-    <!-- Three.js & MindAR Face Tracking Integration -->
-    <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "mindar-face-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-three.prod.js"
-      }
-    }
-    </script>
-    <script type="module" src="/js/ar-tryon-engine.js"></script>
+    
+    <!-- Three.js & GLTFLoader for 3D AR Try-On -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- Google MediaPipe Face Mesh for Real-Time 60 FPS Face Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+    
+    <script src="/js/ar-tryon-engine.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -436,7 +435,7 @@
                         <!-- AI Calibration Loading Spinner -->
                         <div id="mindar-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; z-index: 30; display: none; font-size: 0.85rem; pointer-events: none; background: rgba(0,0,0,0.65); padding: 18px 24px; border-radius: 16px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15);">
                             <ion-icon name="sync-outline" style="animation: spin 1s linear infinite; font-size: 2.2rem; margin-bottom: 0.5rem; color: #63b3ed; display: block; margin-inline: auto;"></ion-icon>
-                            <div style="font-weight: 600; letter-spacing: 0.02em;">กำลังเริ่มระบบลองแว่น 3D (MindAR)...</div>
+                            <div style="font-weight: 600; letter-spacing: 0.02em;">กำลังเริ่มระบบลองแว่น 3D AR (AI Face Tracking)...</div>
                         </div>
                     </div>
                 </div>

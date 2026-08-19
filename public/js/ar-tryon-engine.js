@@ -1,205 +1,741 @@
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MindARThree } from 'mindar-face-three';
+// Baan Waenta - High-Performance Real-Time 3D/2D AR Try-On Engine
+// Powered by Google MediaPipe Face Mesh & Three.js 6-DOF Pose Estimation
 
-let mindarThree = null;
-let gltfLoader = new GLTFLoader();
-let currentLoadedModel = null;
-let currentAnchor = null;
-let currentOccluder = null;
+let videoElement = null;
+let canvas2D = null;
+let ctx2D = null;
+let threeCanvas = null;
+let threeRenderer = null;
+let threeScene = null;
+let threeCamera = null;
+let current3DModel = null;
+let modelWrapperGroup = null;
+let headOccluder = null;
+let gltfLoader = null;
+
+let webcamStream = null;
+let faceMeshInstance = null;
 let isARRunning = false;
+let isDetecting = false;
+let isFaceMeshLoaded = false;
+let animFrameId = null;
+let detectionAnimFrameId = null;
+
+let currentProductData = null;
+let glasses2DImage = null;
+let is2DGlassesLoaded = false;
+
+// Exponential Moving Average (EMA) smoothing state
+let smoothPos = null;
+let smoothQuat = null;
+let smoothScale = 1.0;
+const SMOOTH_FACTOR = 0.32; // Responsive and smooth without lag or jitter
 
 /**
- * Start MindAR Face Tracking & Three.js 3D Virtual Try-On
- * @param {HTMLElement} containerEl - DOM element to render the AR video and WebGL canvas
- * @param {string} modelUrl - URL to .glb 3D glasses model
+ * Dynamically loads an external script if not already present
  */
-export async function startARVirtualTryOn(containerEl, modelUrl = '/assets/models/prada_vintage.glb') {
+function loadScriptAsync(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.crossOrigin = 'anonymous';
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(e);
+        document.head.appendChild(script);
+    });
+}
+
+/**
+ * Ensure MediaPipe FaceMesh library is loaded and ready
+ */
+async function ensureFaceMeshDependencies() {
+    if (typeof window.FaceMesh === 'function') {
+        return;
+    }
+    await loadScriptAsync('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js');
+    await loadScriptAsync('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js');
+}
+
+/**
+ * Start 3D / 2D AR Virtual Try-On in the specified container
+ * @param {HTMLElement} containerEl - DOM container element
+ * @param {Object|string} productOrModelUrl - Product object or 3D model URL
+ */
+export async function startARVirtualTryOn(containerEl, productOrModelUrl) {
     if (isARRunning) {
         stopARVirtualTryOn();
     }
-    
+
+    if (!containerEl) {
+        throw new Error('Container element is required for AR Virtual Try-On');
+    }
+
     const loadingEl = document.getElementById('mindar-loading-indicator');
     if (loadingEl) loadingEl.style.display = 'block';
 
+    // Parse product data
+    if (typeof productOrModelUrl === 'string') {
+        currentProductData = {
+            name: 'แว่นตา 3D',
+            model_3d_url: productOrModelUrl,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0
+        };
+    } else if (productOrModelUrl && typeof productOrModelUrl === 'object') {
+        currentProductData = {
+            ...productOrModelUrl,
+            model_3d_url: productOrModelUrl.model_3d_url || productOrModelUrl.model3d || null,
+            scale_x: parseFloat(productOrModelUrl.scale_x) || 1.0,
+            scale_y: parseFloat(productOrModelUrl.scale_y) || 1.0,
+            scale_z: parseFloat(productOrModelUrl.scale_z) || 1.0,
+            offset_y: parseFloat(productOrModelUrl.offset_y) || 0.0
+        };
+    } else {
+        currentProductData = {
+            name: 'Prada Vintage Star',
+            model_3d_url: '/assets/models/prada_vintage.glb',
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0
+        };
+    }
+
     try {
-        mindarThree = new MindARThree({
-            container: containerEl,
-            uiLoading: "no",
-            uiScanning: "no",
-            uiError: "no"
-        });
+        // 1. Ensure MediaPipe dependencies are loaded
+        await ensureFaceMeshDependencies();
 
-        const { renderer, scene, camera } = mindarThree;
-
-        // Realistic Lighting setup for eyewear materials (acetate, metal, lenses)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
-        scene.add(ambientLight);
-
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-        keyLight.position.set(0, 1.5, 2);
-        scene.add(keyLight);
-
-        const fillLight = new THREE.DirectionalLight(0xddeeff, 1.0);
-        fillLight.position.set(0, -1, 1.5);
-        scene.add(fillLight);
-
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        backLight.position.set(0, 2, -2);
-        scene.add(backLight);
-
-        // Head Occluder: Real-time 3D face mesh that masks temples behind ears and head
-        currentOccluder = mindarThree.addFaceMesh();
-        const occluderMat = new THREE.MeshStandardMaterial({
-            colorWrite: false, // Depth buffer only (invisible mask)
-        });
-        currentOccluder.material = occluderMat;
-        currentOccluder.renderOrder = 0;
-
-        // Anchor at Landmark 168 (Nose Bridge / Eye Center)
-        currentAnchor = mindarThree.addAnchor(168);
-
-        // Load 3D Model
-        if (modelUrl) {
-            gltfLoader.load(
-                modelUrl,
-                (gltf) => {
-                    if (currentLoadedModel && currentAnchor) {
-                        currentAnchor.group.remove(currentLoadedModel);
-                    }
-                    currentLoadedModel = gltf.scene;
-                    
-                    // Auto-fit bounding box to human head dimensions (~14.8 MindAR units)
-                    fitGlassesModelToFace(currentLoadedModel, 14.8);
-                    
-                    currentLoadedModel.renderOrder = 1;
-                    if (currentAnchor) {
-                        currentAnchor.group.add(currentLoadedModel);
-                    }
-                    if (loadingEl) loadingEl.style.display = 'none';
+        // 2. Request Camera Stream with fallback
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
                 },
-                undefined,
-                (err) => {
-                    console.error('Error loading 3D glasses model for AR:', err);
-                    if (loadingEl) loadingEl.style.display = 'none';
-                }
-            );
+                audio: false
+            });
+        } catch (camErr) {
+            console.warn('Ideal camera constraint failed, trying generic video stream:', camErr);
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+        }
+        webcamStream = stream;
+
+        // 3. Create or reuse Video Element
+        let video = containerEl.querySelector('video.ar-webcam-stream');
+        if (!video) {
+            video = document.createElement('video');
+            video.className = 'ar-webcam-stream';
+            video.setAttribute('playsinline', '');
+            video.setAttribute('autoplay', '');
+            video.muted = true;
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'cover';
+            video.style.transform = 'scaleX(-1)';
+            video.style.zIndex = '1';
+            containerEl.appendChild(video);
+        }
+        videoElement = video;
+        videoElement.srcObject = webcamStream;
+        await videoElement.play();
+
+        // 4. Setup 2D Canvas Layer (for 2D fallback or canvas effects)
+        let c2d = containerEl.querySelector('canvas.ar-2d-layer');
+        if (!c2d) {
+            c2d = document.createElement('canvas');
+            c2d.className = 'ar-2d-layer';
+            c2d.style.position = 'absolute';
+            c2d.style.top = '0';
+            c2d.style.left = '0';
+            c2d.style.width = '100%';
+            c2d.style.height = '100%';
+            c2d.style.pointerEvents = 'none';
+            c2d.style.transform = 'scaleX(-1)';
+            c2d.style.zIndex = '2';
+            containerEl.appendChild(c2d);
+        }
+        canvas2D = c2d;
+        ctx2D = canvas2D.getContext('2d');
+
+        // 5. Setup Three.js WebGL Layer
+        setupThreeJSRenderer(containerEl);
+
+        // 6. Setup Tracking HUD Badge
+        setupTrackingHUD(containerEl);
+
+        // 7. Load 3D Model or 2D Image
+        if (currentProductData.model_3d_url) {
+            await loadGlasses3DModel(currentProductData.model_3d_url);
+        } else if (currentProductData.tryon_image_url || currentProductData.image_url) {
+            loadGlasses2DImage(currentProductData.tryon_image_url || currentProductData.image_url);
         }
 
-        await mindarThree.start();
+        // 8. Initialize MediaPipe Face Mesh
+        await initMediaPipeFaceMesh();
+
         isARRunning = true;
+        updateHUDStatus(false); // Initial status: searching for face
 
-        // Ensure video is visible above container background and canvas is layered on top
-        if (mindarThree.video) {
-            mindarThree.video.style.zIndex = '1';
-        }
-        if (renderer && renderer.domElement) {
-            renderer.domElement.style.zIndex = '2';
-            renderer.domElement.style.pointerEvents = 'none';
-        }
-        if (mindarThree.cssRenderer && mindarThree.cssRenderer.domElement) {
-            mindarThree.cssRenderer.domElement.style.zIndex = '3';
-            mindarThree.cssRenderer.domElement.style.pointerEvents = 'none';
-        }
+        if (loadingEl) loadingEl.style.display = 'none';
 
-        // Trigger resize once modal dimensions settle
-        setTimeout(() => {
-            if (mindarThree && typeof mindarThree._resize === 'function') {
-                mindarThree._resize();
-            }
-        }, 150);
+        // 9. Start detection loop
+        isDetecting = true;
+        runFaceMeshDetectionLoop();
 
-        renderer.setAnimationLoop(() => {
-            renderer.render(scene, camera);
-        });
+        // 10. Start Three.js animation render loop
+        animateThreeJSScene();
+
+        // Resize handler
+        window.addEventListener('resize', handleARResize);
+        setTimeout(handleARResize, 100);
 
     } catch (err) {
-        console.error('Failed to start MindAR:', err);
-        cleanupMindARInstance();
+        console.error('Failed to start AR Virtual Try-On:', err);
         if (loadingEl) loadingEl.style.display = 'none';
+        stopARVirtualTryOn();
         throw err;
     }
 }
 
-function cleanupMindARInstance() {
-    if (!mindarThree) return;
+/**
+ * Initializes Three.js Scene, Camera, Lights, and WebGLRenderer
+ */
+function setupThreeJSRenderer(containerEl) {
+    if (typeof THREE === 'undefined') {
+        console.error('Three.js library is not loaded');
+        return;
+    }
 
-    try {
-        const stream = mindarThree.video && mindarThree.video.srcObject;
-        if (stream) stream.getTracks().forEach(track => track.stop());
-        if (mindarThree.video) mindarThree.video.remove();
-        if (mindarThree.renderer) {
-            mindarThree.renderer.setAnimationLoop(null);
-            mindarThree.renderer.dispose();
-            mindarThree.renderer.domElement.remove();
-        }
-        if (mindarThree.cssRenderer && mindarThree.cssRenderer.domElement) {
-            mindarThree.cssRenderer.domElement.remove();
-        }
-        if (mindarThree.controller && typeof mindarThree.controller.stopProcessVideo === 'function') {
-            mindarThree.controller.stopProcessVideo();
-        }
-    } catch (error) {
-        console.warn('Error while cleaning up MindAR:', error);
+    // Clean up old canvas if any
+    const oldCanvas = containerEl.querySelector('canvas.ar-three-layer');
+    if (oldCanvas) oldCanvas.remove();
+
+    threeScene = new THREE.Scene();
+
+    const width = containerEl.clientWidth || 640;
+    const height = containerEl.clientHeight || 480;
+    const aspect = width / height;
+
+    threeCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+    threeCamera.position.set(0, 0, 100);
+
+    threeRenderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true
+    });
+    threeRenderer.setSize(width, height);
+    threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    threeCanvas = threeRenderer.domElement;
+    threeCanvas.className = 'ar-three-layer';
+    threeCanvas.style.position = 'absolute';
+    threeCanvas.style.top = '0';
+    threeCanvas.style.left = '0';
+    threeCanvas.style.width = '100%';
+    threeCanvas.style.height = '100%';
+    threeCanvas.style.pointerEvents = 'none';
+    threeCanvas.style.transform = 'scaleX(-1)';
+    threeCanvas.style.zIndex = '3';
+
+    containerEl.appendChild(threeCanvas);
+
+    // Studio Lighting for realistic eyewear materials
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    threeScene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(0, 25, 30);
+    threeScene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xddeeff, 1.0);
+    fillLight.position.set(-20, -10, 20);
+    threeScene.add(fillLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.9);
+    hemiLight.position.set(0, 30, 0);
+    threeScene.add(hemiLight);
+
+    // Head Occluder (Invisible 3D depth sphere to mask glasses temples behind ears)
+    const occluderGeo = new THREE.SphereGeometry(1, 32, 32);
+    const occluderMat = new THREE.MeshBasicMaterial({ colorWrite: false }); // Depth buffer only
+    headOccluder = new THREE.Mesh(occluderGeo, occluderMat);
+    headOccluder.renderOrder = 0;
+    headOccluder.visible = false;
+    threeScene.add(headOccluder);
+}
+
+/**
+ * Loads and auto-centers/normalizes 3D GLB model
+ */
+async function loadGlasses3DModel(modelUrl) {
+    if (!threeScene) return;
+
+    if (current3DModel) {
+        threeScene.remove(modelWrapperGroup || current3DModel);
+        current3DModel = null;
+        modelWrapperGroup = null;
+    }
+
+    if (typeof THREE.GLTFLoader === 'undefined') {
+        console.warn('THREE.GLTFLoader is not available, skipping 3D model load');
+        return;
+    }
+
+    if (!gltfLoader) {
+        gltfLoader = new THREE.GLTFLoader();
+    }
+
+    return new Promise((resolve) => {
+        gltfLoader.load(
+            modelUrl,
+            (gltf) => {
+                current3DModel = gltf.scene;
+
+                // Center model pivot at (0, 0, 0)
+                current3DModel.position.set(0, 0, 0);
+                current3DModel.rotation.set(0, 0, 0);
+                current3DModel.scale.set(1, 1, 1);
+                current3DModel.updateMatrixWorld(true);
+
+                const box = new THREE.Box3().setFromObject(current3DModel);
+                const size = new THREE.Vector3();
+                box.getSize(size);
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+
+                // Offset inner model so its center sits at the pivot
+                current3DModel.position.set(-center.x, -center.y, -center.z);
+
+                // Normalize raw model width to exactly 1.0 unit
+                const rawWidth = Math.max(size.x, size.z > size.x ? size.z : size.x);
+                if (rawWidth > 0) {
+                    const normScale = 1.0 / rawWidth;
+                    current3DModel.scale.set(normScale, normScale, normScale);
+                }
+
+                // Wrap in parent group for 6-DOF transform control
+                modelWrapperGroup = new THREE.Group();
+                modelWrapperGroup.add(current3DModel);
+                modelWrapperGroup.renderOrder = 1;
+                modelWrapperGroup.visible = false;
+
+                threeScene.add(modelWrapperGroup);
+                resolve();
+            },
+            undefined,
+            (err) => {
+                console.error('Error loading 3D glasses model:', err);
+                resolve();
+            }
+        );
+    });
+}
+
+/**
+ * Loads 2D glasses image fallback
+ */
+function loadGlasses2DImage(imageUrl) {
+    glasses2DImage = new Image();
+    glasses2DImage.crossOrigin = 'anonymous';
+    glasses2DImage.onload = () => {
+        is2DGlassesLoaded = true;
+    };
+    glasses2DImage.src = imageUrl;
+}
+
+/**
+ * Setup tracking status HUD badge
+ */
+function setupTrackingHUD(containerEl) {
+    let hud = containerEl.querySelector('#ar-tracking-hud');
+    if (!hud) {
+        hud = document.createElement('div');
+        hud.id = 'ar-tracking-hud';
+        hud.style.position = 'absolute';
+        hud.style.bottom = '16px';
+        hud.style.left = '50%';
+        hud.style.transform = 'translateX(-50%)';
+        hud.style.background = 'rgba(15, 23, 42, 0.78)';
+        hud.style.backdropFilter = 'blur(8px)';
+        hud.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+        hud.style.borderRadius = '24px';
+        hud.style.padding = '6px 14px';
+        hud.style.fontSize = '0.78rem';
+        hud.style.fontWeight = '500';
+        hud.style.color = '#fff';
+        hud.style.zIndex = '15';
+        hud.style.display = 'flex';
+        hud.style.alignItems = 'center';
+        hud.style.gap = '8px';
+        hud.style.pointerEvents = 'none';
+        hud.style.boxShadow = '0 4px 14px rgba(0,0,0,0.3)';
+        hud.style.transition = 'all 0.3s ease';
+        containerEl.appendChild(hud);
     }
 }
 
 /**
- * Stop MindAR Face Tracking and clean up WebGL / camera streams
+ * Update tracking HUD badge state
+ */
+function updateHUDStatus(isFaceDetected) {
+    const hud = document.getElementById('ar-tracking-hud');
+    if (!hud) return;
+
+    if (isFaceDetected) {
+        hud.innerHTML = `
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #48bb78; box-shadow: 0 0 8px #48bb78; display: inline-block;"></span>
+            <span>ตรวจจับใบหน้าเรียบร้อย (60 FPS)</span>
+        `;
+        hud.style.borderColor = 'rgba(72, 187, 120, 0.4)';
+    } else {
+        hud.innerHTML = `
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #ecc94b; animation: pulse 1.2s infinite; display: inline-block;"></span>
+            <span>กำลังสแกนหาใบหน้าของคุณ...</span>
+        `;
+        hud.style.borderColor = 'rgba(236, 201, 75, 0.3)';
+    }
+}
+
+/**
+ * Initialize MediaPipe Face Mesh instance
+ */
+async function initMediaPipeFaceMesh() {
+    const FaceMeshClass = window.FaceMesh;
+    if (!FaceMeshClass) {
+        throw new Error('Google MediaPipe FaceMesh class is not available');
+    }
+
+    faceMeshInstance = new FaceMeshClass({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
+    });
+
+    faceMeshInstance.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true, // Enables iris landmarks (468, 473)
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    faceMeshInstance.onResults(onFaceMeshResults);
+    isFaceMeshLoaded = true;
+}
+
+/**
+ * Continuous Face Detection Loop using requestAnimationFrame
+ */
+async function runFaceMeshDetectionLoop() {
+    if (!isARRunning || !isDetecting || !faceMeshInstance || !videoElement) {
+        return;
+    }
+
+    if (videoElement.readyState >= 2) {
+        try {
+            await faceMeshInstance.send({ image: videoElement });
+        } catch (e) {
+            console.warn('FaceMesh frame estimation warning:', e);
+        }
+    }
+
+    detectionAnimFrameId = requestAnimationFrame(runFaceMeshDetectionLoop);
+}
+
+/**
+ * Handle MediaPipe Face Mesh Results
+ */
+function onFaceMeshResults(results) {
+    if (!isARRunning || !videoElement) return;
+
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        const landmarks = results.multiFaceLandmarks[0];
+        updateHUDStatus(true);
+        processFacePoseAndRender(landmarks);
+    } else {
+        updateHUDStatus(false);
+        if (modelWrapperGroup) modelWrapperGroup.visible = false;
+        if (headOccluder) headOccluder.visible = false;
+        if (ctx2D && canvas2D) ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+    }
+}
+
+/**
+ * 6-DOF Pose Estimation & Coordinate Mapping
+ */
+function processFacePoseAndRender(landmarks) {
+    const videoWidth = videoElement.videoWidth || 640;
+    const videoHeight = videoElement.videoHeight || 480;
+    const container = videoElement.parentElement;
+    if (!container) return;
+
+    const boxWidth = container.clientWidth || 640;
+    const boxHeight = container.clientHeight || 480;
+
+    // 1. Calculate container object-fit: cover mapping
+    const s = Math.max(boxWidth / videoWidth, boxHeight / videoHeight);
+    const rendW = videoWidth * s;
+    const rendH = videoHeight * s;
+    const dx = (boxWidth - rendW) / 2;
+    const dy = (boxHeight - rendH) / 2;
+
+    // Helper: Map normalized landmark to screen pixel coordinates
+    const toScreen = (pt) => ({
+        x: pt.x * rendW + dx,
+        y: pt.y * rendH + dy,
+        z: (pt.z || 0) * rendW
+    });
+
+    // 2. Key Facial Landmarks
+    let leftPupil = landmarks[468];
+    let rightPupil = landmarks[473];
+    if (!leftPupil || !rightPupil) {
+        const leftOuter = landmarks[33] || landmarks[130];
+        const leftInner = landmarks[133];
+        const rightInner = landmarks[362];
+        const rightOuter = landmarks[263] || landmarks[359];
+
+        leftPupil = leftOuter && leftInner 
+            ? { x: (leftOuter.x + leftInner.x) / 2, y: (leftOuter.y + leftInner.y) / 2, z: ((leftOuter.z || 0) + (leftInner.z || 0)) / 2 }
+            : landmarks[159] || { x: 0.4, y: 0.4, z: 0 };
+
+        rightPupil = rightInner && rightOuter
+            ? { x: (rightInner.x + rightOuter.x) / 2, y: (rightInner.y + rightOuter.y) / 2, z: ((rightInner.z || 0) + (rightOuter.z || 0)) / 2 }
+            : landmarks[386] || { x: 0.6, y: 0.4, z: 0 };
+    }
+
+    const noseBridge = landmarks[168] || landmarks[6] || { x: (leftPupil.x + rightPupil.x) / 2, y: leftPupil.y, z: 0 };
+    const noseTip = landmarks[4] || landmarks[1] || { x: noseBridge.x, y: noseBridge.y + 0.1, z: -0.05 };
+
+    const sLeft = toScreen(leftPupil);
+    const sRight = toScreen(rightPupil);
+    const sBridge = toScreen(noseBridge);
+    const sNose = toScreen(noseTip);
+
+    // 3. Three.js World Dimensions at focus plane (Z = 0)
+    if (threeCamera && threeScene && modelWrapperGroup) {
+        modelWrapperGroup.visible = true;
+
+        const aspect = boxWidth / boxHeight;
+        const fovRad = threeCamera.fov * (Math.PI / 180);
+        const heightAtZero = 2 * threeCamera.position.z * Math.tan(fovRad / 2);
+        const widthAtZero = heightAtZero * aspect;
+
+        // 4. Construct 6-DOF Orthogonal Rotation Matrix
+        const pLeft = new THREE.Vector3(sLeft.x, sLeft.y, sLeft.z);
+        const pRight = new THREE.Vector3(sRight.x, sRight.y, sRight.z);
+        const pBridge = new THREE.Vector3(sBridge.x, sBridge.y, sBridge.z);
+        const pNose = new THREE.Vector3(sNose.x, sNose.y, sNose.z);
+
+        const vX = new THREE.Vector3().subVectors(pRight, pLeft).normalize(); // Right vector
+        const vNose = new THREE.Vector3().subVectors(pNose, pBridge).normalize(); // Down vector
+        const vZ = new THREE.Vector3().crossVectors(vX, vNose).normalize(); // Forward normal
+        const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize(); // Up vector
+
+        const rotMatrix = new THREE.Matrix4();
+        rotMatrix.makeBasis(vX, vY, vZ);
+        const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
+
+        // EMA Filter for Rotation
+        if (!smoothQuat) {
+            smoothQuat = targetQuat.clone();
+        } else {
+            smoothQuat.slerp(targetQuat, SMOOTH_FACTOR);
+        }
+        modelWrapperGroup.quaternion.copy(smoothQuat);
+
+        // 5. Calculate 3D Position
+        const targetNormX = sBridge.x / boxWidth - 0.5;
+        const targetNormY = -(sBridge.y / boxHeight - 0.5);
+
+        const worldX = targetNormX * widthAtZero;
+        const worldY = targetNormY * heightAtZero;
+        const worldZ = (noseBridge.z || 0) * widthAtZero;
+
+        const targetPos = new THREE.Vector3(worldX, worldY, worldZ);
+
+        // Calculate responsive scale based on interpupillary distance (IPD)
+        const eyeDistScreen = pLeft.distanceTo(pRight);
+        const modelScaleMult = currentProductData.scale_x || 1.0;
+        // Human glasses frame is ~2.22x eye pupil distance
+        const targetGlassesWidth = (eyeDistScreen / boxWidth) * widthAtZero * 2.22 * modelScaleMult;
+
+        // Push model slightly forward along face normal to sit naturally on the nose bridge
+        const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.12);
+        targetPos.add(forwardOffset);
+
+        // Product database manual Y offset
+        if (currentProductData.offset_y) {
+            targetPos.y += currentProductData.offset_y * heightAtZero;
+        }
+
+        // EMA Filter for Position
+        if (!smoothPos) {
+            smoothPos = targetPos.clone();
+        } else {
+            smoothPos.lerp(targetPos, SMOOTH_FACTOR);
+        }
+        modelWrapperGroup.position.copy(smoothPos);
+
+        // EMA Filter for Scale
+        smoothScale = THREE.MathUtils.lerp(smoothScale || targetGlassesWidth, targetGlassesWidth, SMOOTH_FACTOR);
+        modelWrapperGroup.scale.set(smoothScale, smoothScale, smoothScale);
+
+        // 6. Position Head Occluder Mask
+        if (headOccluder) {
+            const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.45);
+            const headPos = smoothPos.clone().add(headBackOffset);
+            headOccluder.position.copy(headPos);
+            headOccluder.quaternion.copy(smoothQuat);
+            headOccluder.scale.set(smoothScale * 0.45, smoothScale * 0.52, smoothScale * 0.65);
+            headOccluder.visible = true;
+        }
+    } else if (is2DGlassesLoaded && glasses2DImage && ctx2D && canvas2D) {
+        // 2D Glasses Overlay Fallback
+        ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+
+        const dxEyes = sRight.x - sLeft.x;
+        const dyEyes = sRight.y - sLeft.y;
+        const eyeDist = Math.hypot(dxEyes, dyEyes);
+        const angle = Math.atan2(dyEyes, dxEyes);
+
+        const glassesWidth = eyeDist * 2.25 * (currentProductData.scale_x || 1.0);
+        const aspect = glasses2DImage.naturalWidth / (glasses2DImage.naturalHeight || 1);
+        const glassesHeight = glassesWidth / aspect;
+
+        ctx2D.save();
+        ctx2D.translate(sBridge.x, sBridge.y);
+        ctx2D.rotate(angle);
+        ctx2D.drawImage(glasses2DImage, -glassesWidth / 2, -glassesHeight / 2, glassesWidth, glassesHeight);
+        ctx2D.restore();
+    }
+}
+
+/**
+ * Three.js Animation Render Loop
+ */
+function animateThreeJSScene() {
+    if (!isARRunning) return;
+
+    if (threeRenderer && threeScene && threeCamera) {
+        threeRenderer.render(threeScene, threeCamera);
+    }
+
+    animFrameId = requestAnimationFrame(animateThreeJSScene);
+}
+
+/**
+ * Handles window and container resizing
+ */
+function handleARResize() {
+    if (!videoElement || !videoElement.parentElement) return;
+
+    const container = videoElement.parentElement;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    if (canvas2D) {
+        canvas2D.width = width;
+        canvas2D.height = height;
+    }
+
+    if (threeRenderer && threeCamera) {
+        threeRenderer.setSize(width, height);
+        threeCamera.aspect = width / height;
+        threeCamera.updateProjectionMatrix();
+    }
+}
+
+/**
+ * Stop AR Virtual Try-On and clean up all camera streams, listeners, and WebGL buffers
  */
 export function stopARVirtualTryOn() {
-    if (mindarThree) {
-        try {
-            cleanupMindARInstance();
-        } catch (e) {
-            console.warn('Error during MindAR stop:', e);
-        }
-        mindarThree = null;
-    }
-    currentLoadedModel = null;
-    currentAnchor = null;
-    currentOccluder = null;
     isARRunning = false;
+    isDetecting = false;
+
+    if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+    }
+
+    if (detectionAnimFrameId) {
+        cancelAnimationFrame(detectionAnimFrameId);
+        detectionAnimFrameId = null;
+    }
+
+    window.removeEventListener('resize', handleARResize);
+
+    // Stop webcam tracks
+    if (webcamStream) {
+        try {
+            webcamStream.getTracks().forEach(track => track.stop());
+        } catch (e) {}
+        webcamStream = null;
+    }
+
+    if (videoElement) {
+        videoElement.srcObject = null;
+        videoElement.remove();
+        videoElement = null;
+    }
+
+    if (canvas2D) {
+        canvas2D.remove();
+        canvas2D = null;
+        ctx2D = null;
+    }
+
+    if (threeRenderer) {
+        try {
+            threeRenderer.dispose();
+            if (threeRenderer.domElement) {
+                threeRenderer.domElement.remove();
+            }
+        } catch (e) {}
+        threeRenderer = null;
+        threeCanvas = null;
+    }
+
+    threeScene = null;
+    threeCamera = null;
+    current3DModel = null;
+    modelWrapperGroup = null;
+    headOccluder = null;
+    smoothPos = null;
+    smoothQuat = null;
+    smoothScale = 1.0;
+
+    const hud = document.getElementById('ar-tracking-hud');
+    if (hud) hud.remove();
 
     const loadingEl = document.getElementById('mindar-loading-indicator');
     if (loadingEl) loadingEl.style.display = 'none';
 }
 
 /**
- * Automatically calculates bounding box of any 3D glasses model and fits it to realistic face dimensions
- * @param {THREE.Object3D} gltfScene 
- * @param {number} targetFaceWidth - Target width in MindAR metric units (default 14.8 units)
+ * Reset AR view and smoothing filters
  */
-export function fitGlassesModelToFace(gltfScene, targetFaceWidth = 14.8) {
-    gltfScene.position.set(0, 0, 0);
-    gltfScene.rotation.set(0, 0, 0);
-    gltfScene.scale.set(1, 1, 1);
-    gltfScene.updateMatrixWorld(true);
-
-    const box = new THREE.Box3().setFromObject(gltfScene);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    let modelWidth = size.x;
-    if (size.z > size.x && size.z > size.y) {
-        modelWidth = size.z;
-    }
-
-    if (modelWidth > 0) {
-        const scaleFactor = targetFaceWidth / modelWidth;
-        gltfScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    }
-
-    gltfScene.updateMatrixWorld(true);
-    const scaledBox = new THREE.Box3().setFromObject(gltfScene);
-    const center = new THREE.Vector3();
-    scaledBox.getCenter(center);
-
-    // Center on Landmark 168 (Nose bridge) with slight forward offset for nose pads and ear temples
-    gltfScene.position.set(-center.x, -center.y - 0.25, 0.15);
+export function resetARView() {
+    smoothPos = null;
+    smoothQuat = null;
+    smoothScale = 1.0;
 }
 
-// Attach to window for global access
+// Global window exposure for HTML onclick triggers
 window.startARVirtualTryOn = startARVirtualTryOn;
 window.stopARVirtualTryOn = stopARVirtualTryOn;
+window.resetARView = resetARView;
 window.isMindARRunning = () => isARRunning;
+window.isARVirtualTryOnRunning = () => isARRunning;
