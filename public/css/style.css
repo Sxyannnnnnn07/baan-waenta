@@ -3160,6 +3160,63 @@ input, select, textarea {
     max-height: none !important;
 }
 
+.camera-permission-gate {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: radial-gradient(circle at top, rgba(45, 74, 108, 0.72), rgba(5, 12, 22, 0.96));
+    text-align: center;
+}
+
+.camera-permission-gate[hidden] {
+    display: none;
+}
+
+.camera-permission-card {
+    width: min(100%, 390px);
+    padding: 2rem 1.5rem;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.86);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+}
+
+.camera-permission-icon {
+    margin-bottom: 0.65rem;
+    color: #63b3ed;
+    font-size: 3rem;
+}
+
+.camera-permission-card h3 {
+    margin: 0 0 0.65rem;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.camera-permission-card p {
+    margin: 0 0 1.25rem;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
+
+.camera-permission-card p.error {
+    color: #feb2b2;
+}
+
+.camera-permission-card .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
 .ar-3d-toggle-pill {
     position: absolute;
     top: 20px;

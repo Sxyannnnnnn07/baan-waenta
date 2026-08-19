@@ -2,6 +2,8 @@
 let currentProduct = null;
 let currentProductGallery = [];
 let currentGalleryIdx = 0;
+let isARStarting = false;
+let cameraPermissionGranted = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Get product ID from URL query string
@@ -360,7 +362,107 @@ function closeAR3DModal() {
     if (typeof window.stopARVirtualTryOn === 'function') {
         window.stopARVirtualTryOn();
     }
+    isARStarting = false;
+    cameraPermissionGranted = false;
+    showCameraPermissionGate();
     document.body.style.overflow = '';
+}
+
+function showCameraPermissionGate(message = 'ระบบจะใช้ภาพจากกล้องเพื่อติดตามใบหน้าแบบเรียลไทม์ ภาพจะไม่ถูกอัปโหลดหรือบันทึกไว้', isError = false) {
+    const gate = document.getElementById('camera-permission-gate');
+    const messageEl = document.getElementById('camera-permission-message');
+    const button = document.getElementById('camera-permission-btn');
+    if (gate) gate.hidden = false;
+    if (messageEl) {
+        messageEl.textContent = message;
+        messageEl.classList.toggle('error', isError);
+    }
+    if (button) {
+        button.disabled = false;
+        button.innerHTML = '<ion-icon name="shield-checkmark-outline"></ion-icon> อนุญาตและเปิดกล้อง';
+    }
+}
+
+function hideCameraPermissionGate() {
+    const gate = document.getElementById('camera-permission-gate');
+    if (gate) gate.hidden = true;
+}
+
+function getCameraPermissionErrorMessage(error) {
+    switch (error && error.name) {
+        case 'NotAllowedError':
+        case 'SecurityError':
+            return 'ยังไม่ได้รับอนุญาตให้ใช้กล้อง หากเคยกดบล็อก โปรดเปิดสิทธิ์กล้องจากไอคอนรูปกุญแจหรือการตั้งค่าเว็บไซต์ แล้วลองอีกครั้ง';
+        case 'NotFoundError':
+        case 'DevicesNotFoundError':
+            return 'ไม่พบกล้องบนอุปกรณ์นี้ โปรดเชื่อมต่อหรือเปิดใช้งานกล้องแล้วลองอีกครั้ง';
+        case 'NotReadableError':
+        case 'TrackStartError':
+            return 'กล้องกำลังถูกใช้งานโดยแอปอื่น โปรดปิดแอปที่ใช้กล้องแล้วลองอีกครั้ง';
+        case 'OverconstrainedError':
+            return 'ไม่พบกล้องที่รองรับการตั้งค่าที่ต้องการ กรุณาลองใช้กล้องหรือเบราว์เซอร์อื่น';
+        default:
+            return 'ไม่สามารถเริ่มกล้องได้ กรุณาตรวจสอบสิทธิ์กล้องและลองใหม่อีกครั้ง';
+    }
+}
+
+async function startProductAR() {
+    if (isARStarting || !cameraPermissionGranted || !currentProduct) return;
+
+    const viewport = document.getElementById('mindar-ar-viewport');
+    const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
+    if (!viewport || typeof window.startARVirtualTryOn !== 'function') return;
+
+    isARStarting = true;
+    hideCameraPermissionGate();
+    try {
+        await window.startARVirtualTryOn(viewport, modelUrl);
+    } catch (error) {
+        console.error('AR Virtual Try-On failed after camera permission was granted:', error);
+        cameraPermissionGranted = false;
+        showCameraPermissionGate('อนุญาตกล้องแล้ว แต่ระบบติดตามใบหน้าเริ่มไม่สำเร็จ โปรดตรวจสอบอินเทอร์เน็ต การเร่งฮาร์ดแวร์ หรือทดลองใช้ Chrome/Safari รุ่นล่าสุด', true);
+        if (typeof showToast === 'function') {
+            showToast('เปิดกล้องได้ แต่ระบบติดตามใบหน้าเริ่มไม่สำเร็จ', 'error');
+        }
+    } finally {
+        isARStarting = false;
+    }
+}
+
+async function requestCameraPermissionAndStart() {
+    if (isARStarting) return;
+
+    const button = document.getElementById('camera-permission-btn');
+    const messageEl = document.getElementById('camera-permission-message');
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<ion-icon name="sync-outline"></ion-icon> กำลังขอสิทธิ์กล้อง...';
+    }
+    if (messageEl) {
+        messageEl.textContent = 'เมื่อเบราว์เซอร์แสดงคำถาม โปรดเลือก “อนุญาต” เพื่อเริ่มลองแว่น';
+        messageEl.classList.remove('error');
+    }
+
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCameraPermissionGate('เบราว์เซอร์นี้ไม่รองรับการเปิดกล้องบนหน้าเว็บ กรุณาเปิดผ่าน HTTPS ด้วย Chrome หรือ Safari รุ่นล่าสุด', true);
+        return;
+    }
+
+    try {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: 'user' }
+        });
+        permissionStream.getTracks().forEach(track => track.stop());
+        // Give mobile camera hardware a moment to release before MindAR requests its stream.
+        await new Promise(resolve => setTimeout(resolve, 150));
+        cameraPermissionGranted = true;
+        await startProductAR();
+    } catch (error) {
+        console.error('Camera permission request failed:', error);
+        cameraPermissionGranted = false;
+        showCameraPermissionGate(getCameraPermissionErrorMessage(error), true);
+    }
 }
 
 async function switchAR3DView(mode) {
@@ -369,8 +471,7 @@ async function switchAR3DView(mode) {
     const arBtn = document.getElementById('ar-toggle-btn');
     const tdBtn = document.getElementById('3d-toggle-btn');
     const resetBtn = document.querySelector('.ar-reset-btn');
-    const modelUrl = currentProduct ? (currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb') : '/assets/models/prada_vintage.glb';
-    
+
     if (mode === 'ar') {
         if (arContainer) arContainer.classList.add('active');
         if (tdContainer) tdContainer.classList.remove('active');
@@ -378,17 +479,11 @@ async function switchAR3DView(mode) {
         if (tdBtn) tdBtn.classList.remove('active');
         if (resetBtn) resetBtn.style.display = 'flex';
         
-        // Start MindAR Engine
-        const viewport = document.getElementById('mindar-ar-viewport');
-        if (viewport && typeof window.startARVirtualTryOn === 'function') {
-            try {
-                await window.startARVirtualTryOn(viewport, modelUrl);
-            } catch (err) {
-                console.error('AR Virtual Try-On failed to start:', err);
-                if (typeof showToast === 'function') {
-                    showToast('ไม่สามารถเปิดกล้องเพื่อลองแว่นได้ กรุณาอนุญาตการใช้กล้อง', 'error');
-                }
-            }
+        // Camera access must begin from the explicit permission button.
+        if (cameraPermissionGranted) {
+            await startProductAR();
+        } else {
+            showCameraPermissionGate();
         }
     } else {
         if (arContainer) arContainer.classList.remove('active');
@@ -401,16 +496,22 @@ async function switchAR3DView(mode) {
         if (typeof window.stopARVirtualTryOn === 'function') {
             window.stopARVirtualTryOn();
         }
+        isARStarting = false;
+        cameraPermissionGranted = false;
+        showCameraPermissionGate();
     }
 }
 
 async function resetARView() {
     // Re-initialize or re-center AR tracking
     if (currentProduct) {
-        const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
-        const viewport = document.getElementById('mindar-ar-viewport');
-        if (viewport && typeof window.startARVirtualTryOn === 'function') {
-            await window.startARVirtualTryOn(viewport, modelUrl);
+        if (cameraPermissionGranted) {
+            if (typeof window.stopARVirtualTryOn === 'function') {
+                window.stopARVirtualTryOn();
+            }
+            await startProductAR();
+        } else {
+            showCameraPermissionGate('กดปุ่มด้านล่างเพื่ออนุญาตใช้กล้องก่อนเริ่มลองแว่น');
         }
     }
 }

@@ -115,8 +115,32 @@ export async function startARVirtualTryOn(containerEl, modelUrl = '/assets/model
 
     } catch (err) {
         console.error('Failed to start MindAR:', err);
+        cleanupMindARInstance();
         if (loadingEl) loadingEl.style.display = 'none';
         throw err;
+    }
+}
+
+function cleanupMindARInstance() {
+    if (!mindarThree) return;
+
+    try {
+        const stream = mindarThree.video && mindarThree.video.srcObject;
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        if (mindarThree.video) mindarThree.video.remove();
+        if (mindarThree.renderer) {
+            mindarThree.renderer.setAnimationLoop(null);
+            mindarThree.renderer.dispose();
+            mindarThree.renderer.domElement.remove();
+        }
+        if (mindarThree.cssRenderer && mindarThree.cssRenderer.domElement) {
+            mindarThree.cssRenderer.domElement.remove();
+        }
+        if (mindarThree.controller && typeof mindarThree.controller.stopProcessVideo === 'function') {
+            mindarThree.controller.stopProcessVideo();
+        }
+    } catch (error) {
+        console.warn('Error while cleaning up MindAR:', error);
     }
 }
 
@@ -126,10 +150,7 @@ export async function startARVirtualTryOn(containerEl, modelUrl = '/assets/model
 export function stopARVirtualTryOn() {
     if (mindarThree) {
         try {
-            mindarThree.stop();
-            if (mindarThree.renderer) {
-                mindarThree.renderer.setAnimationLoop(null);
-            }
+            cleanupMindARInstance();
         } catch (e) {
             console.warn('Error during MindAR stop:', e);
         }
