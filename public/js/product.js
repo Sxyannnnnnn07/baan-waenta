@@ -449,10 +449,19 @@ async function requestCameraPermissionAndStart() {
     }
 
     try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: { facingMode: 'user' }
-        });
+        let permissionStream;
+        try {
+            permissionStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: { facingMode: 'user' }
+            });
+        } catch (e) {
+            console.warn('facingMode constraint failed, trying generic video constraint', e);
+            permissionStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: true
+            });
+        }
         permissionStream.getTracks().forEach(track => track.stop());
         // Give mobile camera hardware a moment to release before MindAR requests its stream.
         await new Promise(resolve => setTimeout(resolve, 150));
