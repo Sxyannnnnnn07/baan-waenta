@@ -410,6 +410,7 @@
                         alt="3D Glasses Model" 
                         auto-rotate 
                         camera-controls 
+                        environment-image="neutral"
                         shadow-intensity="1.5"
                         shadow-softness="0.6"
                         exposure="1.1"
@@ -494,5 +495,70 @@
             }
         });
     </script>
+<!-- MODAL: USER PROFILE / ACCOUNT DETAILS -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content" style="max-width: 480px; text-align: center; padding: 2.5rem 2rem;">
+            <span class="modal-close" onclick="closeModal('profile-modal')">&times;</span>
+            <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading);">โปรไฟล์ผู้ใช้งาน</h3>
+            
+            <!-- Large Avatar (Clickable to change) -->
+            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                <div id="profile-avatar-container" onclick="triggerAvatarUpload()" style="width: 90px; height: 90px; border-radius: 50%; background-color: var(--text-primary); color: var(--bg-primary); display: flex; align-items: center; justify-content: center; font-size: 2.8rem; border: 3px solid var(--border-color); overflow: hidden; box-shadow: var(--shadow-sm); flex-shrink: 0; cursor: pointer; position: relative;" title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์">
+                    <!-- Dynamic -->
+                </div>
+                <!-- Hidden file input -->
+                <input type="file" id="avatar-file-input" style="display: none;" accept="image/*" onchange="handleAvatarFileChange(event)">
+            </div>
+            
+            <!-- Account details -->
+            <div style="background-color: var(--bg-primary); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: left; display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">ชื่อบัญชี:</span>
+                    <span id="profile-name" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                    <input type="text" id="edit-profile-name" style="display: none; font-size: 0.9rem; font-weight: 600; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; width: 60%; background-color: var(--bg-secondary); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">ชื่อผู้ใช้งาน:</span>
+                    <span id="profile-username" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                    <input type="text" id="edit-profile-username" style="display: none; font-size: 0.9rem; font-weight: 600; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; width: 60%; background-color: var(--bg-secondary); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">อีเมล:</span>
+                    <span id="profile-email" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-bottom: 0.2rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">สถานะบัญชี:</span>
+                    <span id="profile-role" style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; border-radius: 4px; padding: 0.15rem 0.5rem;"></span>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                <div style="display: flex; gap: 0.8rem;" id="profile-view-actions">
+                    <button type="button" class="btn btn-outline" onclick="toggleProfileEdit(true)" style="flex: 1; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: var(--accent); color: var(--accent); background-color: transparent;">
+                        <ion-icon name="create-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> แก้ไขข้อมูล
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="closeModal('profile-modal'); openOrdersModal();" style="flex: 1.2; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem;">
+                        <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> ประวัติการสั่งซื้อ
+                    </button>
+                </div>
+                
+                <div style="display: none; gap: 0.8rem;" id="profile-edit-actions">
+                    <button type="button" class="btn btn-outline" onclick="toggleProfileEdit(false)" style="flex: 1; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: var(--border-color); background-color: transparent;">
+                        ยกเลิก
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveProfileChanges()" style="flex: 1.5; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; background-color: #2f855a; border-color: #2f855a;">
+                        <ion-icon name="save-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> บันทึก
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-outline" id="profile-logout-btn" onclick="closeModal('profile-modal'); handleLogout();" style="width: 100%; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: #feb2b2; color: #e53e3e; background-color: transparent;">
+                    <ion-icon name="log-out-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
 </body>
 </html>
