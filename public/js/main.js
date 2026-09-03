@@ -158,7 +158,9 @@ function renderProducts(products) {
         
         // Premium Badges based on product name
         let badgeHtml = '';
-        if (prod.name.includes("Modern Square")) {
+        if (prod.name.includes("Prada") || prod.brand === "Prada") {
+            badgeHtml = `<span class="product-badge badge-new" style="background: linear-gradient(135deg, #1a202c, #2d3748); color: #ecc94b; border: 1px solid rgba(236, 201, 75, 0.4);"><ion-icon name="cube-outline" style="font-size: 0.8rem;"></ion-icon> 3D AR EDITION</span>`;
+        } else if (prod.name.includes("Modern Square")) {
             badgeHtml = `<span class="product-badge badge-popular"><ion-icon name="star" style="font-size: 0.8rem;"></ion-icon> ยอดนิยม</span>`;
         } else if (prod.name.includes("Rose Gold")) {
             badgeHtml = `<span class="product-badge badge-new"><ion-icon name="sparkles" style="font-size: 0.8rem;"></ion-icon> มาใหม่</span>`;
