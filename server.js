@@ -56,25 +56,10 @@ process.on('unhandledRejection', (reason, promise) => {
     logServerError('Unhandled Rejection', reason);
 });
 
-// Enable Helmet for security headers
+// Enable Helmet for security headers (matching Vercel's unblocked frontend environment)
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "blob:", "https://accounts.google.com", "https://ajax.googleapis.com"],
-            scriptSrcAttr: ["'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
-            styleSrcAttr: ["'unsafe-inline'"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "blob:", "https://*"],
-            connectSrc: ["'self'", "https://*", "wss://*"],
-            mediaSrc: ["'self'", "blob:", "data:", "mediastream:", "https://*"],
-            workerSrc: ["'self'", "blob:", "https://cdn.jsdelivr.net"],
-            childSrc: ["'self'", "blob:"],
-            frameSrc: ["'self'", "https://www.google.com", "https://maps.google.com", "https://accounts.google.com"],
-            objectSrc: ["'none'"]
-        }
-    }
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
 }));
 
 // Enable CORS only for explicitly trusted cross-origin clients. Same-origin requests are always allowed.

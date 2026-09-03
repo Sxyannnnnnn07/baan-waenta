@@ -3435,21 +3435,24 @@ input, select, textarea {
     .gallery-features-grid {
         grid-template-columns: 1fr;
     }
+}
 
+@media (max-width: 768px) {
     .ar-3d-modal-content {
         flex-direction: column;
         height: 90vh;
-        margin: 10% auto;
+        margin: 5% auto;
     }
     
     .ar-3d-viewer-side {
         flex: 1;
-        height: 50vh;
+        height: 45vh;
+        min-height: 280px;
     }
     
     .ar-3d-details-side {
         flex: none;
-        padding: 1.5rem;
+        padding: 1.25rem 1.5rem;
     }
     .ar-3d-product-info { margin-top: 0; }
 }
