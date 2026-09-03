@@ -343,6 +343,35 @@ function openAR3DModal(mode = '3d') {
     const modelUrl = currentProduct.model_3d_url || currentProduct.model3d || '/assets/models/prada_vintage.glb';
     if (modelViewer && modelUrl) {
         modelViewer.src = modelUrl;
+        const tuneModelViewerMaterials = () => {
+            try {
+                const materials = modelViewer.model?.materials;
+                if (materials && materials.length > 0) {
+                    materials.forEach(mat => {
+                        if (mat.name === 'glasses') {
+                            mat.pbrMetallicRoughness.setBaseColorFactor([0.05, 0.05, 0.05, 1.0]);
+                            mat.pbrMetallicRoughness.setRoughnessFactor(0.35);
+                            mat.pbrMetallicRoughness.setMetallicFactor(0.1);
+                        } else if (mat.name === 'sides') {
+                            mat.pbrMetallicRoughness.setBaseColorFactor([0.08, 0.08, 0.08, 1.0]);
+                            mat.pbrMetallicRoughness.setRoughnessFactor(0.3);
+                            mat.pbrMetallicRoughness.setMetallicFactor(0.15);
+                        } else if (mat.name && mat.name.includes('star')) {
+                            mat.pbrMetallicRoughness.setBaseColorFactor([0.85, 0.85, 0.85, 1.0]);
+                            mat.pbrMetallicRoughness.setRoughnessFactor(0.2);
+                            mat.pbrMetallicRoughness.setMetallicFactor(0.9);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn('model-viewer material tuning error:', e);
+            }
+        };
+        modelViewer.removeEventListener('load', tuneModelViewerMaterials);
+        modelViewer.addEventListener('load', tuneModelViewerMaterials, { once: true });
+        if (modelViewer.loaded) {
+            tuneModelViewerMaterials();
+        }
     }
     
     modal.style.display = 'block';

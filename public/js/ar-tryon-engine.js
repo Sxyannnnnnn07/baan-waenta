@@ -56,7 +56,7 @@
      */
     async function ensureDependencies() {
         if (typeof window.THREE === 'undefined') {
-            await loadScriptAsync('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+            await loadScriptAsync('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js');
         }
         if (typeof window.THREE !== 'undefined' && typeof window.THREE.GLTFLoader === 'undefined') {
             await loadScriptAsync('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
@@ -330,6 +330,27 @@
                     const rawWidth = size.x > 0 ? size.x : 1.0;
                     const normScale = 1.0 / rawWidth;
                     current3DModel.scale.set(normScale, normScale, normScale);
+
+                    // Calibrate materials to ensure glossy black frame and chrome silver stars
+                    current3DModel.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            const m = child.material;
+                            if (m.name === 'glasses') {
+                                m.color.setHex(0x111111);
+                                m.roughness = 0.35;
+                                m.metalness = 0.1;
+                            } else if (m.name === 'sides') {
+                                m.color.setHex(0x181818);
+                                m.roughness = 0.3;
+                                m.metalness = 0.15;
+                            } else if (m.name && m.name.includes('star')) {
+                                m.color.setHex(0xcccccc);
+                                m.roughness = 0.2;
+                                m.metalness = 0.85;
+                            }
+                            m.needsUpdate = true;
+                        }
+                    });
 
                     // Wrap in parent group for 6-DOF transform control
                     modelWrapperGroup = new THREE.Group();
