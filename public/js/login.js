@@ -356,17 +356,22 @@ async function handleGoogleTokenResponse(tokenResponse) {
             });
             const data = await res.json();
             if (data.success) {
+                sessionStorage.removeItem('baan_waenta_guest');
+                if (data.user) {
+                    localStorage.setItem('baan_waenta_user', JSON.stringify(data.user));
+                }
                 setTimeout(() => {
                     if (data.user && data.user.role === 'admin') {
                         window.location.href = '/admin.html';
                     } else {
                         window.location.href = '/';
                     }
-                }, 700);
+                }, 600);
             } else {
                 showAlert('error', data.message || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ');
             }
         } catch (e) {
+            console.error('Google token exchange error:', e);
             showAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ผ่าน Google ได้');
         }
     }

@@ -30,14 +30,15 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-if (IS_PRODUCTION) app.set('trust proxy', 1);
+app.set('trust proxy', 1);
 const STORAGE_DIR = path.resolve(process.env.STORAGE_DIR || path.join(__dirname, 'storage'));
 const SLIP_STORAGE_DIR = path.join(STORAGE_DIR, 'slips');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '105484503874-92cu9940o9od95nb2pna8pr0kkf7pngi.apps.googleusercontent.com';
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
+const ALLOWED_ORIGINS = [
+    'https://baan-waenta.onrender.com',
+    'https://baan-waenta.vercel.app',
+    ...(process.env.ALLOWED_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean)
+];
 
 function logServerError(label, error) {
     console.error(label, error);
@@ -620,7 +621,9 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         });
         if (!tokenInfoResponse.ok) return res.status(401).json({ success: false, message: 'Google token ไม่ถูกต้องหรือหมดอายุ' });
         const tokenInfo = await tokenInfoResponse.json();
-        if (tokenInfo.aud !== GOOGLE_CLIENT_ID || Number(tokenInfo.expires_in) <= 0) {
+        const tokenClientId = tokenInfo.aud || tokenInfo.audience || tokenInfo.azp || tokenInfo.issued_to;
+        if (tokenClientId !== GOOGLE_CLIENT_ID || Number(tokenInfo.expires_in) <= 0) {
+            console.error('Google token client mismatch:', { tokenClientId, expected: GOOGLE_CLIENT_ID, tokenInfo });
             return res.status(401).json({ success: false, message: 'Google token ไม่ได้ออกให้แอปนี้' });
         }
 
@@ -631,10 +634,11 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         if (!profileResponse.ok) return res.status(401).json({ success: false, message: 'ไม่สามารถยืนยันบัญชี Google ได้' });
         const profile = await profileResponse.json();
         const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-        const name = cleanText(profile.name, 255);
-        const googleSub = cleanText(profile.sub, 255);
+        const name = cleanText(profile.name, 255) || (email ? email.split('@')[0] : 'Google User');
+        const googleSub = cleanText(profile.sub, 255) || cleanText(tokenInfo.user_id, 255);
         const avatar = typeof profile.picture === 'string' && profile.picture.length <= 2048 ? profile.picture : null;
-        if (!isEmail(email) || !name || !googleSub || profile.email_verified !== true) {
+        const isEmailVerified = profile.email_verified === true || profile.email_verified === 'true' || tokenInfo.verified_email === true || tokenInfo.verified_email === 'true';
+        if (!isEmail(email) || !name || !googleSub || !isEmailVerified) {
             return res.status(401).json({ success: false, message: 'บัญชี Google ต้องมีอีเมลที่ยืนยันแล้ว' });
         }
 
@@ -648,17 +652,19 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
                 return res.status(409).json({ success: false, message: 'อีเมลนี้เชื่อมกับบัญชี Google อื่นแล้ว' });
             }
             await dbPool.query(
-                'UPDATE users SET google_sub = ?, name = ?, avatar_url = ?, username = COALESCE(username, ?) WHERE id = ?',
+                'UPDATE users SET google_sub = ?, name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url), username = COALESCE(username, ?) WHERE id = ?',
                 [googleSub, name, avatar, generatedUsername, user.id]
             );
-            [user] = (await dbPool.query('SELECT * FROM users WHERE id = ?', [user.id]))[0];
+            const [updatedUsers] = await dbPool.query('SELECT * FROM users WHERE id = ?', [user.id]);
+            user = updatedUsers[0];
         } else {
             const dummyPassword = await bcrypt.hash(randomToken(), 12);
             const [result] = await dbPool.query(
                 'INSERT INTO users (name, email, password_hash, avatar_url, username, google_sub, role) VALUES (?, ?, ?, ?, ?, ?, "customer")',
                 [name, email, dummyPassword, avatar, generatedUsername, googleSub]
             );
-            [user] = (await dbPool.query('SELECT * FROM users WHERE id = ?', [result.insertId]))[0];
+            const [newUsers] = await dbPool.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
+            user = newUsers[0];
         }
 
         const csrfToken = await startSession(user.id, req, res);
