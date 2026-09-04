@@ -329,51 +329,80 @@ async function initGoogleAuth() {
                 googleTokenClient = google.accounts.oauth2.initTokenClient({
                     client_id: googleClientId,
                     scope: 'email profile openid',
-                    callback: handleGoogleTokenResponse
+                    callback: handleGoogleTokenResponse,
+                    error_callback: (err) => {
+                        console.error('Google OAuth error_callback:', err);
+                        const msg = err && (err.message || err.type || err.error) ? String(err.message || err.type || err.error) : 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google';
+                        showAlert('error', 'Google Sign-In: ' + msg);
+                    }
                 });
             }
         }
-    } catch (_) {}
+    } catch (e) {
+        console.warn('initGoogleAuth failed:', e);
+    }
 }
 
 function handleGoogleSignIn() {
     if (googleTokenClient) {
-        googleTokenClient.requestAccessToken();
+        try {
+            googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+        } catch (e) {
+            console.error('requestAccessToken failed:', e);
+            googleTokenClient.requestAccessToken();
+        }
     } else {
-        showAlert('error', 'ระบบล็อกอิน Google ยังไม่ได้ตั้งค่า Google Client ID ในเซิร์ฟเวอร์');
+        showAlert('error', 'ระบบล็อกอิน Google กำลังเตรียมพร้อม กรุณาลองใหม่อีกครั้ง');
+        initGoogleAuth();
     }
 }
 
 async function handleGoogleTokenResponse(tokenResponse) {
-    if (tokenResponse && tokenResponse.access_token) {
-        try {
-            showAlert('success', 'ยืนยันตัวตนผ่าน Google สำเร็จ กำลังเข้าสู่ระบบ...');
-            const res = await fetch('/api/auth/google', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ access_token: tokenResponse.access_token })
-            });
-            const data = await res.json();
-            if (data.success) {
-                sessionStorage.removeItem('baan_waenta_guest');
-                if (data.user) {
-                    localStorage.setItem('baan_waenta_user', JSON.stringify(data.user));
-                }
-                setTimeout(() => {
-                    if (data.user && data.user.role === 'admin') {
-                        window.location.href = '/admin.html';
-                    } else {
-                        window.location.href = '/';
-                    }
-                }, 600);
-            } else {
-                showAlert('error', data.message || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ');
-            }
-        } catch (e) {
-            console.error('Google token exchange error:', e);
-            showAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ผ่าน Google ได้');
+    console.log('Google Auth Response:', tokenResponse);
+    if (!tokenResponse) {
+        showAlert('error', 'ไม่ได้รับการตอบกลับจาก Google');
+        return;
+    }
+    if (tokenResponse.error) {
+        console.error('Google token error:', tokenResponse.error);
+        if (tokenResponse.error === 'popup_closed_by_user') {
+            showAlert('error', 'หน้าต่างเลือกบัญชี Google ถูกปิดก่อนดำเนินการเสร็จสิ้น');
+        } else {
+            showAlert('error', 'Google Error: ' + (tokenResponse.error_description || tokenResponse.error));
         }
+        return;
+    }
+    if (!tokenResponse.access_token) {
+        showAlert('error', 'ไม่ได้รับ Access Token จาก Google');
+        return;
+    }
+
+    try {
+        showAlert('info', 'ยืนยันตัวตนผ่าน Google สำเร็จ กำลังเข้าสู่ระบบ...');
+        const res = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ access_token: tokenResponse.access_token })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('success', 'เข้าสู่ระบบสำเร็จ! กำลังไปหน้าหลัก...');
+            sessionStorage.removeItem('baan_waenta_guest');
+            if (data.user) {
+                localStorage.setItem('baan_waenta_user', JSON.stringify(data.user));
+            }
+            setTimeout(() => {
+                const targetUrl = (data.user && data.user.role === 'admin') ? '/admin.html' : '/';
+                window.location.replace(targetUrl);
+            }, 500);
+        } else {
+            console.error('Server /api/auth/google rejected:', data);
+            showAlert('error', data.message || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ');
+        }
+    } catch (e) {
+        console.error('Google token exchange error:', e);
+        showAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ผ่าน Google ได้ (' + (e.message || 'network error') + ')');
     }
 }
 

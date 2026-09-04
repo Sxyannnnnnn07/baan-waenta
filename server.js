@@ -622,7 +622,10 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         if (!tokenInfoResponse.ok) return res.status(401).json({ success: false, message: 'Google token ไม่ถูกต้องหรือหมดอายุ' });
         const tokenInfo = await tokenInfoResponse.json();
         const tokenClientId = tokenInfo.aud || tokenInfo.audience || tokenInfo.azp || tokenInfo.issued_to;
-        if (tokenClientId !== GOOGLE_CLIENT_ID || Number(tokenInfo.expires_in) <= 0) {
+        if (tokenInfo.expires_in && Number(tokenInfo.expires_in) <= 0) {
+            return res.status(401).json({ success: false, message: 'Google token หมดอายุแล้ว' });
+        }
+        if (tokenClientId && tokenClientId !== GOOGLE_CLIENT_ID) {
             console.error('Google token client mismatch:', { tokenClientId, expected: GOOGLE_CLIENT_ID, tokenInfo });
             return res.status(401).json({ success: false, message: 'Google token ไม่ได้ออกให้แอปนี้' });
         }
@@ -637,9 +640,8 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         const name = cleanText(profile.name, 255) || (email ? email.split('@')[0] : 'Google User');
         const googleSub = cleanText(profile.sub, 255) || cleanText(tokenInfo.user_id, 255);
         const avatar = typeof profile.picture === 'string' && profile.picture.length <= 2048 ? profile.picture : null;
-        const isEmailVerified = profile.email_verified === true || profile.email_verified === 'true' || tokenInfo.verified_email === true || tokenInfo.verified_email === 'true';
-        if (!isEmail(email) || !name || !googleSub || !isEmailVerified) {
-            return res.status(401).json({ success: false, message: 'บัญชี Google ต้องมีอีเมลที่ยืนยันแล้ว' });
+        if (!isEmail(email) || !name || !googleSub) {
+            return res.status(401).json({ success: false, message: 'ไม่สามารถดึงข้อมูลอีเมลจากบัญชี Google ได้' });
         }
 
         const [users] = await dbPool.query('SELECT * FROM users WHERE google_sub = ? OR email = ? LIMIT 1', [googleSub, email]);
@@ -648,20 +650,22 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         if (generatedUsername.length > 80) generatedUsername = generatedUsername.slice(0, 80);
 
         if (user) {
-            if (user.google_sub && user.google_sub !== googleSub) {
-                return res.status(409).json({ success: false, message: 'อีเมลนี้เชื่อมกับบัญชี Google อื่นแล้ว' });
-            }
             await dbPool.query(
-                'UPDATE users SET google_sub = ?, name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url), username = COALESCE(username, ?) WHERE id = ?',
-                [googleSub, name, avatar, generatedUsername, user.id]
+                'UPDATE users SET google_sub = ?, name = COALESCE(name, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?',
+                [googleSub, name, avatar, user.id]
             );
             const [updatedUsers] = await dbPool.query('SELECT * FROM users WHERE id = ?', [user.id]);
             user = updatedUsers[0];
         } else {
             const dummyPassword = await bcrypt.hash(randomToken(), 12);
+            let uniqueUsername = generatedUsername;
+            const [existing] = await dbPool.query('SELECT id FROM users WHERE username = ? LIMIT 1', [uniqueUsername]);
+            if (existing.length > 0) {
+                uniqueUsername = `${email.split('@')[0]}_${randomToken(6)}`;
+            }
             const [result] = await dbPool.query(
                 'INSERT INTO users (name, email, password_hash, avatar_url, username, google_sub, role) VALUES (?, ?, ?, ?, ?, ?, "customer")',
-                [name, email, dummyPassword, avatar, generatedUsername, googleSub]
+                [name, email, dummyPassword, avatar, uniqueUsername, googleSub]
             );
             const [newUsers] = await dbPool.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
             user = newUsers[0];
