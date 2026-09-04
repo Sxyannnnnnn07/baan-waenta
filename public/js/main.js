@@ -495,6 +495,22 @@ async function initGoogleAuth() {
                     alert('เกิดข้อผิดพลาดในการโหลดโปรไฟล์ Google');
                 }
             }
+        },
+        error_callback: (err) => {
+            console.error('Google OAuth error_callback:', err);
+            let msg = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google';
+            const errType = err ? (err.type || err.error || '') : '';
+            const errMsg = err ? (err.message || '') : '';
+            if (errType === 'popup_closed' || errMsg.includes('Popup window closed') || errMsg.includes('popup_closed')) {
+                msg = 'หน้าต่างเลือกบัญชี Google ถูกปิดก่อนดำเนินการเสร็จสิ้น';
+            } else if (errType === 'popup_failed_to_open' || errMsg.includes('popup_failed_to_open')) {
+                msg = 'เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้';
+            } else if (errType === 'access_denied') {
+                msg = 'คุณยกเลิกการให้สิทธิ์เข้าสู่ระบบ Google';
+            } else if (errMsg) {
+                msg = errMsg;
+            }
+            alert(msg);
         }
     });
 }

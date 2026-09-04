@@ -47,6 +47,12 @@ test('legacy public slip URL is blocked', async () => {
     assert.equal(response.status, 404);
 });
 
+test('security headers allow OAuth popup communication', async () => {
+    const response = await fetch(`${baseUrl}/login.html`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+});
+
 test('unknown API route returns a safe JSON error', async () => {
     const response = await fetch(`${baseUrl}/api/not-real`);
     assert.equal(response.status, 404);

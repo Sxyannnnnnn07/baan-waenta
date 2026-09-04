@@ -60,7 +60,8 @@ process.on('unhandledRejection', (reason, promise) => {
 // Enable Helmet for security headers (matching Vercel's unblocked frontend environment)
 app.use(helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
 // Enable CORS only for explicitly trusted cross-origin clients. Same-origin requests are always allowed.

@@ -332,8 +332,19 @@ async function initGoogleAuth() {
                     callback: handleGoogleTokenResponse,
                     error_callback: (err) => {
                         console.error('Google OAuth error_callback:', err);
-                        const msg = err && (err.message || err.type || err.error) ? String(err.message || err.type || err.error) : 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google';
-                        showAlert('error', 'Google Sign-In: ' + msg);
+                        let msg = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google';
+                        const errType = err ? (err.type || err.error || '') : '';
+                        const errMsg = err ? (err.message || '') : '';
+                        if (errType === 'popup_closed' || errMsg.includes('Popup window closed') || errMsg.includes('popup_closed')) {
+                            msg = 'หน้าต่างเลือกบัญชี Google ถูกปิดก่อนดำเนินการเสร็จสิ้น (หากไม่ได้ปิดเอง โปรดตรวจสอบว่าเบราว์เซอร์หรือ AdBlock ไม่ได้บล็อกหน้าต่าง)';
+                        } else if (errType === 'popup_failed_to_open' || errMsg.includes('popup_failed_to_open')) {
+                            msg = 'เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้';
+                        } else if (errType === 'access_denied') {
+                            msg = 'คุณยกเลิกการให้สิทธิ์เข้าสู่ระบบ Google';
+                        } else if (errMsg) {
+                            msg = errMsg;
+                        }
+                        showAlert('error', msg);
                     }
                 });
             }
@@ -360,8 +371,10 @@ async function handleGoogleTokenResponse(tokenResponse) {
     }
     if (tokenResponse.error) {
         console.error('Google token error:', tokenResponse.error);
-        if (tokenResponse.error === 'popup_closed_by_user') {
+        if (tokenResponse.error === 'popup_closed_by_user' || tokenResponse.error === 'popup_closed') {
             showAlert('error', 'หน้าต่างเลือกบัญชี Google ถูกปิดก่อนดำเนินการเสร็จสิ้น');
+        } else if (tokenResponse.error === 'access_denied') {
+            showAlert('error', 'คุณยกเลิกการให้สิทธิ์เข้าสู่ระบบ Google');
         } else {
             showAlert('error', 'Google Error: ' + (tokenResponse.error_description || tokenResponse.error));
         }
