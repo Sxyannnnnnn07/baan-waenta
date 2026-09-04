@@ -345,12 +345,7 @@ async function initGoogleAuth() {
 
 function handleGoogleSignIn() {
     if (googleTokenClient) {
-        try {
-            googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-        } catch (e) {
-            console.error('requestAccessToken failed:', e);
-            googleTokenClient.requestAccessToken();
-        }
+        googleTokenClient.requestAccessToken();
     } else {
         showAlert('error', 'ระบบล็อกอิน Google กำลังเตรียมพร้อม กรุณาลองใหม่อีกครั้ง');
         initGoogleAuth();
