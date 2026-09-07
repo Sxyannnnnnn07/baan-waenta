@@ -27,11 +27,80 @@
     let glasses2DImage = null;
     let is2DGlassesLoaded = false;
 
-    // Exponential Moving Average (EMA) smoothing state
+    // -------------------------------------------------------------
+    // OneEuroFilter (Adaptive Low-Pass Filter for Silky-Smooth Tracking like Owndays)
+    // -------------------------------------------------------------
+    class OneEuroFilter {
+        constructor(minCutoff = 0.85, beta = 0.015, dCutoff = 1.0) {
+            this.minCutoff = minCutoff;
+            this.beta = beta;
+            this.dCutoff = dCutoff;
+            this.x = null;
+            this.dx = 0;
+            this.lastTime = null;
+        }
+        filter(val, timestamp = performance.now()) {
+            if (this.lastTime === null || this.x === null) {
+                this.x = val;
+                this.dx = 0;
+                this.lastTime = timestamp;
+                return val;
+            }
+            const dt = Math.max((timestamp - this.lastTime) / 1000, 0.001);
+            this.lastTime = timestamp;
+            const rate = 1 / dt;
+
+            // Estimate movement velocity
+            const dVal = (val - this.x) * rate;
+            const alphaD = this.getAlpha(rate, this.dCutoff);
+            this.dx = this.dx + alphaD * (dVal - this.dx);
+
+            // Adaptive cutoff frequency based on movement speed
+            const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
+            const alpha = this.getAlpha(rate, cutoff);
+
+            // Filtered value
+            this.x = this.x + alpha * (val - this.x);
+            return this.x;
+        }
+        getAlpha(rate, cutoff) {
+            const tau = 1 / (2 * Math.PI * cutoff);
+            const te = 1 / rate;
+            return 1 / (1 + tau / te);
+        }
+        reset() {
+            this.x = null;
+            this.dx = 0;
+            this.lastTime = null;
+        }
+    }
+
+    class OneEuroFilterVector3 {
+        constructor(minCutoff = 0.85, beta = 0.02, dCutoff = 1.0) {
+            this.fx = new OneEuroFilter(minCutoff, beta, dCutoff);
+            this.fy = new OneEuroFilter(minCutoff, beta, dCutoff);
+            this.fz = new OneEuroFilter(minCutoff, beta, dCutoff);
+        }
+        filter(vec, timestamp = performance.now()) {
+            return new THREE.Vector3(
+                this.fx.filter(vec.x, timestamp),
+                this.fy.filter(vec.y, timestamp),
+                this.fz.filter(vec.z, timestamp)
+            );
+        }
+        reset() {
+            this.fx.reset();
+            this.fy.reset();
+            this.fz.reset();
+        }
+    }
+
+    // Adaptive OneEuro smoothing state (Rock-solid stillness & zero-lag motion)
+    let posFilter = new OneEuroFilterVector3(0.85, 0.02, 1.0);
+    let scaleFilter = new OneEuroFilter(0.75, 0.015, 1.0);
     let smoothPos = null;
     let smoothQuat = null;
     let smoothScale = 1.0;
-    const SMOOTH_FACTOR = 0.40; // Highly responsive tracking for head turns & nods
 
     /**
      * Dynamically loads an external script if not already present
@@ -247,6 +316,14 @@
         threeRenderer.setSize(width, height);
         threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
+        if (typeof THREE.sRGBEncoding !== 'undefined') {
+            threeRenderer.outputEncoding = THREE.sRGBEncoding;
+        }
+        if (typeof THREE.ACESFilmicToneMapping !== 'undefined') {
+            threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+            threeRenderer.toneMappingExposure = 1.15;
+        }
+
         threeCanvas = threeRenderer.domElement;
         threeCanvas.className = 'ar-three-layer';
         threeCanvas.style.position = 'absolute';
@@ -276,11 +353,30 @@
         hemiLight.position.set(0, 30, 0);
         threeScene.add(hemiLight);
 
-        // Head Occluder Mask (Spherical depth buffer mask to hide temples behind head)
-        const occluderGeo = new THREE.SphereGeometry(1, 32, 32);
-        const occluderMat = new THREE.MeshBasicMaterial({ colorWrite: false }); // Render only to depth buffer
-        headOccluder = new THREE.Mesh(occluderGeo, occluderMat);
+        // Anatomical Head Occluder (Composite depth mask to hide temples in front view and behind head like Owndays)
+        const occluderMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true });
+        headOccluder = new THREE.Group();
         headOccluder.renderOrder = 0;
+
+        // 1. Temporal & Cranial Block (covers from temples backwards past ears)
+        // Spans X = [-0.43, +0.43], Depth = [-0.05 to -1.15]
+        const boxGeo = new THREE.BoxGeometry(0.86, 1.25, 1.10);
+        const boxMesh = new THREE.Mesh(boxGeo, occluderMat);
+        boxMesh.position.set(0, -0.06, -0.60);
+        headOccluder.add(boxMesh);
+
+        // 2. Cranial Cylinder (smooth curvature along sides of skull & temples)
+        const craniumGeo = new THREE.CylinderGeometry(0.43, 0.43, 1.25, 32);
+        const craniumMesh = new THREE.Mesh(craniumGeo, occluderMat);
+        craniumMesh.position.set(0, -0.06, -0.60);
+        headOccluder.add(craniumMesh);
+
+        // 3. Back-Skull Sphere
+        const backSkullGeo = new THREE.SphereGeometry(0.45, 24, 24);
+        const backSkullMesh = new THREE.Mesh(backSkullGeo, occluderMat);
+        backSkullMesh.position.set(0, 0, -0.65);
+        headOccluder.add(backSkullMesh);
+
         headOccluder.visible = false;
         threeScene.add(headOccluder);
     }
@@ -576,11 +672,16 @@
             rotMatrix.makeBasis(vX, vY, vZ);
             const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
 
-            // EMA Filter for Rotation (0.40 for snappy tracking on head turns & nods)
+            // 1. Adaptive Slerp for Rotation (Zero jitter when still, zero latency on head turns)
             if (!smoothQuat) {
                 smoothQuat = targetQuat.clone();
             } else {
-                smoothQuat.slerp(targetQuat, SMOOTH_FACTOR);
+                const dot = Math.min(Math.max(smoothQuat.dot(targetQuat), -1), 1);
+                const angleDiff = 2 * Math.acos(Math.abs(dot)); // angular distance in radians
+                // When stationary (< 0.02 rad / 1 deg), slerpAlpha is 0.12 (eliminates landmark jitter completely)
+                // When moving fast, slerpAlpha scales up to 0.75 for instant real-time response
+                const slerpAlpha = THREE.MathUtils.clamp(0.12 + angleDiff * 2.2, 0.12, 0.75);
+                smoothQuat.slerp(targetQuat, slerpAlpha);
             }
             modelWrapperGroup.quaternion.copy(smoothQuat);
 
@@ -610,27 +711,32 @@
                 targetPos.add(vY.clone().multiplyScalar(currentProductData.offset_y * heightAtZero));
             }
 
-            // EMA Filter for Position
+            // 2. OneEuroFilter for Position (Silky smooth, eliminates webcam noise while keeping fast motion snappy)
+            const now = performance.now();
             if (!smoothPos) {
                 smoothPos = targetPos.clone();
+                posFilter.reset();
+                posFilter.filter(targetPos, now);
             } else {
-                smoothPos.lerp(targetPos, SMOOTH_FACTOR);
+                smoothPos = posFilter.filter(targetPos, now);
             }
             modelWrapperGroup.position.copy(smoothPos);
 
-            // EMA Filter for Scale
-            smoothScale = THREE.MathUtils.lerp(smoothScale || targetGlassesWidth, targetGlassesWidth, SMOOTH_FACTOR);
+            // 3. OneEuroFilter for Scale (Prevents breathing / scale jitter)
+            if (!smoothScale) {
+                smoothScale = targetGlassesWidth;
+                scaleFilter.reset();
+                scaleFilter.filter(targetGlassesWidth, now);
+            } else {
+                smoothScale = scaleFilter.filter(targetGlassesWidth, now);
+            }
             modelWrapperGroup.scale.set(smoothScale, smoothScale, smoothScale);
 
-            // Head Occluder Mask (Spherical mask deep inside skull to hide temple arms behind ears without clipping front frame)
+            // 4. Head Occluder Mask (Composite depth mask to hide temples in front view & behind head like Owndays)
             if (headOccluder) {
-                const occluderRadius = smoothScale * 0.42;
-                // Place occluder deep behind the nose bridge (distance = 0.55 x glasses width)
-                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.55);
-                const headPos = smoothPos.clone().add(headBackOffset);
-                headOccluder.position.copy(headPos);
+                headOccluder.position.copy(smoothPos);
                 headOccluder.quaternion.copy(smoothQuat);
-                headOccluder.scale.set(occluderRadius, occluderRadius * 1.10, occluderRadius * 0.90);
+                headOccluder.scale.set(smoothScale, smoothScale, smoothScale);
                 headOccluder.visible = true;
             }
         } else if (is2DGlassesLoaded && glasses2DImage && ctx2D && canvas2D) {
@@ -752,6 +858,8 @@
         smoothPos = null;
         smoothQuat = null;
         smoothScale = 1.0;
+        posFilter.reset();
+        scaleFilter.reset();
 
         const hud = document.getElementById('ar-tracking-hud');
         if (hud) hud.remove();
@@ -767,6 +875,8 @@
         smoothPos = null;
         smoothQuat = null;
         smoothScale = 1.0;
+        posFilter.reset();
+        scaleFilter.reset();
     }
 
     // Attach to global window object
