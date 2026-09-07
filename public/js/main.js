@@ -557,18 +557,36 @@ async function openLensModal(productId) {
 
     // 2. Prepare Carousel Images (Front view, model view, sample view)
     const baseImg = activeLensProduct.image_url;
-    let modelImg = '/assets/model1.jpg';
-    if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
-    if (activeLensProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+    if (activeLensProduct.name && (activeLensProduct.name.includes('Prada') || activeLensProduct.brand === 'Prada')) {
+        qvCurrentImages = [
+            { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
+            { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
+            { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
+            { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
+            { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
+        ];
+    } else if (activeLensProduct.image_url && (activeLensProduct.image_url.includes('1.png') || activeLensProduct.name.includes('Modern Half-Rim') || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 2')))) {
+        qvCurrentImages = [
+            { src: '/assets/1.png', label: 'ด้านหน้า' },
+            { src: '/assets/2.png', label: 'มุม 3/4' },
+            { src: '/assets/3.png', label: 'ด้านข้าง' },
+            { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
+            { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
+        ];
+    } else {
+        let modelImg = '/assets/model1.jpg';
+        if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+        if (activeLensProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
 
-    let sideImg = '/assets/vto_model.jpg';
-    if (activeLensProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+        let sideImg = '/assets/vto_model.jpg';
+        if (activeLensProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
 
-    qvCurrentImages = [
-        { src: baseImg, label: 'มุมตรง' },
-        { src: modelImg, label: 'ขณะสวมใส่' },
-        { src: sideImg, label: 'มุมเฉียง' }
-    ];
+        qvCurrentImages = [
+            { src: baseImg, label: 'มุมตรง' },
+            { src: modelImg, label: 'ขณะสวมใส่' },
+            { src: sideImg, label: 'มุมเฉียง' }
+        ];
+    }
     qvCurrentIndex = 0;
     renderQuickViewCarousel();
 

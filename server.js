@@ -384,6 +384,21 @@ async function seedData() {
             offset_y: 0.0,
             price: 15900.00,
             stock: 5
+        },
+        {
+            name: "Modern Half-Rim Square (3D AR Edition)",
+            brand: "Baan Waenta",
+            category: "Optical",
+            frame_shape: "Square",
+            image_url: "/assets/1.png",
+            tryon_image_url: "/assets/1.png",
+            model_3d_url: "/assets/models/glasses 2.glb",
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0,
+            price: 1290.00,
+            stock: 15
         }
     ];
 
@@ -399,10 +414,10 @@ async function seedData() {
             );
             seededCount++;
         } else {
-            // Update image URLs if they changed (to support transparent PNG/JPG paths)
+            // Update product fields if they changed
             await dbPool.query(
-                'UPDATE products SET image_url = ?, tryon_image_url = ? WHERE id = ?',
-                [prod.image_url, prod.tryon_image_url, existing[0].id]
+                'UPDATE products SET brand = ?, category = ?, frame_shape = ?, image_url = ?, tryon_image_url = ?, model_3d_url = ?, price = ?, stock = ? WHERE id = ?',
+                [prod.brand, prod.category, prod.frame_shape, prod.image_url, prod.tryon_image_url, prod.model_3d_url, prod.price, prod.stock, existing[0].id]
             );
             updatedCount++;
         }

@@ -235,8 +235,25 @@ function load3DModel(prod) {
     console.log("Loading 3D Model from URL:", prod.model_3d_url);
     const loader = new THREE.GLTFLoader();
     loader.load(prod.model_3d_url, (gltf) => {
-        current3DModel = gltf.scene;
-        
+        const root = gltf.scene;
+
+        // Center model geometry at local origin
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        root.position.set(-center.x, -center.y, -center.z);
+
+        // Wrap in parent group for tracking transforms
+        current3DModel = new THREE.Group();
+        current3DModel.add(root);
+
+        // Normalize raw width to standard 7.0 units
+        const rawWidth = size.x > 0 ? size.x : 7.0;
+        const normFactor = 7.0 / rawWidth;
+        root.scale.set(normFactor, normFactor, normFactor);
+
         // Apply DB scales and offsets
         const sX = parseFloat(prod.scale_x) || 1;
         const sY = parseFloat(prod.scale_y) || 1;

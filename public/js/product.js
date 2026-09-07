@@ -88,7 +88,7 @@ async function loadProductPageData(productId) {
             }
         }
 
-        // Setup Carousel Images (5 angles for Prada / dynamic products)
+        // Setup Carousel Images (5 angles for Prada / Modern Half-Rim / dynamic products)
         if (currentProduct.name && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada')) {
             currentProductGallery = [
                 { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
@@ -96,6 +96,14 @@ async function loadProductPageData(productId) {
                 { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
                 { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
                 { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
+            ];
+        } else if (currentProduct.image_url && (currentProduct.image_url.includes('1.png') || currentProduct.name.includes('Modern Half-Rim') || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 2')))) {
+            currentProductGallery = [
+                { src: '/assets/1.png', label: 'ด้านหน้า' },
+                { src: '/assets/2.png', label: 'มุม 3/4' },
+                { src: '/assets/3.png', label: 'ด้านข้าง' },
+                { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
+                { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
             ];
         } else {
             let modelImg = '/assets/model1.jpg';
