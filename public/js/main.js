@@ -1290,9 +1290,31 @@ function previewSlipImage(event) {
     reader.readAsDataURL(file);
 }
 
+// Helper: Modal Scroll Locking
+function lockModalScroll() {
+    document.documentElement.classList.add('modal-locked');
+    document.body.classList.add('modal-locked');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+}
+
+function unlockModalScroll() {
+    const activeModals = Array.from(document.querySelectorAll('.modal')).filter(m => {
+        return m.style.display && m.style.display !== 'none';
+    });
+    if (activeModals.length <= 1) {
+        document.documentElement.classList.remove('modal-locked');
+        document.body.classList.remove('modal-locked');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+}
+
 // Helper: Close Modals
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    const el = document.getElementById(modalId);
+    if (el) el.style.display = 'none';
+    unlockModalScroll();
 }
 
 // Close modal when clicking outside
@@ -1301,9 +1323,29 @@ window.onclick = function(event) {
     modals.forEach(modal => {
         if (event.target === modal) {
             modal.style.display = 'none';
+            unlockModalScroll();
         }
     });
 }
+
+// Auto-sync scroll lock with any active modal
+document.addEventListener('DOMContentLoaded', () => {
+    const checkModals = () => {
+        const anyModalOpen = Array.from(document.querySelectorAll('.modal, .ar-3d-modal-wrapper')).some(m => {
+            return m.style.display && m.style.display !== 'none';
+        });
+        if (anyModalOpen) {
+            lockModalScroll();
+        } else {
+            unlockModalScroll();
+        }
+    };
+
+    const modalObserver = new MutationObserver(checkModals);
+    document.querySelectorAll('.modal, .ar-3d-modal-wrapper').forEach(modal => {
+        modalObserver.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
+    });
+});
 
 // ==========================================
 // AUTOMATIC IMAGE SLIDESHOW (CAROUSEL)

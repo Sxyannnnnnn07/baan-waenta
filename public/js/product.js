@@ -325,6 +325,20 @@ function addProductPageToCart() {
     addActiveProductToCart();
 }
 
+function lockPageScroll() {
+    document.documentElement.classList.add('modal-locked');
+    document.body.classList.add('modal-locked');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+}
+
+function unlockPageScroll() {
+    document.documentElement.classList.remove('modal-locked');
+    document.body.classList.remove('modal-locked');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+}
+
 // AR/3D Modal Logic (Powered by MindAR Face Tracking & Three.js 6-DOF)
 function openAR3DModal(mode = '3d') {
     if (!currentProduct) return;
@@ -362,7 +376,7 @@ function openAR3DModal(mode = '3d') {
     }
     
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    lockPageScroll();
     
     requestAnimationFrame(() => {
         switchAR3DView(mode);
@@ -381,7 +395,7 @@ function closeAR3DModal() {
     isARStarting = false;
     cameraPermissionGranted = false;
     showCameraPermissionGate();
-    document.body.style.overflow = '';
+    unlockPageScroll();
 }
 
 function showCameraPermissionGate(message = 'ระบบจะใช้ภาพจากกล้องเพื่อติดตามใบหน้าแบบเรียลไทม์ ภาพจะไม่ถูกอัปโหลดหรือบันทึกไว้', isError = false) {
@@ -523,10 +537,38 @@ async function resetARView() {
     }
 }
 
-// Close modal when clicking outside
+// Close modal when clicking outside or pressing Escape
 window.addEventListener('click', (event) => {
     const modal = document.getElementById('ar-3d-modal');
     if (event.target === modal) {
         closeAR3DModal();
+    }
+});
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('ar-3d-modal');
+        if (modal && modal.style.display !== 'none') {
+            closeAR3DModal();
+        }
+    }
+});
+
+// Prevent background scrolling when mouse wheel or touch is used over the AR/3D modal
+document.addEventListener('DOMContentLoaded', () => {
+    const ar3dModal = document.getElementById('ar-3d-modal');
+    if (ar3dModal) {
+        ar3dModal.addEventListener('wheel', (e) => {
+            // Allow wheel zoom exclusively inside 3D model-viewer; block window scroll otherwise
+            if (!e.target.closest('model-viewer')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        ar3dModal.addEventListener('touchmove', (e) => {
+            if (!e.target.closest('model-viewer')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     }
 });
