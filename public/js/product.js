@@ -105,6 +105,14 @@ async function loadProductPageData(productId) {
                 { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
                 { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
             ];
+        } else if (currentProduct.image_url && (currentProduct.image_url.includes('3.1.png') || currentProduct.name.includes('Crystal Pantos') || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 3')))) {
+            currentProductGallery = [
+                { src: '/assets/3.1.png', label: 'ด้านหน้า' },
+                { src: '/assets/3.2.png', label: 'มุม 3/4' },
+                { src: '/assets/3.3.png', label: 'ด้านข้าง' },
+                { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
+                { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
+            ];
         } else {
             let modelImg = '/assets/model1.jpg';
             if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';

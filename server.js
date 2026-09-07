@@ -399,6 +399,21 @@ async function seedData() {
             offset_y: 0.0,
             price: 1290.00,
             stock: 15
+        },
+        {
+            name: "Crystal Pantos Vintage (3D AR Edition)",
+            brand: "Baan Waenta",
+            category: "Optical",
+            frame_shape: "Round",
+            image_url: "/assets/3.1.png",
+            tryon_image_url: "/assets/3.1.png",
+            model_3d_url: "/assets/models/glasses 3.glb",
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0,
+            price: 1490.00,
+            stock: 15
         }
     ];
 

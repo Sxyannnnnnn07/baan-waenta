@@ -573,6 +573,14 @@ async function openLensModal(productId) {
             { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
             { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
         ];
+    } else if (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.name.includes('Crystal Pantos') || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3')))) {
+        qvCurrentImages = [
+            { src: '/assets/3.1.png', label: 'ด้านหน้า' },
+            { src: '/assets/3.2.png', label: 'มุม 3/4' },
+            { src: '/assets/3.3.png', label: 'ด้านข้าง' },
+            { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
+            { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
+        ];
     } else {
         let modelImg = '/assets/model1.jpg';
         if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
