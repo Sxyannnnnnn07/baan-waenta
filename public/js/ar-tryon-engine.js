@@ -323,13 +323,19 @@
                     const center = new THREE.Vector3();
                     box.getCenter(center);
 
-                    // Center horizontally (X) and align the front lenses flush at origin
-                    current3DModel.position.set(-center.x, 0, 0);
-
                     // Normalize raw model width to exactly 1.0 unit
                     const rawWidth = size.x > 0 ? size.x : 1.0;
                     const normScale = 1.0 / rawWidth;
                     current3DModel.scale.set(normScale, normScale, normScale);
+
+                    // Center horizontally (X), align optical center (Y), and position the nose pads
+                    // flush at origin (Z = 0) so all head rotations (pitch, yaw, roll) pivot naturally on the nose
+                    const frontZ = box.max.z; // In eyewear models, max.z is the front-most surface of lenses
+                    current3DModel.position.set(
+                        -center.x * normScale,
+                        -center.y * normScale,
+                        -(frontZ - size.z * 0.05) * normScale
+                    );
 
                     // Wrap in parent group for 6-DOF transform control
                     modelWrapperGroup = new THREE.Group();
@@ -501,9 +507,10 @@
         });
 
         // Key Facial Landmarks (Rigid Skull Bones for Pitch/Yaw/Roll Stability)
-        const pForehead = landmarks[10] || { x: 0.5, y: 0.2, z: 0 };
-        const pBridgeLow = landmarks[6] || landmarks[168] || { x: 0.5, y: 0.4, z: 0 };
-        const pBridgeHigh = landmarks[168] || landmarks[6] || { x: 0.5, y: 0.38, z: 0 };
+        // 1. Nose Bridge Anchor (Landmark 6 = nasion, where the bridge of eyewear rests)
+        const pNoseBridge = landmarks[6] || landmarks[197] || landmarks[168] || { x: 0.5, y: 0.38, z: 0 };
+        // 2. Base of Nose / Subnasale (Landmark 2 = philtrum base, forming a rigid vertical midline without forehead tilt bias)
+        const pNoseBase = landmarks[2] || landmarks[164] || landmarks[1] || { x: 0.5, y: 0.52, z: 0 };
 
         let leftPupil = landmarks[468];
         let rightPupil = landmarks[473];
@@ -524,9 +531,8 @@
 
         const sLeft = toScreen(leftPupil);
         const sRight = toScreen(rightPupil);
-        const sBridge = toScreen(pBridgeHigh);
-        const sBridgeLow = toScreen(pBridgeLow);
-        const sForehead = toScreen(pForehead);
+        const sBridge = toScreen(pNoseBridge);
+        const sNoseBase = toScreen(pNoseBase);
 
         // Three.js World Dimensions at focus plane (Z = 0)
         if (threeCamera && threeScene && modelWrapperGroup) {
@@ -550,19 +556,21 @@
 
             const wLeft = toWorld(sLeft, leftPupil.z);
             const wRight = toWorld(sRight, rightPupil.z);
-            const wBridge = toWorld(sBridge, pBridgeHigh.z);
-            const wBridgeLow = toWorld(sBridgeLow, pBridgeLow.z);
-            const wForehead = toWorld(sForehead, pForehead.z);
+            const wBridge = toWorld(sBridge, pNoseBridge.z);
+            const wNoseBase = toWorld(sNoseBase, pNoseBase.z);
 
-            // 6-DOF Orthogonal Rotation Basis from Rigid Frontal Skull Plane
-            // Horizontal Eye Axis (Left to Right)
+            // 6-DOF Orthogonal Rotation Basis from Rigid Facial Anatomy:
+            // 1. Horizontal Eye Axis (Left to Right)
             const vX = new THREE.Vector3().subVectors(wRight, wLeft).normalize();
-            // Rigid Frontal Midline (Bridge to Forehead on rigid frontal bone)
-            const vUp = new THREE.Vector3().subVectors(wForehead, wBridgeLow).normalize();
-            // True Forward Normal facing camera viewer
+            // 2. Rigid Nasal Midline (Nose Base UP to Nose Bridge)
+            // Eliminates artificial forehead pitch bias and ensures perfect pitch tracking on look-down
+            const vUp = new THREE.Vector3().subVectors(wBridge, wNoseBase).normalize();
+            // 3. True Forward Normal (facing viewer)
             const vZ = new THREE.Vector3().crossVectors(vX, vUp).normalize();
-            // True Orthogonal Up Vector
+            // 4. True Orthogonal Up Vector
             const vY = new THREE.Vector3().crossVectors(vZ, vX).normalize();
+            // 5. Strictly re-orthogonalize vX
+            vX.crossVectors(vY, vZ).normalize();
 
             const rotMatrix = new THREE.Matrix4();
             rotMatrix.makeBasis(vX, vY, vZ);
@@ -576,17 +584,25 @@
             }
             modelWrapperGroup.quaternion.copy(smoothQuat);
 
-            // Responsive Scaling (IPD scaled to 2.10x for tailored fit)
+            // Responsive Scaling (IPD scaled to 2.15x for tailored adult fit)
             const eyeDistWorld = wLeft.distanceTo(wRight);
             const modelScaleMult = currentProductData.scale_x || 1.0;
-            const targetGlassesWidth = eyeDistWorld * 2.10 * modelScaleMult;
+            const targetGlassesWidth = eyeDistWorld * 2.15 * modelScaleMult;
 
-            // Anchor Position: Exactly at Nose Bridge & Eye Level
+            // Eye Center (at pupil level)
             const wEyeCenter = new THREE.Vector3().addVectors(wLeft, wRight).multiplyScalar(0.5);
-            const targetPos = wBridge.clone().lerp(wEyeCenter, 0.3);
 
-            // Snug forward offset (4% of width) so lenses and nose pads sit right on nose bridge skin
-            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.04);
+            // Anchor Position:
+            // Centered horizontally between eyes (wEyeCenter.x)
+            // Vertically aligned so lenses sit directly over pupils and nose pads rest on the bridge
+            const targetPos = new THREE.Vector3(
+                wEyeCenter.x,
+                wBridge.y * 0.40 + wEyeCenter.y * 0.60,
+                wBridge.z
+            );
+
+            // Snug forward offset (1.5% of width) so lenses and nose pads sit right on nose bridge skin
+            const forwardOffset = vZ.clone().multiplyScalar(targetGlassesWidth * 0.015);
             targetPos.add(forwardOffset);
 
             // Product database manual Y offset if provided
@@ -608,13 +624,13 @@
 
             // Head Occluder Mask (Spherical mask deep inside skull to hide temple arms behind ears without clipping front frame)
             if (headOccluder) {
-                const occluderRadius = smoothScale * 0.40;
-                // Place occluder deep behind the nose bridge (distance = 0.52 x glasses width)
-                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.52);
+                const occluderRadius = smoothScale * 0.42;
+                // Place occluder deep behind the nose bridge (distance = 0.55 x glasses width)
+                const headBackOffset = vZ.clone().multiplyScalar(-smoothScale * 0.55);
                 const headPos = smoothPos.clone().add(headBackOffset);
                 headOccluder.position.copy(headPos);
                 headOccluder.quaternion.copy(smoothQuat);
-                headOccluder.scale.set(occluderRadius, occluderRadius * 1.05, occluderRadius * 0.85);
+                headOccluder.scale.set(occluderRadius, occluderRadius * 1.10, occluderRadius * 0.90);
                 headOccluder.visible = true;
             }
         } else if (is2DGlassesLoaded && glasses2DImage && ctx2D && canvas2D) {
