@@ -358,23 +358,23 @@
         headOccluder = new THREE.Group();
         headOccluder.renderOrder = 0;
 
-        // 1. Temporal & Cranial Block (covers from temples backwards past ears)
-        // Spans X = [-0.43, +0.43], Depth = [-0.05 to -1.15]
-        const boxGeo = new THREE.BoxGeometry(0.86, 1.25, 1.10);
+        // 1. Temporal Box (covers from behind temples backwards past ears)
+        // Spans X = [-0.41, +0.41], Depth = [-0.24 to -0.86] to preserve curved cat-eye wings & decorative stars
+        const boxGeo = new THREE.BoxGeometry(0.82, 1.20, 0.62);
         const boxMesh = new THREE.Mesh(boxGeo, occluderMat);
-        boxMesh.position.set(0, -0.06, -0.60);
+        boxMesh.position.set(0, -0.06, -0.55);
         headOccluder.add(boxMesh);
 
-        // 2. Cranial Cylinder (smooth curvature along sides of skull & temples)
-        const craniumGeo = new THREE.CylinderGeometry(0.43, 0.43, 1.25, 32);
+        // 2. Cranial Cylinder (smooth curvature along sides of skull & temples, cleanly covering ears)
+        const craniumGeo = new THREE.CylinderGeometry(0.49, 0.49, 1.25, 32);
         const craniumMesh = new THREE.Mesh(craniumGeo, occluderMat);
-        craniumMesh.position.set(0, -0.06, -0.60);
+        craniumMesh.position.set(0, -0.04, -0.68);
         headOccluder.add(craniumMesh);
 
         // 3. Back-Skull Sphere
-        const backSkullGeo = new THREE.SphereGeometry(0.45, 24, 24);
+        const backSkullGeo = new THREE.SphereGeometry(0.48, 24, 24);
         const backSkullMesh = new THREE.Mesh(backSkullGeo, occluderMat);
-        backSkullMesh.position.set(0, 0, -0.65);
+        backSkullMesh.position.set(0, 0, -0.75);
         headOccluder.add(backSkullMesh);
 
         headOccluder.visible = false;
@@ -427,10 +427,18 @@
                     // Center horizontally (X), align optical center (Y), and position the nose pads
                     // flush at origin (Z = 0) so all head rotations (pitch, yaw, roll) pivot naturally on the nose
                     const frontZ = box.max.z; // In eyewear models, max.z is the front-most surface of lenses
+                    const isPrada = (modelUrl && modelUrl.toLowerCase().includes('prada')) ||
+                        (currentProductData && (
+                            currentProductData.id === 31 ||
+                            currentProductData.id === 23 ||
+                            (currentProductData.name && currentProductData.name.toLowerCase().includes('prada')) ||
+                            (currentProductData.brand && currentProductData.brand.toLowerCase().includes('prada'))
+                        ));
+                    const zInsetFactor = isPrada ? 0.015 : 0.05;
                     current3DModel.position.set(
                         -center.x * normScale,
                         -center.y * normScale,
-                        -(frontZ - size.z * 0.05) * normScale
+                        -(frontZ - size.z * zInsetFactor) * normScale
                     );
 
                     // Wrap in parent group for 6-DOF transform control
