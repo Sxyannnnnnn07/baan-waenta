@@ -565,21 +565,21 @@ async function openLensModal(productId) {
             { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
             { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
         ];
-    } else if (activeLensProduct.image_url && (activeLensProduct.image_url.includes('1.png') || activeLensProduct.name.includes('Modern Half-Rim') || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 2')))) {
-        qvCurrentImages = [
-            { src: '/assets/1.png', label: 'ด้านหน้า' },
-            { src: '/assets/2.png', label: 'มุม 3/4' },
-            { src: '/assets/3.png', label: 'ด้านข้าง' },
-            { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
-            { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
-        ];
-    } else if (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.name.includes('Crystal Pantos') || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3')))) {
+    } else if (activeLensProduct.id === 33 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.image_url.endsWith('/3.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Crystal Pantos')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3'))) {
         qvCurrentImages = [
             { src: '/assets/3.1.png', label: 'ด้านหน้า' },
             { src: '/assets/3.2.png', label: 'มุม 3/4' },
             { src: '/assets/3.3.png', label: 'ด้านข้าง' },
             { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
             { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
+        ];
+    } else if (activeLensProduct.id === 32 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('/1.png') || activeLensProduct.image_url.endsWith('/1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Modern Half-Rim')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 2'))) {
+        qvCurrentImages = [
+            { src: '/assets/1.png', label: 'ด้านหน้า' },
+            { src: '/assets/2.png', label: 'มุม 3/4' },
+            { src: '/assets/3.png', label: 'ด้านข้าง' },
+            { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
+            { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
         ];
     } else {
         let modelImg = '/assets/model1.jpg';
