@@ -96,28 +96,29 @@ const DB_CONFIG = {
     database: process.env.DB_NAME || 'baan_waenta',
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
-    connectionLimit: 1,
-    maxIdle: 1, // max idle connections, the default value is the same as `connectionLimit`
-    idleTimeout: 10000, // idle connections timeout, in milliseconds, the default value 60000
+    connectionLimit: 10,
+    maxIdle: 10,
+    idleTimeout: 60000,
     queueLimit: 0,
     ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
 
 const dbPool = mysql.createPool(DB_CONFIG);
 
-const DB_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk to ensure queries never exceed MySQL max_allowed_packet
+const DB_CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB per chunk to ensure queries never exceed MySQL max_allowed_packet
 
-async function saveFileToDb(filePath, mimeType, buffer) {
-    if (!dbPool) return;
+async function saveFileToDb(filePath, mimeType, buffer, executor = dbPool) {
+    const db = executor || dbPool;
+    if (!db) return;
     try {
-        await dbPool.query('DELETE FROM uploaded_files WHERE file_path = ?', [filePath]);
+        await db.query('DELETE FROM uploaded_files WHERE file_path = ?', [filePath]);
         const totalSize = buffer.length;
         const totalChunks = Math.ceil(totalSize / DB_CHUNK_SIZE) || 1;
         for (let i = 0; i < totalChunks; i++) {
             const start = i * DB_CHUNK_SIZE;
             const end = Math.min(start + DB_CHUNK_SIZE, totalSize);
             const chunk = buffer.subarray(start, end);
-            await dbPool.query(
+            await db.query(
                 'INSERT INTO uploaded_files (file_path, mime_type, file_size, chunk_index, chunk_data) VALUES (?, ?, ?, ?, ?)',
                 [filePath, mimeType, totalSize, i, chunk]
             );
@@ -652,7 +653,7 @@ function sendServerError(res, error, label) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดภายในระบบ' });
 }
 
-async function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) {
+async function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024, executor = dbPool) {
     const { buffer, extension } = decodeImageDataUrl(dataUrl, maxBytes);
     const fileName = `${prefix}_${randomToken(12)}.${extension}`;
     const webPath = `/uploads/products/${fileName}`;
@@ -666,7 +667,7 @@ async function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) 
         console.warn('Could not write image to local disk cache:', fsErr.message);
     }
 
-    await saveFileToDb(webPath, mimeType, buffer);
+    await saveFileToDb(webPath, mimeType, buffer, executor);
     return webPath;
 }
 
@@ -685,7 +686,7 @@ function decodeModelDataUrl(dataUrl, maxBytes = 50 * 1024 * 1024) {
     return { buffer, extension: 'glb' };
 }
 
-async function savePublicModelData(dataUrl, prefix) {
+async function savePublicModelData(dataUrl, prefix, executor = dbPool) {
     const { buffer, extension } = decodeModelDataUrl(dataUrl);
     const fileName = `${prefix}_${randomToken(12)}.${extension}`;
     const webPath = `/uploads/models/${fileName}`;
@@ -699,7 +700,7 @@ async function savePublicModelData(dataUrl, prefix) {
         console.warn('Could not write model to local disk cache:', fsErr.message);
     }
 
-    await saveFileToDb(webPath, mimeType, buffer);
+    await saveFileToDb(webPath, mimeType, buffer, executor);
     return webPath;
 }
 
@@ -940,13 +941,13 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
             // Save 3D Model to disk and DB if provided (.glb only)
             if (model3d) {
                 try {
-                    finalModelUrl = await savePublicModelData(model3d, `model_${productId}`);
+                    finalModelUrl = await savePublicModelData(model3d, `model_${productId}`, conn);
                 } catch (modelErr) {
                     throw new Error(`Invalid 3D model: ${modelErr.message}`);
                 }
             }
 
-            // Process gallery images (1 to 5 images, PNG format only)
+            // Process gallery images (1 to 5 images, PNG format only) in parallel
             let rawGallery = [];
             if (Array.isArray(req.body.gallery_images) && req.body.gallery_images.length > 0) {
                 rawGallery = req.body.gallery_images.filter(img => typeof img === 'string' && img.trim().length > 0);
@@ -958,23 +959,23 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
                 throw new Error('Missing product image');
             }
 
-            const savedGalleryUrls = [];
             for (let i = 0; i < rawGallery.length; i++) {
                 const imgData = rawGallery[i];
-                if (imgData.startsWith('data:image/')) {
-                    if (!imgData.startsWith('data:image/png')) {
-                        throw new Error('รูปภาพต้องเป็นไฟล์ PNG เท่านั้น');
-                    }
-                    try {
-                        const savedUrl = await savePublicImageData(imgData, `product_${productId}_img${i + 1}`);
-                        savedGalleryUrls.push(savedUrl);
-                    } catch (imgErr) {
-                        throw new Error(`Invalid product image: ${imgErr.message}`);
-                    }
-                } else if (typeof imgData === 'string' && (imgData.startsWith('/assets/') || imgData.startsWith('/uploads/'))) {
-                    savedGalleryUrls.push(imgData);
+                if (imgData.startsWith('data:image/') && !imgData.startsWith('data:image/png')) {
+                    throw new Error('รูปภาพต้องเป็นไฟล์ PNG เท่านั้น');
                 }
             }
+
+            const imagePromises = rawGallery.map((imgData, i) => {
+                if (imgData.startsWith('data:image/')) {
+                    return savePublicImageData(imgData, `product_${productId}_img${i + 1}`, 5 * 1024 * 1024, conn);
+                } else if (typeof imgData === 'string' && (imgData.startsWith('/assets/') || imgData.startsWith('/uploads/'))) {
+                    return Promise.resolve(imgData);
+                }
+                throw new Error('Missing product image');
+            });
+
+            const savedGalleryUrls = await Promise.all(imagePromises);
 
             if (savedGalleryUrls.length === 0) {
                 throw new Error('Missing product image');
