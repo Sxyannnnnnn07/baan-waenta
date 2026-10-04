@@ -565,6 +565,14 @@ async function openLensModal(productId) {
             { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
             { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
         ];
+    } else if (activeLensProduct.id === 35 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('5.1.png') || activeLensProduct.image_url.endsWith('/5.1.png'))) || (activeLensProduct.name && (activeLensProduct.name.includes('Viper') || activeLensProduct.name.includes('Sport Shield'))) || (activeLensProduct.model_3d_url && (activeLensProduct.model_3d_url.includes('model 5') || activeLensProduct.model_3d_url.includes('model5')))) {
+        qvCurrentImages = [
+            { src: '/assets/5.1.png', label: 'ด้านหน้า' },
+            { src: '/assets/5.2.png', label: 'รายละเอียดแว่นตา' },
+            { src: '/assets/5.3.png', label: 'ด้านข้าง' },
+            { src: '/assets/5.4.png', label: 'มุมด้านหลัง' },
+            { src: '/assets/5.5.png', label: 'นายแบบสวมใส่จริง' }
+        ];
     } else if (activeLensProduct.id === 34 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('4.1.png') || activeLensProduct.image_url.endsWith('/4.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Classic Retro Round Gold')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses model4'))) {
         qvCurrentImages = [
             { src: '/assets/4.1.png', label: 'ด้านหน้า' },

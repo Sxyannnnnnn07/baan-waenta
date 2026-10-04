@@ -80,6 +80,11 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Payment slips are private even when legacy deployments stored them below public/uploads.
 app.use('/uploads/slips', (_req, res) => res.status(404).end());
 
+// Case-insensitive fallback for model 5 file name
+app.get(['/assets/models/Glasses%20Model%205.glb', '/assets/models/Glasses Model 5.glb'], (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'assets', 'models', 'glasses model 5.glb'));
+});
+
 // Serve static frontend files from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -428,6 +433,21 @@ async function seedData() {
             scale_z: 1.0,
             offset_y: 0.0,
             price: 1390.00,
+            stock: 15
+        },
+        {
+            name: "Viper Sport Shield Rainbow (3D AR Edition)",
+            brand: "Baan Waenta",
+            category: "Optical",
+            frame_shape: "Square",
+            image_url: "/assets/5.1.png",
+            tryon_image_url: "/assets/5.1.png",
+            model_3d_url: "/assets/models/glasses model 5.glb",
+            scale_x: 1.0,
+            scale_y: 1.0,
+            scale_z: 1.0,
+            offset_y: 0.0,
+            price: 1290.00,
             stock: 15
         }
     ];
