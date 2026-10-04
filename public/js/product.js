@@ -384,7 +384,7 @@ function openAR3DModal(mode = '3d') {
         const isModel4 = (modelUrl && (modelUrl.toLowerCase().includes('model4') || modelUrl.toLowerCase().includes('glasses model4'))) ||
             currentProduct.id === 34 || (currentProduct.name && currentProduct.name.toLowerCase().includes('classic retro round gold'));
         if (isModel4) {
-            modelViewer.setAttribute('orientation', '0deg 90deg 0deg');
+            modelViewer.setAttribute('orientation', '0deg 0deg 90deg');
         } else {
             modelViewer.removeAttribute('orientation');
         }
