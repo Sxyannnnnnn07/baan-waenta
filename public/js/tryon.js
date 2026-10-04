@@ -63,11 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // Check the server-side session to update nav links.
 async function checkUserLogin() {
     const adminNav = document.getElementById('admin-nav');
+    const mobileAdminNav = document.getElementById('mobile-admin-nav');
     try {
         const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
         if (!response.ok) return;
         const data = await response.json();
-        if (data.user?.role === 'admin' && adminNav) adminNav.style.display = 'block';
+        if (data.user?.role === 'admin') {
+            if (adminNav) adminNav.style.display = 'block';
+            if (mobileAdminNav) mobileAdminNav.style.display = 'inline-flex';
+        }
     } catch (_) {}
 }
 
@@ -1145,14 +1149,39 @@ function toggleTheme() {
 }
 
 function updateThemeIcon(theme) {
-    const themeIcon = document.getElementById('theme-icon');
-    if (!themeIcon) return;
-    if (theme === 'dark') {
-        themeIcon.setAttribute('name', 'sunny-outline');
-    } else {
-        themeIcon.setAttribute('name', 'moon-outline');
+    const themeIcons = document.querySelectorAll('#theme-icon, .theme-icon-indicator');
+    themeIcons.forEach(icon => {
+        if (theme === 'dark') {
+            icon.setAttribute('name', 'sunny-outline');
+        } else {
+            icon.setAttribute('name', 'moon-outline');
+        }
+    });
+}
+
+function toggleMobileCategoryMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('mobile-cat-dropdown-menu');
+    if (menu) {
+        menu.classList.toggle('show');
     }
 }
+
+function closeMobileCategoryMenu() {
+    const menu = document.getElementById('mobile-cat-dropdown-menu');
+    if (menu) {
+        menu.classList.remove('show');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.mobile-dropdown-container')) {
+        closeMobileCategoryMenu();
+    }
+});
+
+window.toggleMobileCategoryMenu = toggleMobileCategoryMenu;
+window.closeMobileCategoryMenu = closeMobileCategoryMenu;
 
 function initScrollEffects() {
     window.addEventListener('scroll', () => {

@@ -88,6 +88,35 @@
                 <ion-icon name="arrow-back-outline"></ion-icon> กลับหน้าหลัก
             </a>
         </div>
+
+        <!-- Mobile Bottom Bar (Phone Only: Theme toggle + Categories hamburger dropdown + Admin dashboard) -->
+        <div class="mobile-nav-bar">
+            <!-- 1. ปรับโหมดมืด-สว่าง -->
+            <button type="button" class="btn btn-outline mobile-theme-btn" onclick="toggleTheme()" title="สลับโหมดมืด-สว่าง">
+                <ion-icon class="theme-icon-indicator" name="moon-outline"></ion-icon>
+                <span>ปรับธีม</span>
+            </button>
+
+            <!-- 2. สามขีดรวมหมวดหมู่ต่างๆ -->
+            <div class="mobile-dropdown-container">
+                <button type="button" class="btn btn-outline mobile-cat-trigger" id="mobile-categories-btn" onclick="toggleMobileCategoryMenu(event)" title="หมวดหมู่สินค้า">
+                    <ion-icon name="menu-outline" style="font-size: 1.25rem;"></ion-icon>
+                    <span>หมวดหมู่</span>
+                    <ion-icon name="chevron-down-outline" style="font-size: 0.75rem;"></ion-icon>
+                </button>
+                <div class="mobile-cat-dropdown-menu" id="mobile-cat-dropdown-menu">
+                    <a href="/"><ion-icon name="home-outline"></ion-icon> หน้าแรก</a>
+                    <a href="/#catalog" onclick="closeMobileCategoryMenu()"><ion-icon name="grid-outline"></ion-icon> รายการแว่นตาทั้งหมด</a>
+                    <a href="/tryon.html" onclick="closeMobileCategoryMenu()"><ion-icon name="camera-outline"></ion-icon> ลองแว่นเสมือนจริง (VTO)</a>
+                </div>
+            </div>
+
+            <!-- 3. แดชบอร์ดแอดมิน (แสดงเฉพาะแอดมิน) -->
+            <a href="/admin.html" class="btn btn-outline mobile-admin-nav-link" id="mobile-admin-nav" style="display: none;">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                <span>แดชบอร์ด</span>
+            </a>
+        </div>
     </nav>
 
     <!-- Try-On Workspace -->

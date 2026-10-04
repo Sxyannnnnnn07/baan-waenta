@@ -63,6 +63,7 @@ async function checkLoginStatus() {
 
     const authStatusDiv = document.getElementById('auth-status');
     const adminNav = document.getElementById('admin-nav');
+    const mobileAdminNav = document.getElementById('mobile-admin-nav');
     const ordersHistoryBtn = document.getElementById('orders-history-btn');
     const reviewAuthPrompt = document.getElementById('review-auth-prompt');
     const reviewForm = document.getElementById('review-form');
@@ -90,8 +91,10 @@ async function checkLoginStatus() {
         // Show Admin Nav if user is admin
         if (currentUser.role === 'admin') {
             if (adminNav) adminNav.style.display = 'block';
+            if (mobileAdminNav) mobileAdminNav.style.display = 'inline-flex';
         } else {
             if (adminNav) adminNav.style.display = 'none';
+            if (mobileAdminNav) mobileAdminNav.style.display = 'none';
         }
 
         // Toggle review submission UI
@@ -102,6 +105,7 @@ async function checkLoginStatus() {
     } else {
         currentUser = null;
         if (adminNav) adminNav.style.display = 'none';
+        if (mobileAdminNav) mobileAdminNav.style.display = 'none';
         if (ordersHistoryBtn) ordersHistoryBtn.style.display = 'none';
         if (authStatusDiv) authStatusDiv.innerHTML = `<a href="/login.html" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;"><ion-icon name="log-in-outline"></ion-icon> เข้าสู่ระบบ</a>`;
 
@@ -1533,14 +1537,39 @@ function toggleTheme() {
 }
 
 function updateThemeIcon(theme) {
-    const themeIcon = document.getElementById('theme-icon');
-    if (!themeIcon) return;
-    if (theme === 'dark') {
-        themeIcon.setAttribute('name', 'sunny-outline');
-    } else {
-        themeIcon.setAttribute('name', 'moon-outline');
+    const themeIcons = document.querySelectorAll('#theme-icon, .theme-icon-indicator');
+    themeIcons.forEach(icon => {
+        if (theme === 'dark') {
+            icon.setAttribute('name', 'sunny-outline');
+        } else {
+            icon.setAttribute('name', 'moon-outline');
+        }
+    });
+}
+
+function toggleMobileCategoryMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('mobile-cat-dropdown-menu');
+    if (menu) {
+        menu.classList.toggle('show');
     }
 }
+
+function closeMobileCategoryMenu() {
+    const menu = document.getElementById('mobile-cat-dropdown-menu');
+    if (menu) {
+        menu.classList.remove('show');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.mobile-dropdown-container')) {
+        closeMobileCategoryMenu();
+    }
+});
+
+window.toggleMobileCategoryMenu = toggleMobileCategoryMenu;
+window.closeMobileCategoryMenu = closeMobileCategoryMenu;
 
 // 2. Scroll Progress & Floating Back-to-Top Button
 function initScrollEffects() {
