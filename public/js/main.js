@@ -1230,12 +1230,12 @@ async function openOrdersModal() {
 
                 let slipHtml = '';
                 if (order.slip_image) {
-                    slipHtml = `<br><strong>หลักฐานการโอนเงิน:</strong> <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" style="color: #2b6cb0; text-decoration: underline; font-weight: 600; cursor: pointer;">เปิดดูสลิปโอนเงิน</a>`;
+                    slipHtml = `<br><strong>หลักฐานการโอนเงิน:</strong> <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" class="order-slip-link" style="color: #2b6cb0; text-decoration: underline; font-weight: 600; cursor: pointer;">เปิดดูสลิปโอนเงิน</a>`;
                 }
 
                 let trackingHtml = '';
                 if (order.tracking_number) {
-                    trackingHtml = `<br><strong>เลขพัสดุจัดส่ง:</strong> <span style="background-color: #ebf8ff; border: 1px solid #bee3f8; color: #2b6cb0; font-weight: 700; font-family: monospace; padding: 0.1rem 0.45rem; border-radius: 4px; margin-top: 0.25rem; display: inline-flex; align-items: center; gap: 0.2rem;"><ion-icon name="paper-plane-outline"></ion-icon> ${escapeHtml(order.tracking_number)}</span>`;
+                    trackingHtml = `<br><strong>เลขพัสดุจัดส่ง:</strong> <span class="order-tracking-badge" style="background-color: #ebf8ff; border: 1px solid #bee3f8; color: #2b6cb0; font-weight: 700; font-family: monospace; padding: 0.1rem 0.45rem; border-radius: 4px; margin-top: 0.25rem; display: inline-flex; align-items: center; gap: 0.2rem;"><ion-icon name="paper-plane-outline"></ion-icon> ${escapeHtml(order.tracking_number)}</span>`;
                 }
 
                 let paymentMethodText = 'เก็บเงินปลายทาง (COD)';

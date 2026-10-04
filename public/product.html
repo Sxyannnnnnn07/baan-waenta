@@ -342,7 +342,7 @@
                     <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.6rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
                         <ion-icon name="wallet-outline" style="color: var(--accent); font-size: 1.1rem;"></ion-icon> ช่องทางการชำระเงิน (เลือก 1 ช่องทาง) *
                     </label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                    <div class="payment-methods-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
                         <label class="payment-method-card" id="pay-method-cod-label" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border: 2px solid var(--accent); border-radius: 10px; cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
                             <input type="radio" name="payment-method" value="COD" checked onchange="togglePaymentDetails()" style="accent-color: var(--accent); margin-top: 0.2rem;">
                             <div>
@@ -644,7 +644,7 @@
                     <button type="button" class="btn btn-outline" onclick="toggleProfileEdit(false)" style="flex: 1; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; border-color: var(--border-color); background-color: transparent;">
                         ยกเลิก
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="saveProfileChanges()" style="flex: 1.5; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; background-color: #2f855a; border-color: #2f855a;">
+                    <button type="button" class="btn btn-primary" onclick="saveProfileChanges()" style="flex: 1.5; border-radius: 30px; padding: 0.7rem; font-size: 0.9rem; background-color: #2f855a; border-color: #2f855a; color: #ffffff;">
                         <ion-icon name="save-outline" style="vertical-align: middle; margin-right: 0.3rem;"></ion-icon> บันทึก
                     </button>
                 </div>

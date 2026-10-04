@@ -1470,11 +1470,17 @@ input, select, textarea {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* 10. Filter Buttons & Footer Text Overrides in Dark Mode */
+/* 10. Filter Buttons, Controls & High-Contrast Buttons in Dark Mode */
 [data-theme="dark"] .filter-btn {
     background-color: #22252a !important;
     color: #e2e8f0 !important;
     border-color: #3f444e !important;
+}
+
+[data-theme="dark"] .filter-btn:hover {
+    background-color: #323742 !important;
+    color: #ffffff !important;
+    border-color: #4a5568 !important;
 }
 
 [data-theme="dark"] .filter-btn.active {
@@ -1483,37 +1489,136 @@ input, select, textarea {
     border-color: #ffffff !important;
 }
 
-/* Force dark text and black logo in footer in dark mode (since footer background is white) */
+[data-theme="dark"] .filter-btn.active:hover {
+    background-color: #f0f0f0 !important;
+    color: #121315 !important;
+}
+
+/* Button hovers & high contrast in Dark Mode */
+[data-theme="dark"] .btn-secondary {
+    background-color: #2d3748 !important;
+    color: #f7fafc !important;
+    border-color: #4a5568 !important;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background-color: #3d495c !important;
+    color: #ffffff !important;
+    border-color: #718096 !important;
+}
+
+[data-theme="dark"] .btn-outline {
+    border-color: #4a5568 !important;
+    color: #f7fafc !important;
+}
+
+[data-theme="dark"] .btn-outline:hover {
+    background-color: #2d3748 !important;
+    color: #ffffff !important;
+    border-color: #718096 !important;
+}
+
+/* Dark mode select & options text contrast */
+select, option, optgroup {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] option,
+[data-theme="dark"] optgroup {
+    background-color: #1a1b1e !important;
+    color: #f5f6f8 !important;
+}
+
+/* Ensure colored action buttons (Save green, Delete red) ALWAYS have legible white text */
+button[style*="2f855a"],
+button[style*="#2f855a"],
+[data-theme="dark"] button[style*="2f855a"],
+[data-theme="dark"] button[style*="#2f855a"],
+button[onclick*="saveProfileChanges"],
+[data-theme="dark"] button[onclick*="saveProfileChanges"] {
+    color: #ffffff !important;
+}
+
+button[style*="e53e3e"],
+button[style*="#e53e3e"],
+[data-theme="dark"] button[style*="e53e3e"],
+[data-theme="dark"] button[style*="#e53e3e"] {
+    color: #ffffff !important;
+}
+
+/* Order History Slip Link & Tracking in Dark Mode */
+[data-theme="dark"] .order-slip-link,
+[data-theme="dark"] a[onclick*="viewOrderSlip"] {
+    color: #63b3ed !important;
+}
+
+[data-theme="dark"] .order-tracking-badge {
+    background-color: #2a4365 !important;
+    border-color: #3182ce !important;
+    color: #bee3f8 !important;
+}
+
+/* Admin / Status Badges in Dark Mode */
+[data-theme="dark"] .badge-paid {
+    background-color: rgba(16, 185, 129, 0.2) !important;
+    color: #6ee7b7 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-pending {
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #fcd34d !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-shipped {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Luxury Dark Footer in Dark Mode (Unified dark styling for high legibility) */
 [data-theme="dark"] .footer {
-    background-color: #ffffff !important;
-    color: #4a5568 !important;
-    border-top-color: #e2e8f0 !important;
+    background-color: #090a0d !important;
+    color: #a0aec0 !important;
+    border-top-color: #1a1e26 !important;
 }
 
 [data-theme="dark"] .footer-logo span {
-    color: #1a202c !important;
+    color: #ffffff !important;
 }
 
-[data-theme="dark"] .footer-logo img {
-    filter: invert(1) !important; /* Invert white to black in dark mode (white footer) */
+[data-theme="dark"] .footer-logo img,
+[data-theme="dark"] .footer-logo-img {
+    filter: none !important;
     mix-blend-mode: normal !important;
 }
 
 [data-theme="dark"] .footer h4.footer-title {
-    color: #1a202c !important;
+    color: #ffffff !important;
 }
 
 [data-theme="dark"] .footer p,
 [data-theme="dark"] .footer-links li {
-    color: #4a5568 !important;
+    color: #a0aec0 !important;
+}
+
+[data-theme="dark"] .footer-links a {
+    color: #a0aec0 !important;
+}
+
+[data-theme="dark"] .footer-links a:hover {
+    color: #ffffff !important;
 }
 
 [data-theme="dark"] .footer-links li ion-icon {
-    color: #2d3748 !important;
+    color: #cbd5e0 !important;
 }
 
 [data-theme="dark"] .footer-bottom {
-    border-top-color: #e2e8f0 !important;
+    border-top-color: #1a1e26 !important;
 }
 
 [data-theme="dark"] .footer-bottom p {
@@ -1593,35 +1698,37 @@ input, select, textarea {
     transform: scale(1.05);
 }
 
-/* Light background overrides (active when footer background is white/light in dark theme) */
+/* Footer social & badge styling in Dark Mode (on dark footer) */
 [data-theme="dark"] .footer-icon-badge {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: #4a5568;
-    border-color: rgba(0, 0, 0, 0.08);
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
 }
 [data-theme="dark"] .footer-icon-badge:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-    color: #111;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
 }
 
 [data-theme="dark"] .footer-social-btn {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: #4a5568;
-    border-color: rgba(0, 0, 0, 0.08);
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
 }
 [data-theme="dark"] .footer-social-btn:hover {
     color: white !important;
 }
 [data-theme="dark"] .footer-icon-badge.line-btn:hover {
+    background-color: #06c755 !important;
     color: white !important;
 }
 
 /* ==========================================
-   11. IPAD / TABLET NAVBAR RESPONSIVENESS (769px - 1024px)
+   11. IPAD / TABLET RESPONSIVENESS (769px - 1024px)
    ========================================== */
 @media (min-width: 769px) and (max-width: 1024px) {
+    /* iPad Navbar */
     .navbar {
-        padding: 0 1.25rem !important;
+        padding: 0 1.5rem !important;
         height: 70px !important;
         display: flex !important;
         flex-direction: row !important;
@@ -1630,22 +1737,22 @@ input, select, textarea {
         align-items: center !important;
     }
     .logo {
-        font-size: 1.3rem !important;
+        font-size: 1.35rem !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
-        gap: 0.25rem !important;
+        gap: 0.3rem !important;
     }
     .nav-links {
         display: flex !important;
         flex-direction: row !important;
-        gap: 1rem !important;
+        gap: 1.1rem !important;
         margin: 0 !important;
         padding: 0 !important;
         border: none !important;
         width: auto !important;
     }
     .nav-links a {
-        font-size: 0.85rem !important;
+        font-size: 0.9rem !important;
         white-space: nowrap !important;
     }
     .nav-buttons {
@@ -1656,20 +1763,91 @@ input, select, textarea {
         flex-shrink: 0 !important;
     }
     .nav-buttons .btn {
-        padding: 0.5rem 0.8rem !important;
-        font-size: 0.8rem !important;
+        padding: 0.5rem 0.9rem !important;
+        font-size: 0.85rem !important;
         white-space: nowrap !important;
         border-radius: 20px !important;
     }
     .user-nav-profile {
-        margin-right: 0.25rem !important;
-        padding: 0.25rem 0.5rem !important;
+        margin-right: 0.3rem !important;
+        padding: 0.25rem 0.6rem !important;
         gap: 0.4rem !important;
     }
     .user-nav-profile span {
-        font-size: 0.8rem !important;
-        display: inline !important; /* Keep username visible on iPad */
+        font-size: 0.85rem !important;
+        display: inline !important;
         white-space: nowrap !important;
+    }
+
+    /* iPad Hero Section */
+    .hero {
+        padding: 110px 2rem 55px 2rem !important;
+    }
+    .hero h1 {
+        font-size: 2.75rem !important;
+    }
+    .hero p {
+        font-size: 1.05rem !important;
+    }
+
+    /* iPad Catalog & Products Grid (3 balanced columns) */
+    .catalog-container {
+        padding: 0 1.75rem !important;
+        margin: 3.5rem auto !important;
+    }
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+        gap: 1.5rem !important;
+    }
+    .product-card {
+        padding: 1.25rem !important;
+    }
+
+    /* iPad VTO Showcase */
+    .vto-showcase {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 2.5rem !important;
+        margin: 4.5rem auto !important;
+        padding: 0 1.75rem !important;
+    }
+
+    /* iPad Reviews & FAQ */
+    .reviews-container {
+        margin: 4.5rem auto !important;
+        padding: 0 1.75rem !important;
+    }
+    .faq-container {
+        margin: 4.5rem auto !important;
+        padding: 0 1.75rem !important;
+    }
+
+    /* iPad Footer */
+    .footer {
+        padding: 3.5rem 2rem 2rem 2rem !important;
+        margin-top: 5rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 2.5rem !important;
+    }
+
+    /* iPad Dedicated Product Page (/product.html) */
+    .product-page-main {
+        padding: 95px 1.75rem 3.5rem 1.75rem !important;
+    }
+    .product-page-container {
+        grid-template-columns: 1.05fr 1fr !important;
+        gap: 2rem !important;
+    }
+    .gallery-main-viewport {
+        height: 420px !important;
+    }
+    .gallery-thumbnails {
+        width: 70px !important;
+        gap: 0.5rem !important;
+    }
+    .gallery-thumb-item img {
+        height: 52px !important;
     }
 }
 
@@ -1687,31 +1865,81 @@ input, select, textarea {
 }
 
 .footer-logo-img {
-    filter: none; /* Default (Light Mode): Keep white logo (dark footer) */
+    filter: none !important; /* Unified dark luxury footer in both themes */
     transition: filter 0.3s ease;
     mix-blend-mode: normal !important;
 }
 
 [data-theme="dark"] .footer-logo-img {
-    filter: invert(1) !important; /* Dark Mode: Invert white logo to black (white footer) */
+    filter: none !important;
 }
 
 /* ==========================================
    13. MOBILE CUSTOM APP OVERRIDES (max-width: 768px)
    ========================================== */
 @media (max-width: 768px) {
-    /* จุดที่ 1: ปรับโลโก้หน้าแรกสุดให้เล็กลงพอดีๆ */
+    /* Hero Section on Mobile */
+    .hero {
+        padding: 135px 1.25rem 35px 1.25rem !important;
+    }
     .hero-logo-img {
         max-width: 170px !important;
     }
+    .hero h1 {
+        font-size: 2.1rem !important;
+        line-height: 1.25 !important;
+        margin-bottom: 0.75rem !important;
+    }
+    .hero p {
+        font-size: 0.95rem !important;
+        padding: 0 !important;
+    }
 
-    /* จุดที่ 2: ปรับขนาดตัวอักษรหัวข้อ VTO ให้เล็กลงเหลือ 2 บรรทัดสวยงาม */
+    /* Catalog, Filters & Products Grid on Mobile */
+    .catalog-container {
+        padding: 0 1rem !important;
+        margin: 2.75rem auto !important;
+    }
+    .section-title {
+        font-size: 1.65rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+    .filters-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.85rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+    .filter-group {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 0.4rem !important;
+    }
+    .filter-btn {
+        padding: 0.4rem 0.85rem !important;
+        font-size: 0.8rem !important;
+    }
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+        gap: 1.25rem !important;
+    }
+    .product-card {
+        padding: 1.15rem !important;
+        border-radius: 14px !important;
+    }
+
+    /* VTO Showcase Section on Mobile */
+    .vto-showcase {
+        grid-template-columns: 1fr !important;
+        gap: 2.25rem !important;
+        margin: 3.5rem auto !important;
+        padding: 0 1rem !important;
+    }
     .vto-content h2 {
         font-size: 1.55rem !important;
         line-height: 1.35 !important;
     }
-
-    /* จุดที่ 3: จัดกล่องปุ่มทดลอง VTO ให้อยู่กึ่งกลางหน้าจอ */
     .vto-content .btn {
         display: flex !important;
         margin: 1.5rem auto 0 auto !important;
@@ -1720,22 +1948,100 @@ input, select, textarea {
         text-align: center !important;
     }
 
-    /* จุดที่ 4: ปรับหัวข้อเสียงตอบรับจากลูกค้าให้เล็กลงเหลือเพียง 1 บรรทัด */
+    /* Customer Reviews & FAQ on Mobile */
+    .reviews-container {
+        margin: 3.5rem auto !important;
+        padding: 0 1rem !important;
+    }
     #reviews-section h2 {
         font-size: 1.45rem !important;
-        white-space: nowrap !important;
         letter-spacing: -0.5px !important;
     }
+    .faq-container {
+        margin: 3.5rem auto !important;
+        padding: 0 1rem !important;
+    }
 
-    /* จุดที่ 5: ปรับโลโก้และชื่อร้านตรง Footer ด้านล่างสุดให้เล็กลง */
+    /* Footer on Mobile */
+    .footer {
+        padding: 3rem 1.25rem 1.5rem 1.25rem !important;
+        margin-top: 3.5rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
     .footer-logo-img {
         height: 48px !important;
     }
     .footer-logo span {
         font-size: 1.25rem !important;
     }
+    .footer-bottom {
+        margin-top: 2rem !important;
+        padding-top: 1.5rem !important;
+    }
 
-    /* เพิ่มเติม: ปรับขนาดและจัดเรียงปุ่มควบคุมกล้องใน VTO ให้อยู่ในบรรทัดเดียวกันแบบเล็กลง */
+    /* Dedicated Product Detail Page (/product.html) on Mobile */
+    .product-page-main {
+        padding: 85px 1rem 3rem 1rem !important;
+    }
+    .product-page-top-nav {
+        margin-bottom: 1.25rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+    .product-page-container {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+    .gallery-layout-wrapper {
+        flex-direction: column-reverse !important;
+        align-items: center !important;
+        gap: 0.85rem !important;
+        width: 100% !important;
+    }
+    .gallery-main-viewport {
+        width: 100% !important;
+        height: clamp(250px, 65vw, 320px) !important;
+        border-radius: 14px !important;
+    }
+    .gallery-thumbnails {
+        flex-direction: row !important;
+        width: 100% !important;
+        justify-content: center !important;
+        gap: 0.6rem !important;
+        overflow-x: auto !important;
+        padding: 4px 2px !important;
+    }
+    .gallery-thumb-item {
+        width: 60px !important;
+        height: 48px !important;
+        flex-shrink: 0 !important;
+        border-radius: 8px !important;
+    }
+    .gallery-thumb-item img {
+        height: 40px !important;
+        width: 100% !important;
+    }
+    .product-page-details {
+        padding: 0 !important;
+    }
+    .product-title {
+        font-size: 1.55rem !important;
+        line-height: 1.3 !important;
+    }
+    .product-actions-bar {
+        display: flex !important;
+        gap: 0.75rem !important;
+    }
+    .product-add-cart-btn {
+        flex: 1 !important;
+    }
+    .product-wishlist-btn {
+        flex-shrink: 0 !important;
+    }
+
+    /* VTO Camera Controls */
     .camera-controls {
         display: flex !important;
         flex-direction: row !important;
@@ -1755,27 +2061,58 @@ input, select, textarea {
         border-radius: 30px !important;
     }
 
-    /* ปรับแต่งสไลด์โชว์หน้าแรกสุดบนมือถือ */
+    /* Slideshow Section on Mobile */
     .slideshow-section {
-        margin: 2rem auto 3rem auto !important; /* เว้นห่างจากปุ่มด้านบนมากขึ้น */
-        aspect-ratio: 4/3 !important; /* ปรับรูปภาพให้สูงยาวลงมา (จากเดิม 16/9) */
+        margin: 2rem auto 3rem auto !important;
+        aspect-ratio: 4/3 !important;
     }
     .slideshow-section .slide-overlay {
-        padding: 1.25rem !important; /* ลดระยะขอบดำ */
+        padding: 1.25rem !important;
     }
     .slideshow-section h3 {
-        font-size: 1.2rem !important; /* หัวข้อเล็กลงเหลือ 1 บรรทัด */
+        font-size: 1.2rem !important;
         margin-bottom: 0.25rem !important;
     }
     .slideshow-section p {
-        font-size: 0.8rem !important; /* เนื้อหารองเล็กลงเหลือ 1 บรรทัด */
+        font-size: 0.8rem !important;
     }
 
-    /* ป้องกันการซูมและเลื่อนซ้าย-ขวาบนมือถือขณะกรอกข้อมูล */
+    /* Input controls size to prevent iOS zoom */
     input, select, textarea,
     input[type="text"], input[type="password"], input[type="email"],
     input[type="number"], input[type="tel"], input[type="search"] {
         font-size: 16px !important;
+    }
+}
+
+/* ==========================================
+   Extra Small Mobile Devices (max-width: 520px)
+   ========================================== */
+@media (max-width: 520px) {
+    .hero h1 {
+        font-size: 1.85rem !important;
+    }
+    .products-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.25rem !important;
+    }
+    .payment-methods-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .modal-content {
+        padding: 1.25rem 0.9rem !important;
+        border-radius: 16px !important;
+    }
+    .payment-method-card {
+        padding: 0.75rem !important;
+    }
+    .action-card-btn {
+        padding: 0.85rem 1rem !important;
+    }
+    .action-card-icon {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1.2rem !important;
     }
 }
 
@@ -3472,19 +3809,15 @@ body.modal-locked {
     color: #fff;
 }
 
-/* Responsive */
-@media (max-width: 960px) {
+/* Responsive Product Page & AR Modal */
+@media (max-width: 768px) {
     .product-page-container {
         grid-template-columns: 1fr;
-        gap: 2rem;
+        gap: 1.75rem;
     }
 
     .product-page-gallery {
         position: static;
-    }
-
-    .gallery-main-viewport {
-        height: 340px;
     }
 
     .gallery-features-grid {
