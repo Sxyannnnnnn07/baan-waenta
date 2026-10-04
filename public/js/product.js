@@ -264,6 +264,10 @@ function renderProductGallery() {
     if (mainImg && currentProductGallery.length > 0) {
         mainImg.style.opacity = '0';
         setTimeout(() => {
+            mainImg.onerror = function() {
+                this.onerror = null;
+                this.src = '/assets/round.svg';
+            };
             mainImg.src = currentProductGallery[currentGalleryIdx].src;
             mainImg.style.opacity = '1';
         }, 150);
@@ -272,7 +276,7 @@ function renderProductGallery() {
     if (thumbsContainer) {
         thumbsContainer.innerHTML = currentProductGallery.map((img, idx) => `
             <div class="gallery-thumb-item ${idx === currentGalleryIdx ? 'active' : ''}" onclick="setProductImageIndex(${idx})" title="${img.label}">
-                <img src="${img.src}" alt="${img.label}">
+                <img src="${img.src}" alt="${img.label}" onerror="this.onerror=null; this.src='/assets/round.svg';">
             </div>
         `).join('');
     }

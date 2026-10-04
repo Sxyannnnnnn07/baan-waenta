@@ -74,8 +74,8 @@ app.use(cors((req, callback) => {
         origin: !origin || sameOrigin || ALLOWED_ORIGINS.includes(origin)
     });
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Payment slips are private even when legacy deployments stored them below public/uploads.
 app.use('/uploads/slips', (_req, res) => res.status(404).end());
@@ -104,6 +104,80 @@ const DB_CONFIG = {
 };
 
 const dbPool = mysql.createPool(DB_CONFIG);
+
+const DB_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk to ensure queries never exceed MySQL max_allowed_packet
+
+async function saveFileToDb(filePath, mimeType, buffer) {
+    if (!dbPool) return;
+    try {
+        await dbPool.query('DELETE FROM uploaded_files WHERE file_path = ?', [filePath]);
+        const totalSize = buffer.length;
+        const totalChunks = Math.ceil(totalSize / DB_CHUNK_SIZE) || 1;
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * DB_CHUNK_SIZE;
+            const end = Math.min(start + DB_CHUNK_SIZE, totalSize);
+            const chunk = buffer.subarray(start, end);
+            await dbPool.query(
+                'INSERT INTO uploaded_files (file_path, mime_type, file_size, chunk_index, chunk_data) VALUES (?, ?, ?, ?, ?)',
+                [filePath, mimeType, totalSize, i, chunk]
+            );
+        }
+    } catch (err) {
+        logServerError(`Save file to DB failed for ${filePath}`, err);
+    }
+}
+
+async function getFileFromDb(filePath) {
+    if (!dbPool) return null;
+    try {
+        const [rows] = await dbPool.query(
+            'SELECT mime_type, chunk_data FROM uploaded_files WHERE file_path = ? ORDER BY chunk_index ASC',
+            [filePath]
+        );
+        if (!rows || !rows.length) return null;
+        const mimeType = rows[0].mime_type;
+        const chunks = rows.map(r => r.chunk_data);
+        return { mimeType, buffer: Buffer.concat(chunks) };
+    } catch (err) {
+        logServerError(`Get file from DB failed for ${filePath}`, err);
+        return null;
+    }
+}
+
+async function deleteFileFromDb(filePath) {
+    if (!dbPool) return;
+    try {
+        await dbPool.query('DELETE FROM uploaded_files WHERE file_path = ?', [filePath]);
+    } catch (err) {
+        logServerError(`Delete file from DB failed for ${filePath}`, err);
+    }
+}
+
+// Persistent storage fallback for uploaded assets (images, 3D models) from MySQL
+app.get(['/uploads/*', '/assets/products/*'], async (req, res, next) => {
+    if (req.path.startsWith('/uploads/slips')) {
+        return res.status(404).end();
+    }
+    try {
+        const reqPath = decodeURIComponent(req.path);
+        const file = await getFileFromDb(reqPath);
+        if (file) {
+            // Write to disk cache if possible
+            try {
+                const diskPath = path.join(__dirname, 'public', reqPath);
+                fs.mkdirSync(path.dirname(diskPath), { recursive: true });
+                fs.writeFileSync(diskPath, file.buffer);
+            } catch (_) {}
+
+            res.setHeader('Content-Type', file.mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            return res.send(file.buffer);
+        }
+    } catch (err) {
+        logServerError('Error serving upload from DB fallback', err);
+    }
+    next();
+});
 
 let isDbInitialized = false;
 
@@ -319,6 +393,21 @@ async function setupTables() {
             INDEX sessions_user_id_idx (user_id),
             INDEX sessions_expires_at_idx (expires_at),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB
+    `);
+
+    // Persistent Uploaded Files Table (Images, 3D Models, Slips)
+    await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS uploaded_files (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            file_path VARCHAR(255) NOT NULL,
+            mime_type VARCHAR(100) NOT NULL,
+            file_size INT NOT NULL,
+            chunk_index INT NOT NULL DEFAULT 0,
+            chunk_data MEDIUMBLOB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_file_path (file_path),
+            INDEX idx_path_chunk (file_path, chunk_index)
         ) ENGINE=InnoDB
     `);
 }
@@ -576,13 +665,22 @@ function sendServerError(res, error, label) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดภายในระบบ' });
 }
 
-function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) {
+async function savePublicImageData(dataUrl, prefix, maxBytes = 5 * 1024 * 1024) {
     const { buffer, extension } = decodeImageDataUrl(dataUrl, maxBytes);
-    const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
-    fs.mkdirSync(dirPath, { recursive: true });
     const fileName = `${prefix}_${randomToken(12)}.${extension}`;
-    fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
-    return `/uploads/products/${fileName}`;
+    const webPath = `/uploads/products/${fileName}`;
+    const mimeType = extension === 'png' ? 'image/png' : (extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : 'image/webp');
+
+    try {
+        const dirPath = path.join(__dirname, 'public', 'uploads', 'products');
+        fs.mkdirSync(dirPath, { recursive: true });
+        fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
+    } catch (fsErr) {
+        console.warn('Could not write image to local disk cache:', fsErr.message);
+    }
+
+    await saveFileToDb(webPath, mimeType, buffer);
+    return webPath;
 }
 
 function decodeModelDataUrl(dataUrl, maxBytes = 50 * 1024 * 1024) {
@@ -600,13 +698,22 @@ function decodeModelDataUrl(dataUrl, maxBytes = 50 * 1024 * 1024) {
     return { buffer, extension: 'glb' };
 }
 
-function savePublicModelData(dataUrl, prefix) {
+async function savePublicModelData(dataUrl, prefix) {
     const { buffer, extension } = decodeModelDataUrl(dataUrl);
-    const dirPath = path.join(__dirname, 'public', 'uploads', 'models');
-    fs.mkdirSync(dirPath, { recursive: true });
     const fileName = `${prefix}_${randomToken(12)}.${extension}`;
-    fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
-    return `/uploads/models/${fileName}`;
+    const webPath = `/uploads/models/${fileName}`;
+    const mimeType = 'model/gltf-binary';
+
+    try {
+        const dirPath = path.join(__dirname, 'public', 'uploads', 'models');
+        fs.mkdirSync(dirPath, { recursive: true });
+        fs.writeFileSync(path.join(dirPath, fileName), buffer, { flag: 'wx' });
+    } catch (fsErr) {
+        console.warn('Could not write model to local disk cache:', fsErr.message);
+    }
+
+    await saveFileToDb(webPath, mimeType, buffer);
+    return webPath;
 }
 
 const authRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
@@ -843,10 +950,10 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
             let finalTryonUrl = '/assets/round.svg';
             let finalModelUrl = null;
 
-            // Save 3D Model to disk if provided (.glb only)
+            // Save 3D Model to disk and DB if provided (.glb only)
             if (model3d) {
                 try {
-                    finalModelUrl = savePublicModelData(model3d, `model_${productId}`);
+                    finalModelUrl = await savePublicModelData(model3d, `model_${productId}`);
                 } catch (modelErr) {
                     throw new Error(`Invalid 3D model: ${modelErr.message}`);
                 }
@@ -872,7 +979,7 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
                         throw new Error('รูปภาพต้องเป็นไฟล์ PNG เท่านั้น');
                     }
                     try {
-                        const savedUrl = savePublicImageData(imgData, `product_${productId}_img${i + 1}`);
+                        const savedUrl = await savePublicImageData(imgData, `product_${productId}_img${i + 1}`);
                         savedGalleryUrls.push(savedUrl);
                     } catch (imgErr) {
                         throw new Error(`Invalid product image: ${imgErr.message}`);
@@ -926,6 +1033,30 @@ app.delete('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
     const productId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
     if (!productId) return res.status(400).json({ success: false, message: 'หมายเลขสินค้าไม่ถูกต้อง' });
     try {
+        const [rows] = await dbPool.query('SELECT image_url, model_3d_url, gallery_images FROM products WHERE id = ?', [productId]);
+        if (rows.length > 0) {
+            const p = rows[0];
+            const toDelete = new Set();
+            if (p.image_url && p.image_url.startsWith('/uploads/')) toDelete.add(p.image_url);
+            if (p.model_3d_url && p.model_3d_url.startsWith('/uploads/')) toDelete.add(p.model_3d_url);
+            if (p.gallery_images) {
+                try {
+                    const gal = JSON.parse(p.gallery_images);
+                    if (Array.isArray(gal)) {
+                        gal.forEach(img => {
+                            if (typeof img === 'string' && img.startsWith('/uploads/')) toDelete.add(img);
+                        });
+                    }
+                } catch (_) {}
+            }
+            for (const f of toDelete) {
+                await deleteFileFromDb(f);
+                try {
+                    const localPath = path.join(__dirname, 'public', f);
+                    if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+                } catch (_) {}
+            }
+        }
         await dbPool.query('DELETE FROM products WHERE id = ?', [productId]);
         res.json({ success: true, message: 'ลบสินค้าสำเร็จ' });
     } catch (error) {
@@ -1130,7 +1261,11 @@ app.post('/api/orders', requireAuth, requireCsrf, async (req, res) => {
             fs.mkdirSync(SLIP_STORAGE_DIR, { recursive: true });
             const slipFileName = `slip_${orderId}_${randomToken(16)}.${slipImage.extension}`;
             slipDiskPath = path.join(SLIP_STORAGE_DIR, slipFileName);
-            fs.writeFileSync(slipDiskPath, slipImage.buffer, { flag: 'wx' });
+            try {
+                fs.writeFileSync(slipDiskPath, slipImage.buffer, { flag: 'wx' });
+            } catch (_) {}
+            const slipMime = slipImage.extension === 'png' ? 'image/png' : (slipImage.extension === 'jpg' || slipImage.extension === 'jpeg' ? 'image/jpeg' : 'image/webp');
+            await saveFileToDb(`/slips/${slipFileName}`, slipMime, slipImage.buffer);
             await conn.query('UPDATE orders SET slip_image = ? WHERE id = ?', [slipFileName, orderId]);
         }
 
@@ -1275,6 +1410,8 @@ app.delete('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) 
             const safeName = path.basename(slipImage);
             const slipPath = path.join(SLIP_STORAGE_DIR, safeName);
             fs.promises.unlink(slipPath).catch(() => {});
+            await deleteFileFromDb(`/slips/${safeName}`);
+            await deleteFileFromDb(`/uploads/slips/${safeName}`);
         }
 
         res.json({ success: true, message: 'ลบรายการสั่งซื้อเรียบร้อยแล้ว' });
@@ -1453,7 +1590,17 @@ app.get('/api/orders/:id/slip', requireAuth, async (req, res) => {
         const filePath = legacy
             ? path.join(__dirname, 'public', 'uploads', 'slips', safeName)
             : path.join(SLIP_STORAGE_DIR, safeName);
-        if (!fs.existsSync(filePath)) return res.status(404).end();
+        if (!fs.existsSync(filePath)) {
+            const dbFile = await getFileFromDb(`/slips/${safeName}`) || await getFileFromDb(`/uploads/slips/${safeName}`);
+            if (dbFile) {
+                try {
+                    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+                    fs.writeFileSync(filePath, dbFile.buffer);
+                } catch (_) {}
+            } else {
+                return res.status(404).end();
+            }
+        }
         res.setHeader('Cache-Control', 'private, no-store');
 
         // If accessed directly from browser navigation (text/html) and not raw image request, render with close button
@@ -1505,7 +1652,11 @@ app.post('/api/admin/save-generated-image', requireAdmin, requireCsrf, async (re
         const dirPath = path.join(__dirname, 'public', 'assets', 'products');
         fs.mkdirSync(dirPath, { recursive: true });
         const outputName = `${path.parse(safeBaseName).name}.${image.extension}`;
-        fs.writeFileSync(path.join(dirPath, outputName), image.buffer);
+        try {
+            fs.writeFileSync(path.join(dirPath, outputName), image.buffer);
+        } catch (_) {}
+        const mimeType = image.extension === 'png' ? 'image/png' : 'image/webp';
+        await saveFileToDb(`/assets/products/${outputName}`, mimeType, image.buffer);
         res.json({ success: true, filename: outputName, message: `Successfully saved ${outputName}` });
     } catch (error) {
         if (/image|format|large|WebP/i.test(error.message)) {
@@ -1576,7 +1727,7 @@ initialization.then(() => {
 
 module.exports = app;
 module.exports.initialization = initialization;
-module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser };
+module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser, dbPool };
 
 // Graceful shutdown for Serverless environments (e.g. Vercel)
 // This ensures that when Vercel tears down the instance (especially on new deployments),

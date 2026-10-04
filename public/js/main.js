@@ -248,7 +248,7 @@ function renderProducts(products) {
         card.innerHTML = `
             ${badgeHtml}
             <div class="product-image-container">
-                <img src="${escapeHtml(prod.image_url)}" alt="${escapeHtml(prod.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                <img src="${escapeHtml(prod.image_url)}" alt="${escapeHtml(prod.name)}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='/assets/round.svg';">
             </div>
             <div class="product-brand">${escapeHtml(prod.brand)}</div>
             <div class="product-name">${escapeHtml(prod.name)}</div>
@@ -795,6 +795,10 @@ function renderQuickViewCarousel() {
     if (mainImg && qvCurrentImages.length > 0) {
         mainImg.style.opacity = '0';
         setTimeout(() => {
+            mainImg.onerror = function() {
+                this.onerror = null;
+                this.src = '/assets/round.svg';
+            };
             mainImg.src = qvCurrentImages[qvCurrentIndex].src;
             mainImg.style.opacity = '1';
         }, 150);
@@ -803,7 +807,7 @@ function renderQuickViewCarousel() {
     if (thumbsContainer) {
         thumbsContainer.innerHTML = qvCurrentImages.map((img, idx) => `
             <div class="quickview-thumb-dot ${idx === qvCurrentIndex ? 'active' : ''}" onclick="setQuickViewImageIndex(${idx})" title="${img.label}">
-                <img src="${img.src}" alt="${img.label}">
+                <img src="${img.src}" alt="${img.label}" onerror="this.onerror=null; this.src='/assets/round.svg';">
             </div>
         `).join('');
     }
