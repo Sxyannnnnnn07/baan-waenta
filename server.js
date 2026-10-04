@@ -1165,7 +1165,7 @@ app.put('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) => 
     }
 });
 
-// 11. Admin: Analytics (Page views mockup, conversions, and popular try-on shapes)
+// 11. Admin: Analytics (Top best sellers, lens popularity, page metrics)
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const [userCount] = await dbPool.query('SELECT COUNT(*) as count FROM users WHERE role = "customer"');
@@ -1174,6 +1174,29 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
             SELECT COUNT(*) as count,
                    SUM(CASE WHEN status IN ('paid', 'shipped', 'completed') THEN total_amount ELSE 0 END) as sales
             FROM orders
+        `);
+
+        // 1. Top 5 Best-Selling Products from actual order items
+        const [topProducts] = await dbPool.query(`
+            SELECT p.id, p.name, p.brand,
+                   CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS total_sold
+            FROM products p
+            LEFT JOIN order_items oi ON p.id = oi.product_id
+            LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
+            GROUP BY p.id, p.name, p.brand
+            ORDER BY total_sold DESC, p.id ASC
+            LIMIT 5
+        `);
+
+        // 2. Popular Lens Types from actual order items
+        const [popularLenses] = await dbPool.query(`
+            SELECT l.id, l.lens_type,
+                   CAST(COALESCE(COUNT(oi.id), 0) AS UNSIGNED) AS count
+            FROM lenses l
+            LEFT JOIN order_items oi ON l.id = oi.lens_id
+            LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
+            GROUP BY l.id, l.lens_type
+            ORDER BY count DESC, l.id ASC
         `);
         
         // Return analytical metrics
@@ -1194,6 +1217,8 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
                     { date: 'ศุกร์', sales: (orderCount[0].sales * 0.18).toFixed(2) },
                     { date: 'เสาร์', sales: (orderCount[0].sales * 0.25).toFixed(2) }
                 ],
+                topProducts: topProducts || [],
+                popularLenses: popularLenses || [],
                 popularTryOn: [
                     { shape: 'ทรงกลม (Round)', count: 24 },
                     { shape: 'ทรงเหลี่ยม (Square)', count: 18 },

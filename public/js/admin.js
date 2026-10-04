@@ -1,6 +1,15 @@
 // Admin State
 let adminUser = null;
 let csrfToken = null;
+let topProductsChartInstance = null;
+let popularLensesChartInstance = null;
+let cachedMetrics = null;
+
+// Sync theme from localStorage if available
+try {
+    const savedAdminTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedAdminTheme);
+} catch (_) {}
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -75,7 +84,7 @@ async function checkAdminAccess() {
     return true;
 }
 
-// 2. Fetch and render Analytics Indicators
+// 2. Fetch and render Analytics Indicators & Charts
 async function fetchDashboardMetrics() {
     try {
         const res = await adminApiFetch('/api/admin/analytics');
@@ -83,43 +92,210 @@ async function fetchDashboardMetrics() {
         
         if (data.success) {
             const m = data.metrics;
+            cachedMetrics = m;
             document.getElementById('metric-sales').innerText = `${parseFloat(m.totalSales).toLocaleString()} ฿`;
             document.getElementById('metric-orders').innerText = m.totalOrders;
             document.getElementById('metric-conversion').innerText = `${m.conversionRate}%`;
             document.getElementById('metric-customers').innerText = m.totalCustomers;
 
-            // Render popular try-on list
-            renderPopularTryOnList(m.popularTryOn);
+            // Render analytics charts
+            renderTopProductsChart(m.topProducts || []);
+            renderPopularLensesChart(m.popularLenses || []);
         }
     } catch (error) {
         console.error('Error fetching analytics:', error);
     }
 }
 
-function renderPopularTryOnList(popularItems) {
-    const listDiv = document.getElementById('popular-tryon-list');
-    listDiv.innerHTML = '';
+// Render Top 5 Best-Selling Frames (Horizontal Bar Chart)
+function renderTopProductsChart(items) {
+    const canvas = document.getElementById('top-products-chart');
+    if (!canvas) return;
 
-    // Calculate max count for rendering progress bars
-    const maxCount = Math.max(...popularItems.map(i => i.count)) || 1;
+    if (topProductsChartInstance) {
+        topProductsChartInstance.destroy();
+        topProductsChartInstance = null;
+    }
 
-    popularItems.forEach(item => {
-        const row = document.createElement('div');
-        row.style.marginBottom = '1rem';
-        
-        const pct = (item.count / maxCount) * 100;
+    if (!window.Chart) {
+        console.warn('Chart.js is not loaded');
+        return;
+    }
 
-        row.innerHTML = `
-            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
-                <span>${item.shape}</span>
-                <span style="font-weight: 600;">${item.count} ครั้ง</span>
-            </div>
-            <div style="width: 100%; height: 8px; background-color: var(--accent-light); border-radius: 4px; overflow: hidden;">
-                <div style="width: ${pct}%; height: 100%; background-color: var(--accent); border-radius: 4px;"></div>
-            </div>
-        `;
-        listDiv.appendChild(row);
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#e2e8f0' : '#1e2022';
+    const subtleColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+
+    const validItems = (items && items.length > 0) ? items : [{ name: 'ยังไม่มีข้อมูลสินค้า', brand: '', total_sold: 0 }];
+
+    const labels = validItems.map(item => {
+        let name = item.name || 'ไม่ระบุชื่อ';
+        if (name.length > 22) name = name.substring(0, 20) + '...';
+        return name;
     });
+
+    const dataValues = validItems.map(item => Number(item.total_sold) || 0);
+
+    const barColors = [
+        '#3b82f6', // Sapphire Blue
+        '#10b981', // Emerald Green
+        '#f59e0b', // Amber
+        '#8b5cf6', // Violet
+        '#ec4899'  // Rose Pink
+    ];
+
+    const ctx = canvas.getContext('2d');
+    topProductsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'จำนวนที่ขายได้ (ชิ้น)',
+                data: dataValues,
+                backgroundColor: barColors.slice(0, labels.length),
+                borderRadius: 6,
+                borderSkipped: false,
+                barThickness: 18,
+                maxBarThickness: 24
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: (tooltipItems) => {
+                            const index = tooltipItems[0].dataIndex;
+                            const item = validItems[index];
+                            return item ? `${item.name} (${item.brand || 'ร้านค้า'})` : tooltipItems[0].label;
+                        },
+                        label: (context) => ` ขายได้แล้ว: ${context.parsed.x} ชิ้น`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: subtleColor,
+                        stepSize: 1,
+                        precision: 0,
+                        font: { family: "'IBM Plex Sans Thai', sans-serif" }
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: textColor,
+                        font: { family: "'IBM Plex Sans Thai', sans-serif", size: 12 }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render Popular Lens Types (Doughnut Chart)
+function renderPopularLensesChart(items) {
+    const canvas = document.getElementById('popular-lenses-chart');
+    if (!canvas) return;
+
+    if (popularLensesChartInstance) {
+        popularLensesChartInstance.destroy();
+        popularLensesChartInstance = null;
+    }
+
+    if (!window.Chart) {
+        console.warn('Chart.js is not loaded');
+        return;
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#e2e8f0' : '#1e2022';
+
+    const validItems = (items && items.length > 0) ? items : [
+        { lens_type: 'เลนส์ธรรมดา', count: 0 },
+        { lens_type: 'เลนส์กรองแสงฟ้า', count: 0 },
+        { lens_type: 'เลนส์ปรับแสงออโต้', count: 0 }
+    ];
+
+    const labels = validItems.map(item => item.lens_type || 'เลนส์ทั่วไป');
+    const dataValues = validItems.map(item => Number(item.count) || 0);
+    const totalCount = dataValues.reduce((a, b) => a + b, 0);
+
+    const palette = [
+        '#6366f1', // Indigo
+        '#06b6d4', // Cyan
+        '#f59e0b', // Amber
+        '#10b981', // Emerald
+        '#ec4899'  // Pink
+    ];
+
+    const ctx = canvas.getContext('2d');
+    popularLensesChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: totalCount === 0 ? validItems.map(() => 1) : dataValues,
+                backgroundColor: totalCount === 0
+                    ? (isDark ? ['#334155', '#475569', '#64748b'] : ['#e2e8f0', '#cbd5e1', '#94a3b8'])
+                    : palette.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: isDark ? '#1a1b1e' : '#ffffff',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor,
+                        font: { family: "'IBM Plex Sans Thai', sans-serif", size: 12 },
+                        padding: 12,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            if (totalCount === 0) return ' ยังไม่มีรายการสั่งตัดเลนส์';
+                            const val = dataValues[context.dataIndex];
+                            const pct = totalCount > 0 ? ((val / totalCount) * 100).toFixed(1) : 0;
+                            return ` ${context.label}: ${val} ครั้ง (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '62%'
+        }
+    });
+}
+
+// Observe theme attribute changes to automatically re-render charts
+if (typeof MutationObserver !== 'undefined') {
+    const themeObserver = new MutationObserver(() => {
+        if (cachedMetrics) {
+            renderTopProductsChart(cachedMetrics.topProducts || []);
+            renderPopularLensesChart(cachedMetrics.popularLenses || []);
+        }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 
 // 3. Fetch and Render Customer Orders
