@@ -385,6 +385,7 @@ function openAuthModal(mode = 'login') {
     }
 
     modal.style.display = 'flex';
+    lockModalScroll();
 }
 
 function toggleAuthMode() {
@@ -727,7 +728,11 @@ async function openLensModal(productId) {
     const confirmBtn = document.getElementById('confirm-add-cart-btn');
     if (confirmBtn) confirmBtn.onclick = addActiveProductToCart;
 
-    document.getElementById('lens-modal').style.display = 'flex';
+    const lensModal = document.getElementById('lens-modal');
+    if (lensModal) {
+        lensModal.style.display = 'flex';
+        lockModalScroll();
+    }
 }
 
 function toggle3DView() {
@@ -971,6 +976,7 @@ function openCartModal() {
         listDiv.innerHTML = `<div style="text-align: center; color: var(--text-secondary); padding: 2rem 0;">ไม่มีสินค้าในตะกร้า</div>`;
         document.getElementById('cart-total-price').innerText = '0';
         modal.style.display = 'flex';
+        lockModalScroll();
         return;
     }
 
@@ -1015,6 +1021,7 @@ function openCartModal() {
 
     document.getElementById('cart-total-price').innerText = total.toLocaleString();
     modal.style.display = 'flex';
+    lockModalScroll();
 }
 
 function removeFromCart(index) {
@@ -1152,6 +1159,7 @@ async function openOrdersModal() {
     }
     listDiv.innerHTML = '<div style="text-align: center; padding: 2rem;">กำลังโหลดประวัติการสั่งซื้อ...</div>';
     modal.style.display = 'flex';
+    lockModalScroll();
 
     try {
         const res = await apiFetch(`/api/orders/user/${currentUser.id}`);
@@ -1347,25 +1355,66 @@ function handleSlipUpload(event) {
 }
 window.handleSlipUpload = handleSlipUpload;
 
-// Helper: Modal Scroll Locking
+// Helper: Modal Scroll Locking (iOS, iPadOS, Mobile & Desktop)
+let savedScrollY = 0;
+let isScrollLocked = false;
+
 function lockModalScroll() {
+    if (isScrollLocked) return;
+    savedScrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
     document.documentElement.classList.add('modal-locked');
     document.body.classList.add('modal-locked');
-    document.documentElement.style.overflow = 'hidden';
+
+    // Freeze body position on iOS Safari / iPad / Mobile to completely prevent background scroll
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    isScrollLocked = true;
 }
+window.lockModalScroll = lockModalScroll;
 
 function unlockModalScroll() {
-    const activeModals = Array.from(document.querySelectorAll('.modal')).filter(m => {
+    // Only unlock if NO modal is currently visible
+    const anyModalOpen = Array.from(document.querySelectorAll('.modal, .ar-3d-modal-wrapper')).some(m => {
         return m.style.display && m.style.display !== 'none';
     });
-    if (activeModals.length <= 1) {
-        document.documentElement.classList.remove('modal-locked');
-        document.body.classList.remove('modal-locked');
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
+    if (anyModalOpen) {
+        return; // Another modal is still open, keep locked
+    }
+
+    if (!isScrollLocked) return;
+
+    document.documentElement.classList.remove('modal-locked');
+    document.body.classList.remove('modal-locked');
+
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+
+    isScrollLocked = false;
+    window.scrollTo(0, savedScrollY);
+}
+window.unlockModalScroll = unlockModalScroll;
+
+// Helper: Open Modal with automatic scroll freeze
+function openModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) {
+        el.style.display = 'flex';
+        lockModalScroll();
     }
 }
+window.openModal = openModal;
 
 // Helper: Close Modals
 function closeModal(modalId) {
@@ -1373,9 +1422,10 @@ function closeModal(modalId) {
     if (el) el.style.display = 'none';
     unlockModalScroll();
 }
+window.closeModal = closeModal;
 
-// Close modal when clicking outside
-window.onclick = function(event) {
+// Close modal when clicking outside (on backdrop)
+window.addEventListener('click', function(event) {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
         if (event.target === modal) {
@@ -1383,7 +1433,17 @@ window.onclick = function(event) {
             unlockModalScroll();
         }
     });
-}
+});
+
+// Prevent background touch scrolling on iOS/iPad when touching modal backdrop
+document.addEventListener('touchmove', function(e) {
+    if (isScrollLocked) {
+        const scrollable = e.target.closest('.modal-content, .ar-3d-modal-content');
+        if (!scrollable) {
+            e.preventDefault();
+        }
+    }
+}, { passive: false });
 
 // Auto-sync scroll lock with any active modal
 document.addEventListener('DOMContentLoaded', () => {
@@ -1796,7 +1856,10 @@ function openUserProfileModal() {
     
     // Open modal
     const modal = document.getElementById('profile-modal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        modal.style.display = 'flex';
+        lockModalScroll();
+    }
 }
 
 function triggerAvatarUpload() {
@@ -2052,6 +2115,7 @@ function openPaymentModal(paymentMethod, totalAmount) {
     const modal = document.getElementById('payment-modal');
     if (!modal) return;
     modal.style.display = 'flex';
+    lockModalScroll();
     
     // Reset any previous slip uploads
     uploadedSlipBase64 = null;
@@ -2150,6 +2214,7 @@ function viewOrderSlip(slipUrl) {
     if (img) img.src = slipUrl;
     if (dl) dl.href = slipUrl;
     modal.style.display = 'flex';
+    lockModalScroll();
 }
 window.viewOrderSlip = viewOrderSlip;
 

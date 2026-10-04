@@ -572,6 +572,43 @@ async function deleteReview(id) {
     }
 }
 
+let adminSavedScrollY = 0;
+let isAdminScrollLocked = false;
+
+function lockModalScroll() {
+    if (isAdminScrollLocked) return;
+    adminSavedScrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    document.documentElement.classList.add('modal-locked');
+    document.body.classList.add('modal-locked');
+    document.body.style.top = `-${adminSavedScrollY}px`;
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    isAdminScrollLocked = true;
+}
+
+function unlockModalScroll() {
+    const anyModalOpen = Array.from(document.querySelectorAll('.modal')).some(m => {
+        return m.style.display && m.style.display !== 'none';
+    });
+    if (anyModalOpen || !isAdminScrollLocked) return;
+
+    document.documentElement.classList.remove('modal-locked');
+    document.body.classList.remove('modal-locked');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    isAdminScrollLocked = false;
+    window.scrollTo(0, adminSavedScrollY);
+}
+
 function viewOrderSlip(slipUrl) {
     const modal = document.getElementById('view-slip-modal');
     if (!modal) return;
@@ -580,11 +617,24 @@ function viewOrderSlip(slipUrl) {
     if (img) img.src = slipUrl;
     if (dl) dl.href = slipUrl;
     modal.style.display = 'flex';
+    lockModalScroll();
 }
 window.viewOrderSlip = viewOrderSlip;
 
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
+    unlockModalScroll();
 }
 window.closeModal = closeModal;
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+            unlockModalScroll();
+        }
+    });
+});

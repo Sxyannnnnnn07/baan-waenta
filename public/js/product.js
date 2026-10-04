@@ -351,17 +351,21 @@ function addProductPageToCart() {
 }
 
 function lockPageScroll() {
-    document.documentElement.classList.add('modal-locked');
-    document.body.classList.add('modal-locked');
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    if (typeof window.lockModalScroll === 'function') {
+        window.lockModalScroll();
+    } else {
+        document.documentElement.classList.add('modal-locked');
+        document.body.classList.add('modal-locked');
+    }
 }
 
 function unlockPageScroll() {
-    document.documentElement.classList.remove('modal-locked');
-    document.body.classList.remove('modal-locked');
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
+    if (typeof window.unlockModalScroll === 'function') {
+        window.unlockModalScroll();
+    } else {
+        document.documentElement.classList.remove('modal-locked');
+        document.body.classList.remove('modal-locked');
+    }
 }
 
 // AR/3D Modal Logic (Powered by MindAR Face Tracking & Three.js 6-DOF)
@@ -407,7 +411,7 @@ function openAR3DModal(mode = '3d') {
         }
     }
     
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     lockPageScroll();
     
     requestAnimationFrame(() => {
