@@ -5,6 +5,15 @@ let currentGalleryIdx = 0;
 let isARStarting = false;
 let cameraPermissionGranted = false;
 
+function togglePrescriptionFields() {
+    const chk = document.getElementById('enter-presc-check');
+    const fields = document.getElementById('prescription-fields');
+    if (chk && fields) {
+        fields.style.display = chk.checked ? 'block' : 'none';
+    }
+}
+window.togglePrescriptionFields = togglePrescriptionFields;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Get product ID from URL query string
     const urlParams = new URLSearchParams(window.location.search);
@@ -145,14 +154,6 @@ async function loadProductPageData(productId) {
         }
         currentGalleryIdx = 0;
         renderProductGallery();
-
-        window.togglePrescriptionFields = function() {
-            const chk = document.getElementById('enter-presc-check');
-            const fields = document.getElementById('prescription-fields');
-            if (chk && fields) {
-                fields.style.display = chk.checked ? 'block' : 'none';
-            }
-        };
 
         // Lens selection & Simulator reset
         selectPageLens(1);

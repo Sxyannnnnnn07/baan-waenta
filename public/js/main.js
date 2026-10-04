@@ -1617,6 +1617,15 @@ function updateLensSimulationSlider(uvValue) {
     }
 }
 
+function togglePrescriptionFields() {
+    const chk = document.getElementById('enter-presc-check');
+    const fields = document.getElementById('prescription-fields');
+    if (chk && fields) {
+        fields.style.display = chk.checked ? 'block' : 'none';
+    }
+}
+window.togglePrescriptionFields = togglePrescriptionFields;
+
 // ==========================================
 // CUSTOMER REVIEWS DYNAMIC SYSTEM
 // ==========================================
