@@ -42,7 +42,10 @@
                 </ul>
             </li>
         </ul>
-        <div class="nav-buttons">
+        <div class="nav-buttons" style="display: flex; align-items: center; gap: 0.65rem;">
+            <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" style="border-radius: 50%; width: 40px; height: 40px; min-width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;" title="สลับโหมดมืด-สว่าง">
+                <ion-icon name="moon-outline" id="theme-icon" style="font-size: 1.25rem;"></ion-icon>
+            </button>
             <button class="btn btn-outline" onclick="handleLogout()">ออกจากระบบ</button>
         </div>
     </nav>
@@ -289,13 +292,13 @@
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th style="width: 70px; text-align: center;">รหัส</th>
-                            <th>ชื่อรุ่นแว่นตา</th>
-                            <th>ยี่ห้อ</th>
-                            <th>หมวดหมู่</th>
-                            <th style="text-align: right;">ราคาสินค้า</th>
-                            <th style="text-align: center;">จำนวนคงเหลือ</th>
-                            <th style="text-align: center;">การดำเนินการ</th>
+                            <th style="width: 75px; text-align: center;">รหัส</th>
+                            <th style="min-width: 250px;">ชื่อรุ่นแว่นตา</th>
+                            <th style="min-width: 130px;">ยี่ห้อ</th>
+                            <th style="min-width: 140px;">หมวดหมู่</th>
+                            <th style="width: 130px; text-align: right;">ราคาสินค้า</th>
+                            <th style="width: 180px; text-align: center;">จำนวนคงเหลือ</th>
+                            <th style="width: 120px; text-align: center;">การดำเนินการ</th>
                         </tr>
                     </thead>
                     <tbody id="products-list-table">
@@ -318,13 +321,13 @@
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th style="width: 80px; text-align: center;">รหัสรีวิว</th>
-                            <th>ชื่อผู้แสดงความเห็น</th>
-                            <th>สินค้าที่สั่งซื้อ</th>
-                            <th style="text-align: center;">คะแนน (เรตติ้ง)</th>
-                            <th>ข้อความรีวิว</th>
-                            <th>วันที่โพสต์</th>
-                            <th style="text-align: center;">การดำเนินการ</th>
+                            <th style="width: 85px; text-align: center;">รหัส</th>
+                            <th style="min-width: 170px;">ผู้แสดงความเห็น</th>
+                            <th style="min-width: 190px;">สินค้าที่สั่งซื้อ</th>
+                            <th style="width: 140px; text-align: center;">คะแนนรีวิว</th>
+                            <th style="min-width: 320px;">ข้อความรีวิว</th>
+                            <th style="width: 140px; text-align: center;">วันที่โพสต์</th>
+                            <th style="width: 140px; text-align: center;">การดำเนินการ</th>
                         </tr>
                     </thead>
                     <tbody id="reviews-list-table">

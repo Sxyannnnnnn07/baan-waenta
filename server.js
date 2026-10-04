@@ -933,6 +933,58 @@ app.delete('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
     }
 });
 
+// 5.1 Products: Update / Edit Name or Stock (Admin Only)
+app.put('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
+    const productId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    if (!productId) return res.status(400).json({ success: false, message: 'หมายเลขสินค้าไม่ถูกต้อง' });
+
+    const name = req.body.name !== undefined ? cleanText(req.body.name, 255) : undefined;
+    const stock = req.body.stock !== undefined ? integerInRange(req.body.stock, 0, 1000000) : undefined;
+    const price = req.body.price !== undefined ? numberInRange(req.body.price, 0, 1000000) : undefined;
+
+    if (name === undefined && stock === undefined && price === undefined) {
+        return res.status(400).json({ success: false, message: 'กรุณาระบุข้อมูลที่ต้องการแก้ไข' });
+    }
+    if (name !== undefined && !name) {
+        return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อแว่นตา' });
+    }
+    if (stock !== undefined && stock === null) {
+        return res.status(400).json({ success: false, message: 'จำนวนสต็อกไม่ถูกต้อง' });
+    }
+
+    try {
+        const [existing] = await dbPool.query('SELECT id FROM products WHERE id = ?', [productId]);
+        if (!existing.length) {
+            return res.status(404).json({ success: false, message: 'ไม่พบสินค้าในระบบ' });
+        }
+
+        const updates = [];
+        const values = [];
+
+        if (name !== undefined) {
+            updates.push('name = ?');
+            values.push(name);
+        }
+        if (stock !== undefined) {
+            updates.push('stock = ?');
+            values.push(stock);
+        }
+        if (price !== undefined && price !== null) {
+            updates.push('price = ?');
+            values.push(price);
+        }
+
+        if (updates.length > 0) {
+            values.push(productId);
+            await dbPool.query(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`, values);
+        }
+
+        res.json({ success: true, message: 'อัปเดตข้อมูลสินค้าสำเร็จ' });
+    } catch (error) {
+        sendServerError(res, error, 'Update product failed');
+    }
+});
+
 // 6. Prescriptions: Get latest for a user
 app.get('/api/prescriptions/:userId', requireAuth, async (req, res) => {
     const requestedUserId = integerInRange(req.params.userId, 1, Number.MAX_SAFE_INTEGER);

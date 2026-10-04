@@ -5,11 +5,29 @@ let topProductsChartInstance = null;
 let popularLensesChartInstance = null;
 let cachedMetrics = null;
 
-// Sync theme from localStorage if available
-try {
-    const savedAdminTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedAdminTheme);
-} catch (_) {}
+// Theme Management (Light / Dark Mode)
+function initTheme() {
+    const savedTheme = localStorage.getItem('baan_waenta_theme') || localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('baan_waenta_theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        icon.setAttribute('name', theme === 'dark' ? 'sunny-outline' : 'moon-outline');
+    }
+}
+window.toggleTheme = toggleTheme;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -18,6 +36,7 @@ function escapeHtml(value) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    initTheme();
     if (!await checkAdminAccess()) return;
     fetchDashboardMetrics();
     fetchOrdersList();
@@ -591,15 +610,31 @@ async function fetchStockProducts() {
             data.products.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${p.id}</td>
-                    <td style="font-weight: 600;">${escapeHtml(p.name)}</td>
-                    <td>${escapeHtml(p.brand)}</td>
-                    <td>${p.category === 'Optical' ? 'แว่นสายตา' : 'แว่นกันแดด'}</td>
-                    <td style="font-family: var(--font-heading);">${parseFloat(p.price).toLocaleString()} ฿</td>
-                    <td style="font-weight: 600; color: ${p.stock <= 5 ? '#e53e3e' : 'inherit'}">${p.stock} ชิ้น</td>
-                    <td>
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-color: red; color: red;" onclick="deleteProduct(${p.id})">
-                            ลบออก
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <span class="order-id-badge">#${p.id}</span>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                            <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${escapeHtml(p.name)}</span>
+                            <button class="btn-stock-edit" onclick="editProductName(${p.id}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" title="เปลี่ยนชื่อแว่นตานี้">
+                                <ion-icon name="pencil-outline"></ion-icon> แก้ไขชื่อ
+                            </button>
+                        </div>
+                    </td>
+                    <td style="vertical-align: top; color: var(--text-secondary);">${escapeHtml(p.brand)}</td>
+                    <td style="vertical-align: top; white-space: nowrap;">${p.category === 'Optical' ? 'แว่นสายตา' : 'แว่นกันแดด'}</td>
+                    <td style="vertical-align: top; font-family: var(--font-heading); text-align: right; font-weight: 700; white-space: nowrap;">${parseFloat(p.price).toLocaleString()} ฿</td>
+                    <td style="vertical-align: top; text-align: center; white-space: nowrap;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                            <span class="badge ${p.stock <= 5 ? 'badge-cancelled' : 'badge-paid'}" style="font-size: 0.78rem;">${p.stock} ชิ้น</span>
+                            <button class="btn-stock-edit" onclick="editProductStock(${p.id}, ${p.stock}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" title="แก้ไขจำนวนสินค้าคงเหลือ">
+                                <ion-icon name="sync-outline"></ion-icon> แก้สต็อก
+                            </button>
+                        </div>
+                    </td>
+                    <td style="vertical-align: top; text-align: center; white-space: nowrap;">
+                        <button class="btn-order-action btn-delete" onclick="deleteProduct(${p.id})" title="ลบสินค้าออกจากระบบ">
+                            <ion-icon name="trash-outline"></ion-icon> ลบออก
                         </button>
                     </td>
                 `;
@@ -610,6 +645,68 @@ async function fetchStockProducts() {
         console.error('Error fetching stock:', error);
     }
 }
+
+async function editProductName(productId, currentName) {
+    const newName = prompt(`แก้ไขชื่อรุ่นแว่นตา (รหัส #${productId}):`, currentName);
+    if (newName === null) return;
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        alert('กรุณากรอกชื่อแว่นตา');
+        return;
+    }
+    if (trimmed === currentName) return;
+
+    try {
+        const res = await adminApiFetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: trimmed })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('เปลี่ยนชื่อแว่นตาสำเร็จ! ชื่อใหม่จะแสดงผลเชื่อมโยงกันทุกหน้าในระบบทันที');
+            fetchStockProducts();
+            fetchDashboardMetrics();
+        } else {
+            alert(data.message || 'ไม่สามารถแก้ไขชื่อแว่นตาได้');
+        }
+    } catch (error) {
+        console.error('Error editing product name:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+}
+window.editProductName = editProductName;
+
+async function editProductStock(productId, currentStock, productName) {
+    const newStockStr = prompt(`แก้ไขจำนวนคงเหลือในสต็อกของ "${productName}" (รหัส #${productId}):`, currentStock);
+    if (newStockStr === null) return;
+    const stockVal = parseInt(newStockStr.trim(), 10);
+    if (isNaN(stockVal) || stockVal < 0) {
+        alert('กรุณากรอกจำนวนสต็อกเป็นตัวเลขจำนวนเต็มตั้งแต่ 0 ขึ้นไป');
+        return;
+    }
+    if (stockVal === currentStock) return;
+
+    try {
+        const res = await adminApiFetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stock: stockVal })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`อัปเดตสต็อกแว่นตา "${productName}" เป็น ${stockVal} ชิ้น เรียบร้อยแล้ว!`);
+            fetchStockProducts();
+            fetchDashboardMetrics();
+        } else {
+            alert(data.message || 'ไม่สามารถแก้ไขสต็อกสินค้าได้');
+        }
+    } catch (error) {
+        console.error('Error editing product stock:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+}
+window.editProductStock = editProductStock;
 
 // 5. Add New Product
 async function addNewProduct(e) {
@@ -759,8 +856,8 @@ async function fetchReviewsList() {
         if (data.success) {
             tableBody.innerHTML = '';
             
-            if (data.reviews.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">ไม่มีความคิดเห็นในระบบ</td></tr>`;
+            if (!data.reviews || data.reviews.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 3rem;">ยังไม่มีความคิดเห็นของลูกค้าในระบบ</td></tr>`;
                 return;
             }
             
@@ -769,18 +866,52 @@ async function fetchReviewsList() {
                 
                 // Construct stars text
                 let stars = '';
-                for(let i=0; i<rev.rating; i++) stars += '⭐';
+                for (let i = 0; i < rev.rating; i++) stars += '⭐';
+
+                const avatarSrc = rev.avatar_url && rev.avatar_url.startsWith('data:image/')
+                    ? rev.avatar_url
+                    : (rev.avatar_url && (rev.avatar_url.startsWith('/uploads/') || rev.avatar_url.startsWith('/assets/'))
+                        ? rev.avatar_url
+                        : '/assets/logo-192.png');
+
+                const dateObj = new Date(rev.created_at);
+                const dateStr = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
                 
                 row.innerHTML = `
-                    <td style="font-weight: 600;">#REV-${rev.id}</td>
-                    <td>${escapeHtml(rev.user_name)}</td>
-                    <td style="font-weight: 500;">${escapeHtml(rev.product_name || 'แว่นตาทั่วไป')}</td>
-                    <td><span style="color: #f6ad55;">${stars}</span> (${rev.rating}/5)</td>
-                    <td style="max-width: 300px; white-space: normal; line-height: 1.4;">${escapeHtml(rev.comment)}</td>
-                    <td>${new Date(rev.created_at).toLocaleString('th-TH')}</td>
-                    <td>
-                        <button class="btn btn-outline" style="color: #e53e3e; border-color: #feb2b2; padding: 0.35rem 0.7rem; font-size: 0.78rem;" onclick="deleteReview(${rev.id})">
-                            <ion-icon name="trash-outline" style="vertical-align: middle; margin-right: 0.1rem;"></ion-icon> ลบความคิดเห็น
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <span class="order-id-badge">#REV-${rev.id}</span>
+                    </td>
+                    <td style="vertical-align: top; white-space: nowrap;">
+                        <div class="review-user-box">
+                            <img src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(rev.user_name)}" class="review-user-avatar" onerror="this.src='/assets/logo-192.png'">
+                            <span class="review-user-name">${escapeHtml(rev.user_name)}</span>
+                        </div>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <div style="font-weight: 600; font-size: 0.86rem; color: var(--text-primary); line-height: 1.35; word-break: keep-all;">
+                            ${escapeHtml(rev.product_name || 'แว่นตาทั่วไป')}
+                        </div>
+                    </td>
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <span class="review-stars-badge">
+                            <span style="letter-spacing: -1px;">${stars}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.72rem; margin-left: 0.2rem;">(${rev.rating}/5)</span>
+                        </span>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <div class="review-comment-box">
+                            <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+                            <div class="review-comment-content">${escapeHtml(rev.comment || 'ไม่มีข้อความ')}</div>
+                        </div>
+                    </td>
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <div style="font-size: 0.82rem; font-weight: 500; color: var(--text-primary);">${dateStr}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem;">${timeStr}</div>
+                    </td>
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <button class="btn-order-action btn-delete" onclick="deleteReview(${rev.id})" title="ลบความคิดเห็นนี้">
+                            <ion-icon name="trash-outline"></ion-icon> ลบความคิดเห็น
                         </button>
                     </td>
                 `;
@@ -789,6 +920,7 @@ async function fetchReviewsList() {
         }
     } catch (error) {
         console.error('Error fetching reviews:', error);
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red; padding: 2rem;">เกิดข้อผิดพลาดในการโหลดข้อมูลรีวิว</td></tr>`;
     }
 }
 

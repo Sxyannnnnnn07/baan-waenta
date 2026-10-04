@@ -24,6 +24,7 @@ test.after(async () => {
 for (const route of [
     ['POST', '/api/orders'],
     ['POST', '/api/products'],
+    ['PUT', '/api/products/1'],
     ['DELETE', '/api/products/1'],
     ['GET', '/api/admin/orders'],
     ['DELETE', '/api/admin/orders/1'],
