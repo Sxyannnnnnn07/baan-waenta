@@ -140,6 +140,34 @@ async function fetchProducts() {
     }
 }
 
+// Navigate to a random glasses product detail page
+async function goToRandomProduct() {
+    try {
+        let products = allProducts;
+        if (!products || products.length === 0) {
+            const res = await (typeof apiFetch === 'function' ? apiFetch('/api/products') : fetch('/api/products'));
+            const data = await res.json();
+            if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+                products = data.products;
+                allProducts = products;
+            }
+        }
+        if (products && products.length > 0) {
+            const randomIndex = Math.floor(Math.random() * products.length);
+            const randomItem = products[randomIndex];
+            if (randomItem && randomItem.id) {
+                window.location.href = `/product.html?id=${randomItem.id}`;
+                return;
+            }
+        }
+        window.location.href = '/product.html';
+    } catch (err) {
+        console.error('Error selecting random product:', err);
+        window.location.href = '/#catalog';
+    }
+}
+window.goToRandomProduct = goToRandomProduct;
+
 function renderProducts(products) {
     const productsList = document.getElementById('products-list');
     productsList.innerHTML = '';

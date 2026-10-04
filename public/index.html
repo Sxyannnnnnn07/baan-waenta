@@ -53,7 +53,7 @@
                 </a>
                 <ul class="dropdown-menu">
                     <li><a href="/#catalog">รายการแว่นตาทั้งหมด</a></li>
-                    <li><a href="/tryon.html">ลองแว่นเสมือนจริง (VTO)</a></li>
+                    <li><a href="javascript:void(0)" onclick="goToRandomProduct()">สุ่มเลือกแว่นตา</a></li>
                     <li id="admin-nav" style="display: none;"><a href="/admin.html">แดชบอร์ดแอดมิน</a></li>
                 </ul>
             </li>
@@ -83,10 +83,10 @@
         </div>
         <p data-aos="fade-up" data-aos-delay="400" data-aos-duration="1000">ร้านแว่นตายุคใหม่ที่ผสานเทคโนโลยีสั่งตัดเลนส์และการลองแว่นตาออนไลน์อัจฉริยะ ค้นหาแว่นคู่ใจที่เข้ากับใบหน้าคุณที่สุดได้แล้ววันนี้</p>
         <div class="hero-actions" data-aos="fade-up" data-aos-delay="600" data-aos-duration="1000">
-            <a href="/tryon.html" class="btn btn-primary btn-lg" style="border-radius: 30px;">
-                <ion-icon name="camera-outline"></ion-icon>
-                ทดลองสวมใส่เสมือนจริง (VTO)
-            </a>
+            <button type="button" onclick="goToRandomProduct()" class="btn btn-primary btn-lg" style="border-radius: 30px; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <ion-icon name="shuffle-outline" style="font-size: 1.25rem;"></ion-icon>
+                <span>สุ่มเลือกแว่นตา</span>
+            </button>
             <a href="#catalog" class="btn btn-secondary btn-lg" style="margin-left: 1rem; border-radius: 30px;">เลือกซื้อแว่นตา</a>
         </div>
     </header>
@@ -190,10 +190,10 @@
                 </div>
             </div>
             
-            <a href="/tryon.html" class="btn btn-primary btn-lg" style="border-radius: 30px; display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
-                <ion-icon name="camera-outline" style="font-size: 1.3rem;"></ion-icon> 
-                ทดลองสวมใส่แว่นตาเสมือนจริงเลย
-            </a>
+            <button type="button" onclick="goToRandomProduct()" class="btn btn-primary btn-lg" style="border-radius: 30px; display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; cursor: pointer;">
+                <ion-icon name="shuffle-outline" style="font-size: 1.3rem;"></ion-icon> 
+                สุ่มเลือกแว่นตาที่ใช่สำหรับคุณ
+            </button>
         </div>
     </section>
 

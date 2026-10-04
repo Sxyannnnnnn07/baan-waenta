@@ -22,6 +22,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
+    <!-- Automatic redirect to random product page -->
+    <script>
+        (async function() {
+            try {
+                const res = await fetch('/api/products');
+                const data = await res.json();
+                if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+                    const randomItem = data.products[Math.floor(Math.random() * data.products.length)];
+                    if (randomItem && randomItem.id) {
+                        window.location.replace('/product.html?id=' + randomItem.id);
+                        return;
+                    }
+                }
+            } catch (e) {}
+            window.location.replace('/#catalog');
+        })();
+    </script>
+
     <!-- Embed Mode logic -->
     <script>
         if (new URLSearchParams(window.location.search).get('embed') === 'true') {
