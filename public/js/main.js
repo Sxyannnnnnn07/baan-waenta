@@ -1567,17 +1567,22 @@ function updateLensSimulation(lensValue) {
     switch(lensValue) {
         case 1: // Normal Lens
             simText.innerText = "เลนส์ธรรมดา (Normal Lens) : รับภาพปกติทั่วไป";
+            if (bgImage) bgImage.src = '/assets/model1.jpg';
             break;
         case 2: // Blue Block Lens
             // Amber tint overlay and sepia photo warming effect (subtle/natural warming)
             tintOverlay.style.backgroundColor = 'rgba(217, 119, 6, 0.07)';
             blueBeam.style.opacity = '1';
             blockedLabel.style.opacity = '1';
-            if (bgImage) bgImage.style.filter = 'sepia(0.20) saturate(1.1) brightness(1.01)';
+            if (bgImage) {
+                bgImage.style.filter = 'sepia(0.20) saturate(1.1) brightness(1.01)';
+                bgImage.src = '/assets/model2.jpg';
+            }
             simText.innerText = "เลนส์กรองแสงสีฟ้า : ตัดแสงสีฟ้า 95% ปกป้องสายตา";
             break;
         case 3: // Photochromic Auto Lens
             sliderGroup.style.display = 'flex';
+            if (bgImage) bgImage.src = '/assets/model3.jpg';
             if (uvSlider) {
                 uvSlider.value = 0; // reset
                 updateLensSimulationSlider(0);

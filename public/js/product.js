@@ -146,6 +146,14 @@ async function loadProductPageData(productId) {
         currentGalleryIdx = 0;
         renderProductGallery();
 
+        window.togglePrescriptionFields = function() {
+            const chk = document.getElementById('enter-presc-check');
+            const fields = document.getElementById('prescription-fields');
+            if (chk && fields) {
+                fields.style.display = chk.checked ? 'block' : 'none';
+            }
+        };
+
         // Lens selection & Simulator reset
         selectPageLens(1);
 
