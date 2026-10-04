@@ -751,55 +751,27 @@
                     <textarea id="ship-address" required placeholder="ระบุรายละเอียดที่อยู่ในการจัดส่งให้ครบถ้วนเพื่อป้องกันการขนส่งผิดพลาด..." style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; height: 80px; resize: none; font-family: inherit;"></textarea>
                 </div>
                 
-                <!-- Payment Method Section -->
-                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; text-align: left;">
-                    <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--accent);">ช่องทางการชำระเงิน</label>
-                    <div style="display: flex; gap: 1.2rem; margin-bottom: 0.8rem; flex-wrap: wrap;">
-                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                            <input type="radio" name="payment-method" value="COD" checked onchange="togglePaymentDetails()">
-                            เก็บเงินปลายทาง (COD)
+                <!-- Payment Method Section (2 Channels: COD & PromptPay QR) -->
+                <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem; text-align: left;">
+                    <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.6rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                        <ion-icon name="wallet-outline" style="color: var(--accent); font-size: 1.1rem;"></ion-icon> ช่องทางการชำระเงิน (เลือก 1 ช่องทาง) *
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                        <label class="payment-method-card" id="pay-method-cod-label" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border: 2px solid var(--accent); border-radius: 10px; cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                            <input type="radio" name="payment-method" value="COD" checked onchange="togglePaymentDetails()" style="accent-color: var(--accent); margin-top: 0.2rem;">
+                            <div>
+                                <strong style="font-size: 0.88rem; display: block; color: var(--text-primary);">📦 เก็บเงินปลายทาง</strong>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; display: block;">ชำระเงินสดเมื่อได้รับสินค้า (COD)</span>
+                            </div>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                            <input type="radio" name="payment-method" value="BankTransfer" onchange="togglePaymentDetails()">
-                            โอนผ่านบัญชีธนาคาร
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                            <input type="radio" name="payment-method" value="QRCode" onchange="togglePaymentDetails()">
-                            สแกน QR-code (PromptPay)
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; font-weight: 500;">
-                            <input type="radio" name="payment-method" value="CreditCard" onchange="togglePaymentDetails()">
-                            บัตรเครดิต / เดบิต (จำลอง)
+                        <label class="payment-method-card" id="pay-method-qr-label" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.85rem; border: 2px solid var(--border-color); border-radius: 10px; cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                            <input type="radio" name="payment-method" value="QRCode" onchange="togglePaymentDetails()" style="accent-color: var(--accent); margin-top: 0.2rem;">
+                            <div>
+                                <strong style="font-size: 0.88rem; display: block; color: var(--text-primary);">📱 QR Code พร้อมเพย์</strong>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; display: block;">พร้อมเพย์ 0989687435 (ยอดตามสั่งซื้อ)</span>
+                            </div>
                         </label>
                     </div>
-                    
-                    <!-- Bank Details Box -->
-                    <div id="bank-transfer-details" style="display: none; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.8rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-primary); margin-bottom: 0.8rem;">
-                        <div style="font-weight: 700; color: #1a202c; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem;">
-                            <ion-icon name="business-outline" style="color: #2b6cb0;"></ion-icon> ข้อมูลบัญชีธนาคารของทางร้าน
-                        </div>
-                        <div>ธนาคาร: <strong>ธนาคารกสิกรไทย (KBANK)</strong></div>
-                        <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong></div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
-                            <span>เลขที่บัญชี: <strong style="font-size: 0.95rem; color: #1a202c;" id="bank-acc-no">157-1-2-6845-7</strong></span>
-                            <button onclick="copyBankAccount()" type="button" style="background-color: var(--accent-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
-                                <ion-icon name="copy-outline"></ion-icon> คัดลอกเลขบัญชี
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Unified Slip Upload Field -->
-                    <div id="slip-upload-section" style="display: none; margin-top: 0.8rem; border-top: 1px dashed var(--border-color); padding-top: 0.8rem;">
-                        <label for="slip-file-input" style="font-weight: 600; display: block; margin-bottom: 0.3rem; color: #2d3748; font-size: 0.8rem;">
-                            <ion-icon name="image-outline"></ion-icon> แนบสลิปหลักฐานการชำระเงิน
-                        </label>
-                        <input type="file" id="slip-file-input" accept="image/*" onchange="previewSlipImage(event)" style="font-family: inherit; font-size: 0.8rem; width: 100%;">
-                        <div id="slip-preview-container" style="display: none; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; max-width: 150px;">
-                            <img id="slip-preview" src="" alt="Slip Preview" style="width: 100%; display: block; height: auto;">
-                        </div>
-                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.6rem;">*กรุณาโอนเงินตามยอดรวมแล้วกดยืนยันการสั่งซื้อ ทางร้านจะจัดส่งแว่นตาให้โดยเร็วที่สุดครับ</p>
-                    </div>
-
                 </div>
             </div>
             
@@ -845,19 +817,16 @@
         }
     </style>
 
-    <!-- MODAL: MOCK PAYMENT GATEWAY -->
+    <!-- MODAL: PROMPTPAY QR PAYMENT -->
     <div class="modal" id="payment-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px; text-align: center; position: relative;">
+        <div class="modal-content" style="max-width: 520px; text-align: center; position: relative;">
             <span class="modal-close" onclick="closeModal('payment-modal')">&times;</span>
-            <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: var(--accent);">
-                <ion-icon name="shield-checkmark-outline"></ion-icon> ระบบชำระเงินจำลอง (Mock Sandbox)
-            </h3>
 
             <!-- 1. Processing Screen -->
             <div id="pay-processing" style="display: none; padding: 2rem 0;">
                 <div class="spinner" style="border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: var(--accent); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 1.5rem auto;"></div>
-                <h4 style="margin-bottom: 0.5rem;">กำลังประมวลผลธุรกรรมทางการเงิน...</h4>
-                <p style="font-size: 0.85rem; color: var(--text-secondary);">โปรดรอสักครู่ ระบบกำลังสื่อสารกับธนาคารจำลอง (SSL Secured)</p>
+                <h4 style="margin-bottom: 0.5rem;">กำลังประมวลผลคำสั่งซื้อและตรวจสอบการชำระเงิน...</h4>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">โปรดรอสักครู่ ระบบกำลังบันทึกข้อมูลคำสั่งซื้อของคุณ</p>
             </div>
 
             <!-- 2. Success Screen -->
@@ -865,90 +834,103 @@
                 <div style="background-color: #c6f6d5; color: #22543d; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; margin: 0 auto 1.5rem auto; animation: scaleUp 0.3s ease-out;">
                     <ion-icon name="checkmark-circle-outline"></ion-icon>
                 </div>
-                <h3 style="color: #22543d; margin-bottom: 0.5rem;">ชำระเงินจำลองสำเร็จ!</h3>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">ระบบบันทึกข้อมูลการจ่ายเงินของคุณเรียบร้อยแล้ว</p>
+                <h3 style="color: #22543d; margin-bottom: 0.5rem;">บันทึกการสั่งซื้อและชำระเงินสำเร็จ!</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">ทางร้านได้รับข้อมูลคำสั่งซื้อแล้ว และจะดำเนินการจัดส่งแว่นตาโดยเร็วที่สุด</p>
                 <div style="font-size: 0.9rem; font-weight: bold; color: var(--accent); text-align: center;">กำลังเปิดดูประวัติคำสั่งซื้อของคุณ...</div>
             </div>
 
-            <!-- 3. Main Payment Choices Screens -->
+            <!-- 3. Main Payment Choice Screen: PromptPay QR -->
             <div id="pay-gateway-content">
-                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
-                    <span>ยอดที่ต้องชำระ:</span>
-                    <span style="color: var(--accent);"><span id="pay-amount-label">0</span> บาท</span>
+                <h3 style="margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: var(--accent);">
+                    <ion-icon name="qr-code-outline"></ion-icon> สแกน QR Code พร้อมเพย์
+                </h3>
+
+                <!-- Amount Box -->
+                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.9rem 1.2rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.15rem;">
+                    <span>ยอดชำระเงินทั้งหมด:</span>
+                    <span style="color: #2f855a; font-size: 1.3rem;"><span id="pay-amount-label">0</span> ฿</span>
                 </div>
 
-                <!-- 3.1 PromptPay QR Screen -->
-                <div id="pay-qr-screen" style="display: none;">
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                        สแกน QR Code PromptPay ด้านล่างนี้ เพื่อโอนและทดสอบระบบจ่ายเงินจำลอง
-                    </p>
-                    <div style="width: 200px; height: 200px; margin: 0 auto 1rem auto; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: #fff; padding: 0.5rem; display: flex; align-items: center; justify-content: center;">
-                        <img id="pay-promptpay-qr" src="" alt="Dynamic PromptPay QR" style="max-width: 100%; height: auto; display: block;">
+                <!-- PromptPay QR Frame -->
+                <div style="background: #ffffff; border: 2px solid var(--border-color); border-radius: 16px; padding: 1.2rem; max-width: 260px; margin: 0 auto 1rem auto; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                    <img id="pay-promptpay-qr" src="" alt="พร้อมเพย์ QR Code" style="width: 100%; height: auto; display: block; border-radius: 8px;">
+                    <div style="font-size: 0.78rem; color: #4a5568; margin-top: 0.5rem; font-weight: 600;">
+                        ยอดเงินถูกระบุใน QR Code อัตโนมัติ: <span id="pay-qr-amount-sub" style="color: #2b6cb0;">0</span> ฿
                     </div>
-                    <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem; font-size: 0.8rem; line-height: 1.5; text-align: left; margin-bottom: 1.5rem;">
-                        <div>ธนาคาร: <strong>กสิกรไทย (KBANK)</strong></div>
-                        <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong></div>
-                        <div>เลขบัญชี: <strong>157-1-2-6845-7</strong></div>
-                    </div>
-                    <button class="btn btn-primary" onclick="simulateQRSuccess()" style="width: 100%; border-radius: 30px; background-color: #2f855a; border-color: #2f855a; display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: white;">
-                        <ion-icon name="checkmark-circle-outline" style="font-size: 1.2rem;"></ion-icon>
-                        จำลองสแกนจ่ายสำเร็จ (สร้างสลิปอัตโนมัติ)
-                    </button>
                 </div>
 
-                <!-- 3.2 Credit Card Screen -->
-                <div id="pay-card-screen" style="display: none;">
-                    <!-- Credit Card Visual Preview -->
-                    <div style="background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%); border-radius: 16px; padding: 1.25rem; color: white; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.15); margin-bottom: 1.5rem; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
-                        <!-- Visa/Mastercard Logo -->
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; color: #a0aec0;">MOCK SANDBOX CARD</div>
-                            <div id="preview-card-logo" style="font-size: 1.5rem; font-weight: 900; font-style: italic;">VISA</div>
-                        </div>
-                        <!-- Chip -->
-                        <div style="width: 35px; height: 25px; background: #ecc94b; border-radius: 4px; margin-top: 1rem; opacity: 0.8;"></div>
-                        <!-- Card Number -->
-                        <div id="preview-card-number" style="font-size: 1.3rem; font-family: monospace; letter-spacing: 2px; margin-top: 1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                            •••• •••• •••• ••••
-                        </div>
-                        <!-- Holder / Expiry -->
-                        <div style="display: flex; justify-content: space-between; margin-top: 1.2rem; font-size: 0.75rem; color: #cbd5e0; text-transform: uppercase;">
-                            <div>
-                                <div style="font-size: 0.6rem; color: #a0aec0;">Card Holder</div>
-                                <div id="preview-card-name" style="font-weight: bold;">CARDHOLDER NAME</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 0.6rem; color: #a0aec0;">Expires</div>
-                                <div id="preview-card-expiry" style="font-weight: bold; font-family: monospace;">MM/YY</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Input Fields -->
-                    <form onsubmit="handleMockCardSubmit(event)" id="mock-card-form" style="text-align: left; display: flex; flex-direction: column; gap: 1rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 0.3rem;">ชื่อบนบัตร (Cardholder Name)</label>
-                            <input type="text" id="card-holder-name" required placeholder="เช่น SOMSAK RAKDEE" oninput="updateCardPreview()" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; text-transform: uppercase;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 0.3rem;">หมายเลขบัตร (Card Number)</label>
-                            <input type="text" id="card-number" required maxlength="19" placeholder="4111 2222 3333 4444" oninput="formatCardNumber(this); updateCardPreview();" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace;">
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 0.3rem;">วันหมดอายุ (Expiry)</label>
-                                <input type="text" id="card-expiry" required maxlength="5" placeholder="MM/YY" oninput="formatExpiry(this); updateCardPreview();" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; text-align: center;">
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 0.3rem;">รหัส CVV</label>
-                                <input type="password" id="card-cvv" required maxlength="3" placeholder="•••" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; text-align: center;">
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" type="submit" style="width: 100%; border-radius: 30px; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: white;">
-                            <ion-icon name="lock-closed-outline"></ion-icon>
-                            ชำระเงินผ่านบัตรเครดิตจำลอง
+                <!-- Account Information Details -->
+                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.85rem; line-height: 1.6; text-align: left; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                        <span>เบอร์พร้อมเพย์: <strong style="color: var(--text-primary); font-size: 0.95rem;">098-968-7435</strong></span>
+                        <button type="button" onclick="copyPromptPayNumber()" style="background-color: var(--accent-light); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;">
+                            <ion-icon name="copy-outline"></ion-icon> คัดลอกเบอร์
                         </button>
-                    </form>
+                    </div>
+                    <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong> (ธ.กสิกรไทย)</div>
+                </div>
+
+                <!-- Desktop / iPad Guide -->
+                <div id="pay-desktop-guide" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5; background: rgba(49, 130, 206, 0.08); padding: 0.6rem 0.8rem; border-radius: 8px; border-left: 3px solid #3182ce; text-align: left;">
+                    💻 <strong>สำหรับคอมพิวเตอร์ / iPad:</strong> เปิดแอปธนาคารบนโทรศัพท์มือถือของคุณ แล้วสแกน QR Code ด้านบนเพื่อชำระเงิน ยอดเงินจะแสดงในแอปอัตโนมัติ
+                </div>
+
+                <!-- Mobile Guide & Bank Apps Launcher -->
+                <div id="pay-mobile-guide" style="display: none; margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-outline" onclick="downloadPromptPayQR()" style="width: 100%; border-radius: 30px; padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-color: var(--accent); color: var(--accent);">
+                        <ion-icon name="download-outline" style="font-size: 1.1rem;"></ion-icon>
+                        📥 บันทึกรูป QR Code ลงเครื่อง (สำหรับสแกนในแอปธนาคาร)
+                    </button>
+
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-align: left;">
+                        📱 <strong>กดเปิดแอปธนาคารของคุณเพื่อสแกนรูปภาพ:</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.8rem;">
+                        <button type="button" onclick="openBankApp('kplus://', 'K PLUS')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #138f2d;"></span>
+                            K PLUS
+                        </button>
+                        <button type="button" onclick="openBankApp('scbeasy://', 'SCB EASY')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #4e2a84;"></span>
+                            SCB EASY
+                        </button>
+                        <button type="button" onclick="openBankApp('ktbnext://', 'Krungthai NEXT')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #00a5e5;"></span>
+                            KTB NEXT
+                        </button>
+                        <button type="button" onclick="openBankApp('bualuangmbanking://', 'Bangkok Bank')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #1e3a8a;"></span>
+                            BualuangM
+                        </button>
+                        <button type="button" onclick="openBankApp('kma://', 'Krungsri KMA')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></span>
+                            KMA
+                        </button>
+                        <button type="button" onclick="openBankApp('ttbtouch://', 'ttb touch')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #0284c7;"></span>
+                            ttb touch
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slip Upload (Optional) -->
+                <div style="border-top: 1px dashed var(--border-color); padding-top: 0.8rem; margin-bottom: 1.2rem; text-align: left;">
+                    <label for="slip-file-input" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem; color: var(--text-primary);">
+                        <ion-icon name="image-outline"></ion-icon> แนบสลิปหลักฐานการโอนเงิน (หากมี)
+                    </label>
+                    <input type="file" id="slip-file-input" accept="image/*" onchange="previewSlipImage(event)" style="font-family: inherit; font-size: 0.8rem; width: 100%;">
+                    <div id="slip-preview-container" style="display: none; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; max-width: 120px;">
+                        <img id="slip-preview" src="" alt="Slip Preview" style="width: 100%; display: block; height: auto;">
+                    </div>
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="modal-actions" style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="closeModal('payment-modal')">ยกเลิก</button>
+                    <button class="btn btn-primary" id="confirm-payment-btn" onclick="confirmQRPayment()" style="flex: 2; border-radius: 30px; background-color: #2f855a; border-color: #2f855a; color: white; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                        <ion-icon name="checkmark-circle-outline" style="font-size: 1.2rem;"></ion-icon>
+                        ยืนยันการชำระเงินเรียบร้อย
+                    </button>
                 </div>
             </div>
         </div>

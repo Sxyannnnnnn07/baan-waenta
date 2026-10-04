@@ -1057,7 +1057,7 @@ function handleCheckoutClick() {
             return;
         }
 
-        // Get selected payment method
+        // Get selected payment method (COD or QRCode)
         const paymentRadios = document.getElementsByName('payment-method');
         let selectedPayment = 'COD';
         for (const radio of paymentRadios) {
@@ -1069,21 +1069,15 @@ function handleCheckoutClick() {
 
         const totalAmount = cart.reduce((sum, item) => sum + item.unit_price, 0);
 
-        if (selectedPayment === 'BankTransfer' && !uploadedSlipBase64) {
-            alert('กรุณาแนบรูปภาพสลิปหลักฐานการชำระเงินเพื่อดำเนินการสั่งซื้อครับ');
-            return;
-        }
-
-        // If COD or BankTransfer (which already has a manual slip), proceed immediately
-        if (selectedPayment === 'COD' || (selectedPayment === 'BankTransfer' && uploadedSlipBase64)) {
-            checkoutOrder(shipName, shipPhone, shipAddress, selectedPayment, uploadedSlipBase64);
+        if (selectedPayment === 'COD') {
+            checkoutOrder(shipName, shipPhone, shipAddress, 'COD', null);
         } else {
             // Store details in pending state
-            pendingCheckoutDetails = { shipName, shipPhone, shipAddress, selectedPayment, totalAmount };
+            pendingCheckoutDetails = { shipName, shipPhone, shipAddress, selectedPayment: 'QRCode', totalAmount };
             
             // Close cart modal and open payment modal
             closeModal('cart-modal');
-            openPaymentModal(selectedPayment, totalAmount);
+            openPaymentModal('QRCode', totalAmount);
         }
     }
 }
@@ -1312,14 +1306,19 @@ function togglePaymentDetails() {
         }
     }
     
-    const bankBox = document.getElementById('bank-transfer-details');
-    const qrBox = document.getElementById('qr-code-details');
-    const slipUploadBox = document.getElementById('slip-upload-section');
-    
-    if (bankBox) bankBox.style.display = selected === 'BankTransfer' ? 'block' : 'none';
-    if (qrBox) qrBox.style.display = selected === 'QRCode' ? 'block' : 'none';
-    if (slipUploadBox) slipUploadBox.style.display = selected === 'BankTransfer' ? 'block' : 'none';
+    const codLabel = document.getElementById('pay-method-cod-label');
+    const qrLabel = document.getElementById('pay-method-qr-label');
+    if (codLabel && qrLabel) {
+        if (selected === 'COD') {
+            codLabel.style.borderColor = 'var(--accent)';
+            qrLabel.style.borderColor = 'var(--border-color)';
+        } else {
+            qrLabel.style.borderColor = 'var(--accent)';
+            codLabel.style.borderColor = 'var(--border-color)';
+        }
+    }
 }
+window.togglePaymentDetails = togglePaymentDetails;
 
 function previewSlipImage(event) {
     const file = event.target.files[0];
@@ -2044,97 +2043,126 @@ function resetRulesUI() {
 
 function openPaymentModal(paymentMethod, totalAmount) {
     const modal = document.getElementById('payment-modal');
+    if (!modal) return;
     modal.style.display = 'flex';
     
-    document.getElementById('pay-amount-label').innerText = totalAmount.toLocaleString();
-    document.getElementById('pay-gateway-content').style.display = 'block';
-    document.getElementById('pay-processing').style.display = 'none';
-    document.getElementById('pay-success').style.display = 'none';
+    const amountLabel = document.getElementById('pay-amount-label');
+    if (amountLabel) amountLabel.innerText = Number(totalAmount).toLocaleString();
     
-    if (paymentMethod === 'QRCode' || paymentMethod === 'BankTransfer') {
-        document.getElementById('pay-qr-screen').style.display = 'block';
-        document.getElementById('pay-card-screen').style.display = 'none';
-        document.getElementById('pay-promptpay-qr').src = `https://promptpay.io/${MERCHANT_PROMPTPAY_ID}/${totalAmount}.png`;
-    } else if (paymentMethod === 'CreditCard') {
-        document.getElementById('pay-qr-screen').style.display = 'none';
-        document.getElementById('pay-card-screen').style.display = 'block';
-        document.getElementById('mock-card-form').reset();
-        updateCardPreview();
-    }
-}
+    const qrAmountSub = document.getElementById('pay-qr-amount-sub');
+    if (qrAmountSub) qrAmountSub.innerText = Number(totalAmount).toLocaleString();
 
-async function simulateQRSuccess() {
+    const gatewayContent = document.getElementById('pay-gateway-content');
+    if (gatewayContent) gatewayContent.style.display = 'block';
+
+    const processingScreen = document.getElementById('pay-processing');
+    if (processingScreen) processingScreen.style.display = 'none';
+
+    const successScreen = document.getElementById('pay-success');
+    if (successScreen) successScreen.style.display = 'none';
+
+    const qrImg = document.getElementById('pay-promptpay-qr');
+    if (qrImg) {
+        qrImg.src = `https://promptpay.io/${MERCHANT_PROMPTPAY_ID}/${totalAmount}.png`;
+    }
+
+    // Detect device: mobile vs desktop/tablet
+    const isMobileDevice = /Android|iPhone|iPod/i.test(navigator.userAgent) && !/iPad/i.test(navigator.userAgent);
+    const mobileHint = document.getElementById('pay-mobile-guide');
+    const desktopHint = document.getElementById('pay-desktop-guide');
+    if (mobileHint) mobileHint.style.display = isMobileDevice ? 'block' : 'none';
+    if (desktopHint) desktopHint.style.display = isMobileDevice ? 'none' : 'block';
+}
+window.openPaymentModal = openPaymentModal;
+
+function copyPromptPayNumber() {
+    navigator.clipboard.writeText('0989687435').then(() => {
+        if (typeof showToast === 'function') {
+            showToast('คัดลอกเบอร์พร้อมเพย์ 098-968-7435 แล้ว', 'success');
+        } else {
+            alert('คัดลอกเบอร์พร้อมเพย์ 098-968-7435 แล้วครับ');
+        }
+    }).catch(() => {
+        alert('เบอร์พร้อมเพย์: 0989687435');
+    });
+}
+window.copyPromptPayNumber = copyPromptPayNumber;
+
+function downloadPromptPayQR() {
+    const qrImg = document.getElementById('pay-promptpay-qr');
+    if (!qrImg || !qrImg.src) return;
+    
+    fetch(qrImg.src)
+        .then(res => res.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            const amtStr = pendingCheckoutDetails ? pendingCheckoutDetails.totalAmount : 'order';
+            a.download = `PromptPay_0989687435_${amtStr}.png`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            if (typeof showToast === 'function') {
+                showToast('บันทึกรูป QR Code ลงเครื่องแล้ว กรุณาเปิดแอปธนาคารเพื่อสแกนชำระเงินครับ', 'success');
+            } else {
+                alert('บันทึกรูป QR Code แล้ว กรุณาเปิดแอปธนาคารและเลือกสแกนจากอัลบั้มรูปภาพครับ');
+            }
+        })
+        .catch(() => {
+            window.open(qrImg.src, '_blank');
+        });
+}
+window.downloadPromptPayQR = downloadPromptPayQR;
+
+function openBankApp(scheme, name) {
+    window.location.href = scheme;
+    setTimeout(() => {
+        console.log(`Open bank app attempted: ${name}`);
+    }, 1500);
+}
+window.openBankApp = openBankApp;
+
+async function confirmQRPayment() {
     if (!pendingCheckoutDetails) return;
-    
-    document.getElementById('pay-gateway-content').style.display = 'none';
-    document.getElementById('pay-processing').style.display = 'block';
-    
+
+    const gatewayContent = document.getElementById('pay-gateway-content');
+    const processingScreen = document.getElementById('pay-processing');
+    const successScreen = document.getElementById('pay-success');
+
+    if (gatewayContent) gatewayContent.style.display = 'none';
+    if (processingScreen) processingScreen.style.display = 'block';
+
+    const slipBase64 = uploadedSlipBase64 || generateMockSlip(pendingCheckoutDetails.totalAmount);
+
     setTimeout(async () => {
-        const mockSlipBase64 = generateMockSlip(pendingCheckoutDetails.totalAmount);
-        
         const success = await checkoutOrder(
             pendingCheckoutDetails.shipName,
             pendingCheckoutDetails.shipPhone,
             pendingCheckoutDetails.shipAddress,
-            pendingCheckoutDetails.selectedPayment,
-            mockSlipBase64
+            'QRCode',
+            slipBase64
         );
-        
+
         if (success) {
-            document.getElementById('pay-processing').style.display = 'none';
-            document.getElementById('pay-success').style.display = 'block';
-            
+            if (processingScreen) processingScreen.style.display = 'none';
+            if (successScreen) successScreen.style.display = 'block';
+
             setTimeout(() => {
                 closeModal('payment-modal');
                 openOrdersModal();
-            }, 2000);
+            }, 1800);
         } else {
-            alert('เกิดข้อผิดพลาดในการทำรายการ กรุณาลองใหม่อีกครั้ง');
-            document.getElementById('pay-processing').style.display = 'none';
-            document.getElementById('pay-gateway-content').style.display = 'block';
+            alert('เกิดข้อผิดพลาดในการบันทึกคำสั่งซื้อ กรุณาลองใหม่อีกครั้ง');
+            if (processingScreen) processingScreen.style.display = 'none';
+            if (gatewayContent) gatewayContent.style.display = 'block';
         }
-    }, 1500);
+    }, 1200);
 }
-
-async function handleMockCardSubmit(event) {
-    event.preventDefault();
-    if (!pendingCheckoutDetails) return;
-
-    const cardNumber = document.getElementById('card-number').value.trim();
-    const cardHolder = document.getElementById('card-holder-name').value.trim();
-
-    if (cardNumber.length < 19 || !cardHolder) {
-        alert('กรุณากรอกข้อมูลบัตรเครดิตให้ครบถ้วนและถูกต้องด้วยครับ');
-        return;
-    }
-
-    document.getElementById('pay-gateway-content').style.display = 'none';
-    document.getElementById('pay-processing').style.display = 'block';
-    
-    setTimeout(async () => {
-        const success = await checkoutOrder(
-            pendingCheckoutDetails.shipName,
-            pendingCheckoutDetails.shipPhone,
-            pendingCheckoutDetails.shipAddress,
-            'CreditCard',
-            null
-        );
-        
-        if (success) {
-            document.getElementById('pay-processing').style.display = 'none';
-            document.getElementById('pay-success').style.display = 'block';
-            
-            setTimeout(() => {
-                closeModal('payment-modal');
-                openOrdersModal();
-            }, 2000);
-        } else {
-            alert('ชำระเงินไม่ผ่านระบบธนาคารจำลองขัดข้อง กรุณาลองใหม่อีกครั้ง');
-            document.getElementById('pay-processing').style.display = 'none';
-            document.getElementById('pay-gateway-content').style.display = 'block';
-        }
-    }, 1500);
-}
+window.confirmQRPayment = confirmQRPayment;
+window.simulateQRSuccess = confirmQRPayment;
 
 function formatCardNumber(input) {
     let value = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
