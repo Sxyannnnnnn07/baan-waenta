@@ -27,25 +27,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function setupAdminFormListeners() {
+    // Validate that only .png files are selected for the 5 image inputs
+    for (let i = 1; i <= 5; i++) {
+        const input = document.getElementById(`prod-image-${i}`);
+        if (input) {
+            input.addEventListener('change', () => {
+                if (input.files.length > 0) {
+                    const file = input.files[0];
+                    if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
+                        alert(`ช่องที่ ${i}: กรุณาเลือกเฉพาะไฟล์รูปภาพนามสกุล .png เท่านั้นครับ`);
+                        input.value = '';
+                    }
+                }
+            });
+        }
+    }
+
+    // Validate that 3D model is .glb
     const modelInput = document.getElementById('prod-model-3d');
-    const autoSnapCheck = document.getElementById('auto-snapshot');
-    const imageInput = document.getElementById('prod-image');
-
-    if (modelInput && autoSnapCheck && imageInput) {
-        const updateImageRequirement = () => {
-            if (autoSnapCheck.checked && modelInput.files.length > 0) {
-                imageInput.required = false;
-                imageInput.disabled = true;
-                imageInput.style.opacity = '0.5';
-            } else {
-                imageInput.required = true;
-                imageInput.disabled = false;
-                imageInput.style.opacity = '1';
+    if (modelInput) {
+        modelInput.addEventListener('change', () => {
+            if (modelInput.files.length > 0) {
+                const file = modelInput.files[0];
+                if (!file.name.toLowerCase().endsWith('.glb')) {
+                    alert('กรุณาเลือกไฟล์โมเดล 3D นามสกุล .glb เท่านั้นครับ');
+                    modelInput.value = '';
+                }
             }
-        };
-
-        modelInput.addEventListener('change', updateImageRequirement);
-        autoSnapCheck.addEventListener('change', updateImageRequirement);
+        });
     }
 }
 
@@ -503,68 +512,83 @@ async function fetchStockProducts() {
 async function addNewProduct(e) {
     e.preventDefault();
     
-    const name = document.getElementById('prod-name').value;
-    const brand = document.getElementById('prod-brand').value;
+    const name = document.getElementById('prod-name').value.trim();
+    const brand = document.getElementById('prod-brand').value.trim();
     const category = document.getElementById('prod-category').value;
     const frame_shape = document.getElementById('prod-shape').value;
     const price = parseFloat(document.getElementById('prod-price').value);
-    const stock = parseInt(document.getElementById('prod-stock').value);
+    const stock = parseInt(document.getElementById('prod-stock').value, 10);
 
-    const imageFileInput = document.getElementById('prod-image');
-    const modelFileInput = document.getElementById('prod-model-3d');
-    const autoSnapshotCheck = document.getElementById('auto-snapshot');
-
-    let imgUrl = '';
-    let model3dBase64 = '';
-
-    // Show loading indicator
-    if (typeof showToast === 'function') showToast('กำลังประมวลผลสินค้า...', 'info');
-
-    // 1. Process 3D model if provided
-    if (modelFileInput && modelFileInput.files.length > 0) {
-        const modelFile = modelFileInput.files[0];
-        
-        // Read model file as base64 to upload
-        model3dBase64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target.result);
-            reader.onerror = (err) => reject(err);
-            reader.readAsDataURL(modelFile);
-        });
-
-        // If auto snapshot is checked, generate cover image from 3D model
-        if (autoSnapshotCheck && autoSnapshotCheck.checked) {
-            try {
-                if (typeof showToast === 'function') showToast('กำลังถ่ายภาพปกจากโมเดล 3D...', 'info');
-                imgUrl = await generate3DSnapshot(modelFile);
-            } catch (snapErr) {
-                console.error("Auto snapshot generation failed:", snapErr);
-                if (typeof showToast === 'function') showToast('เกิดข้อผิดพลาดในการถ่ายภาพโมเดล 3D จะใช้รูปดีฟอลต์แทน', 'warning');
-            }
-        }
+    const imgInput1 = document.getElementById('prod-image-1');
+    if (!imgInput1 || imgInput1.files.length === 0) {
+        alert('กรุณาเลือกรูปภาพปกของแว่นตา (ช่องที่ 1) ก่อนบันทึกครับ');
+        return;
     }
 
-    // 2. Fallback to manually uploaded image if snapshot wasn't generated
-    if (!imgUrl) {
-        if (imageFileInput.files.length > 0) {
-            const file = imageFileInput.files[0];
-            imgUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (event) => resolve(event.target.result);
-                reader.readAsDataURL(file);
-            });
-        } else {
-            alert('กรุณาเลือกรูปภาพของแว่นตา หรืออัปโหลดโมเดล 3D พร้อมติ๊กเปิดการถ่ายภาพปกอัตโนมัติครับ');
+    // Helper to read file as Data URL
+    const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+    });
+
+    // 1. Process 3D Model if provided (.glb only)
+    const modelFileInput = document.getElementById('prod-model-3d');
+    let model3dBase64 = null;
+    if (modelFileInput && modelFileInput.files.length > 0) {
+        const file = modelFileInput.files[0];
+        if (!file.name.toLowerCase().endsWith('.glb')) {
+            alert('กรุณาเลือกเฉพาะไฟล์โมเดล .glb เท่านั้นครับ');
+            return;
+        }
+        try {
+            model3dBase64 = await readFileAsDataUrl(file);
+        } catch (err) {
+            alert('ไม่สามารถอ่านไฟล์โมเดล 3D ได้: ' + err.message);
             return;
         }
     }
 
+    // 2. Process all 5 image inputs (.png only)
+    const galleryBase64 = [];
+    for (let i = 1; i <= 5; i++) {
+        const input = document.getElementById(`prod-image-${i}`);
+        if (input && input.files.length > 0) {
+            const file = input.files[0];
+            if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
+                alert(`ช่องที่ ${i}: กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .png เท่านั้นครับ`);
+                return;
+            }
+            try {
+                const dataUrl = await readFileAsDataUrl(file);
+                galleryBase64.push(dataUrl);
+            } catch (err) {
+                alert(`เกิดข้อผิดพลาดในการอ่านไฟล์รูปช่องที่ ${i}: ` + err.message);
+                return;
+            }
+        }
+    }
+
+    if (galleryBase64.length === 0) {
+        alert('กรุณาอัปโหลดรูปภาพปกแว่นตา (ช่องที่ 1) ครับ');
+        return;
+    }
+
+    // Show loading indicator
+    if (typeof showToast === 'function') showToast('กำลังประมวลผลและอัปโหลดรูปภาพสินค้า...', 'info');
+
     const payload = {
-        name, brand, category, frame_shape,
-        price, stock,
-        image_url: imgUrl,
-        tryon_image_url: imgUrl,
-        model_3d: model3dBase64 || null
+        name,
+        brand,
+        category,
+        frame_shape,
+        price,
+        stock,
+        image_url: galleryBase64[0],
+        tryon_image_url: galleryBase64[0],
+        gallery_images: galleryBase64,
+        model_3d: model3dBase64
     };
 
     try {
@@ -576,15 +600,8 @@ async function addNewProduct(e) {
         const data = await res.json();
         
         if (data.success) {
-            alert('ลงขายแว่นตารุ่นใหม่เรียบร้อยแล้ว!');
+            alert('ลงขายแว่นตารุ่นใหม่เรียบร้อยแล้ว! รูปภาพทั้ง 5 มุมจะแสดงในหน้ารายละเอียดสินค้าอัตโนมัติ');
             document.getElementById('add-product-form').reset();
-            // Reset form input requirements
-            const imgInput = document.getElementById('prod-image');
-            if (imgInput) {
-                imgInput.required = true;
-                imgInput.disabled = false;
-                imgInput.style.opacity = '1';
-            }
             fetchStockProducts();
             fetchDashboardMetrics();
         } else {
@@ -594,85 +611,6 @@ async function addNewProduct(e) {
         console.error('Error adding product:', error);
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
     }
-}
-
-// Client-side 3D model snapshot generation using Three.js (Method B)
-function generate3DSnapshot(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const arrayBuffer = e.target.result;
-            if (typeof THREE === 'undefined') {
-                reject(new Error("Three.js library is not loaded"));
-                return;
-            }
-            const loader = new THREE.GLTFLoader();
-            loader.parse(arrayBuffer, '', (gltf) => {
-                try {
-                    const width = 600;
-                    const height = 600;
-                    const scene = new THREE.Scene();
-                    scene.background = new THREE.Color(0xffffff); // pure white background
-
-                    // Setup clean studio lighting
-                    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-                    scene.add(ambientLight);
-                    
-                    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
-                    dirLight1.position.set(5, 10, 7);
-                    scene.add(dirLight1);
-
-                    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-                    dirLight2.position.set(-5, -5, 5);
-                    scene.add(dirLight2);
-
-                    const model = gltf.scene;
-                    scene.add(model);
-
-                    // Center the model's geometry
-                    const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3());
-                    const center = box.getCenter(new THREE.Vector3());
-
-                    model.position.x += (model.position.x - center.x);
-                    model.position.y += (model.position.y - center.y);
-                    model.position.z += (model.position.z - center.z);
-
-                    // Rotate glasses straight front-facing
-                    model.rotation.set(0, 0, 0);
-
-                    // Setup perspective camera
-                    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const fov = camera.fov * (Math.PI / 180);
-                    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-                    cameraZ *= 1.35; // Leave some margins
-                    
-                    camera.position.set(0, 0, cameraZ);
-                    camera.lookAt(new THREE.Vector3(0, 0, 0));
-
-                    // Render to canvas
-                    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-                    renderer.setSize(width, height);
-                    renderer.setPixelRatio(1);
-                    renderer.render(scene, camera);
-
-                    const dataUrl = renderer.domElement.toDataURL('image/jpeg', 0.92);
-                    
-                    // Clean up WebGL resources
-                    renderer.dispose();
-                    
-                    resolve(dataUrl);
-                } catch (err) {
-                    reject(err);
-                }
-            }, (error) => {
-                reject(error);
-            });
-        };
-        reader.onerror = (error) => reject(error);
-        reader.readAsArrayBuffer(file);
-    });
 }
 
 // 6. Delete Product

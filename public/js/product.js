@@ -97,60 +97,88 @@ async function loadProductPageData(productId) {
             }
         }
 
-        // Setup Carousel Images (5 angles for Prada / Modern Half-Rim / dynamic products)
-        if (currentProduct.name && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada')) {
-            currentProductGallery = [
-                { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
-                { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
-                { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
-                { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
-                { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
-            ];
-        } else if (currentProduct.id === 35 || (currentProduct.image_url && (currentProduct.image_url.includes('5.1.png') || currentProduct.image_url.endsWith('/5.1.png'))) || (currentProduct.name && (currentProduct.name.includes('Viper') || currentProduct.name.includes('Sport Shield'))) || (currentProduct.model_3d_url && (currentProduct.model_3d_url.includes('model 5') || currentProduct.model_3d_url.includes('model5')))) {
-            currentProductGallery = [
-                { src: '/assets/5.1.png', label: 'ด้านหน้า' },
-                { src: '/assets/5.2.png', label: 'รายละเอียดแว่นตา' },
-                { src: '/assets/5.3.png', label: 'ด้านข้าง' },
-                { src: '/assets/5.4.png', label: 'มุมด้านหลัง' },
-                { src: '/assets/5.5.png', label: 'นายแบบสวมใส่จริง' }
-            ];
-        } else if (currentProduct.id === 34 || (currentProduct.image_url && (currentProduct.image_url.includes('4.1.png') || currentProduct.image_url.endsWith('/4.1.png'))) || (currentProduct.name && currentProduct.name.includes('Classic Retro Round Gold')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses model4'))) {
-            currentProductGallery = [
-                { src: '/assets/4.1.png', label: 'ด้านหน้า' },
-                { src: '/assets/4.2.png', label: 'มุม 3/4' },
-                { src: '/assets/4.3.png', label: 'ด้านข้าง' },
-                { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
-                { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
-            ];
-        } else if (currentProduct.id === 33 || (currentProduct.image_url && (currentProduct.image_url.includes('3.1.png') || currentProduct.image_url.endsWith('/3.1.png'))) || (currentProduct.name && currentProduct.name.includes('Crystal Pantos')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 3'))) {
-            currentProductGallery = [
-                { src: '/assets/3.1.png', label: 'ด้านหน้า' },
-                { src: '/assets/3.2.png', label: 'มุม 3/4' },
-                { src: '/assets/3.3.png', label: 'ด้านข้าง' },
-                { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
-                { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
-            ];
-        } else if (currentProduct.id === 32 || (currentProduct.image_url && (currentProduct.image_url.includes('/1.png') || currentProduct.image_url.endsWith('/1.png'))) || (currentProduct.name && currentProduct.name.includes('Modern Half-Rim')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 2'))) {
-            currentProductGallery = [
-                { src: '/assets/1.png', label: 'ด้านหน้า' },
-                { src: '/assets/2.png', label: 'มุม 3/4' },
-                { src: '/assets/3.png', label: 'ด้านข้าง' },
-                { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
-                { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
-            ];
-        } else {
-            let modelImg = '/assets/model1.jpg';
-            if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
-            if (currentProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+        // Setup Carousel Images (Dynamic from gallery_images in DB, with fallback)
+        currentProductGallery = [];
+        if (currentProduct.gallery_images) {
+            let galleryList = [];
+            try {
+                galleryList = typeof currentProduct.gallery_images === 'string'
+                    ? JSON.parse(currentProduct.gallery_images)
+                    : currentProduct.gallery_images;
+            } catch (_) {
+                galleryList = [];
+            }
+            if (Array.isArray(galleryList) && galleryList.length > 0) {
+                const angleLabels = [
+                    'ด้านหน้า (ภาพปก)',
+                    'รายละเอียดแว่นตา',
+                    'มุมด้านข้าง',
+                    'มุมด้านหลัง',
+                    'แบบสวมใส่จริง'
+                ];
+                currentProductGallery = galleryList.map((imgSrc, idx) => ({
+                    src: imgSrc,
+                    label: angleLabels[idx] || `มุมที่ ${idx + 1}`
+                }));
+            }
+        }
 
-            let sideImg = '/assets/vto_model.jpg';
-            if (currentProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+        // Fallback for legacy products if gallery_images is empty
+        if (!currentProductGallery || currentProductGallery.length === 0) {
+            if (currentProduct.name && (currentProduct.name.includes('Prada') || currentProduct.brand === 'Prada')) {
+                currentProductGallery = [
+                    { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
+                    { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
+                    { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
+                    { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
+                    { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
+                ];
+            } else if (currentProduct.id === 35 || (currentProduct.image_url && (currentProduct.image_url.includes('5.1.png') || currentProduct.image_url.endsWith('/5.1.png'))) || (currentProduct.name && (currentProduct.name.includes('Viper') || currentProduct.name.includes('Sport Shield'))) || (currentProduct.model_3d_url && (currentProduct.model_3d_url.includes('model 5') || currentProduct.model_3d_url.includes('model5')))) {
+                currentProductGallery = [
+                    { src: '/assets/5.1.png', label: 'ด้านหน้า' },
+                    { src: '/assets/5.2.png', label: 'รายละเอียดแว่นตา' },
+                    { src: '/assets/5.3.png', label: 'ด้านข้าง' },
+                    { src: '/assets/5.4.png', label: 'มุมด้านหลัง' },
+                    { src: '/assets/5.5.png', label: 'นายแบบสวมใส่จริง' }
+                ];
+            } else if (currentProduct.id === 34 || (currentProduct.image_url && (currentProduct.image_url.includes('4.1.png') || currentProduct.image_url.endsWith('/4.1.png'))) || (currentProduct.name && currentProduct.name.includes('Classic Retro Round Gold')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses model4'))) {
+                currentProductGallery = [
+                    { src: '/assets/4.1.png', label: 'ด้านหน้า' },
+                    { src: '/assets/4.2.png', label: 'มุม 3/4' },
+                    { src: '/assets/4.3.png', label: 'ด้านข้าง' },
+                    { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
+                    { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
+                ];
+            } else if (currentProduct.id === 33 || (currentProduct.image_url && (currentProduct.image_url.includes('3.1.png') || currentProduct.image_url.endsWith('/3.1.png'))) || (currentProduct.name && currentProduct.name.includes('Crystal Pantos')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 3'))) {
+                currentProductGallery = [
+                    { src: '/assets/3.1.png', label: 'ด้านหน้า' },
+                    { src: '/assets/3.2.png', label: 'มุม 3/4' },
+                    { src: '/assets/3.3.png', label: 'ด้านข้าง' },
+                    { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
+                    { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
+                ];
+            } else if (currentProduct.id === 32 || (currentProduct.image_url && (currentProduct.image_url.includes('/1.png') || currentProduct.image_url.endsWith('/1.png'))) || (currentProduct.name && currentProduct.name.includes('Modern Half-Rim')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 2'))) {
+                currentProductGallery = [
+                    { src: '/assets/1.png', label: 'ด้านหน้า' },
+                    { src: '/assets/2.png', label: 'มุม 3/4' },
+                    { src: '/assets/3.png', label: 'ด้านข้าง' },
+                    { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
+                    { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
+                ];
+            } else {
+                let modelImg = '/assets/model1.jpg';
+                if (currentProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+                if (currentProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
 
-            currentProductGallery = [
-                { src: currentProduct.image_url, label: 'มุมตรง' },
-                { src: modelImg, label: 'ขณะสวมใส่' },
-                { src: sideImg, label: 'มุมเฉียง' }
-            ];
+                let sideImg = '/assets/vto_model.jpg';
+                if (currentProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+
+                currentProductGallery = [
+                    { src: currentProduct.image_url, label: 'มุมตรง' },
+                    { src: modelImg, label: 'ขณะสวมใส่' },
+                    { src: sideImg, label: 'มุมเฉียง' }
+                ];
+            }
         }
         currentGalleryIdx = 0;
         renderProductGallery();

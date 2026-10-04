@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS products (
     image_url VARCHAR(255) NOT NULL, -- Thumbnail image
     tryon_image_url VARCHAR(255) NOT NULL, -- SVG/PNG frame image for Virtual Try-On
     price DECIMAL(10,2) NOT NULL,
-    stock INT NOT NULL
+    stock INT NOT NULL,
+    model_3d_url VARCHAR(255) NULL,
+    gallery_images LONGTEXT NULL -- JSON array of 5 product image URLs
 ) ENGINE=InnoDB;
 
 -- 3. Prescriptions Table (User lens details)

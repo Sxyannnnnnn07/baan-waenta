@@ -172,7 +172,8 @@ async function setupTables() {
             scale_z DECIMAL(10,4) DEFAULT 1.0000,
             offset_y DECIMAL(10,4) DEFAULT 0.0000,
             price DECIMAL(10,2) NOT NULL,
-            stock INT NOT NULL
+            stock INT NOT NULL,
+            gallery_images LONGTEXT NULL
         ) ENGINE=InnoDB
     `);
 
@@ -220,8 +221,9 @@ async function setupTables() {
         ) ENGINE=InnoDB
     `);
 
-    // Self-healing: Add shipping, payment and slip columns if table already exists
+    // Self-healing: Add columns if table already exists
     try {
+        await dbPool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery_images LONGTEXT NULL");
         await dbPool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_name VARCHAR(255) NULL");
         await dbPool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(50) NULL");
         await dbPool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT NULL");
@@ -841,7 +843,7 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
             let finalTryonUrl = '/assets/round.svg';
             let finalModelUrl = null;
 
-            // Save 3D Model to disk if provided
+            // Save 3D Model to disk if provided (.glb only)
             if (model3d) {
                 try {
                     finalModelUrl = savePublicModelData(model3d, `model_${productId}`);
@@ -850,36 +852,48 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
                 }
             }
 
-            // Save main image to disk if it is base64
-            if (imageUrl && imageUrl.startsWith('data:image/')) {
-                try {
-                    finalImageUrl = savePublicImageData(imageUrl, `product_${productId}`);
-                } catch (imgErr) {
-                    throw new Error(`Invalid product image: ${imgErr.message}`);
-                }
-            } else if (typeof imageUrl === 'string' && imageUrl.startsWith('/assets/')) {
-                finalImageUrl = imageUrl;
+            // Process gallery images (1 to 5 images, PNG format only)
+            let rawGallery = [];
+            if (Array.isArray(req.body.gallery_images) && req.body.gallery_images.length > 0) {
+                rawGallery = req.body.gallery_images.filter(img => typeof img === 'string' && img.trim().length > 0);
+            } else if (imageUrl) {
+                rawGallery = [imageUrl];
             }
 
-            // Save tryon image to disk if it is base64
-            if (tryonImageUrl && tryonImageUrl.startsWith('data:image/')) {
-                if (tryonImageUrl === imageUrl) {
-                    finalTryonUrl = finalImageUrl;
-                } else {
-                    try {
-                        finalTryonUrl = savePublicImageData(tryonImageUrl, `product_tryon_${productId}`);
-                    } catch (imgErr) {
-                        throw new Error(`Invalid try-on image: ${imgErr.message}`);
-                    }
-                }
-            } else if (typeof tryonImageUrl === 'string' && tryonImageUrl.startsWith('/assets/')) {
-                finalTryonUrl = tryonImageUrl;
+            if (rawGallery.length === 0) {
+                throw new Error('Missing product image');
             }
+
+            const savedGalleryUrls = [];
+            for (let i = 0; i < rawGallery.length; i++) {
+                const imgData = rawGallery[i];
+                if (imgData.startsWith('data:image/')) {
+                    if (!imgData.startsWith('data:image/png')) {
+                        throw new Error('รูปภาพต้องเป็นไฟล์ PNG เท่านั้น');
+                    }
+                    try {
+                        const savedUrl = savePublicImageData(imgData, `product_${productId}_img${i + 1}`);
+                        savedGalleryUrls.push(savedUrl);
+                    } catch (imgErr) {
+                        throw new Error(`Invalid product image: ${imgErr.message}`);
+                    }
+                } else if (typeof imgData === 'string' && (imgData.startsWith('/assets/') || imgData.startsWith('/uploads/'))) {
+                    savedGalleryUrls.push(imgData);
+                }
+            }
+
+            if (savedGalleryUrls.length === 0) {
+                throw new Error('Missing product image');
+            }
+
+            finalImageUrl = savedGalleryUrls[0];
+            finalTryonUrl = savedGalleryUrls[0];
+            const finalGalleryJson = JSON.stringify(savedGalleryUrls);
 
             // Update database with the finalized upload file paths
             await conn.query(
-                'UPDATE products SET image_url = ?, tryon_image_url = ?, model_3d_url = ? WHERE id = ?',
-                [finalImageUrl, finalTryonUrl, finalModelUrl, productId]
+                'UPDATE products SET image_url = ?, tryon_image_url = ?, model_3d_url = ?, gallery_images = ? WHERE id = ?',
+                [finalImageUrl, finalTryonUrl, finalModelUrl, finalGalleryJson, productId]
             );
 
             await conn.commit();
@@ -891,6 +905,12 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
             throw dbErr;
         }
     } catch (error) {
+        if (/รูปภาพต้องเป็นไฟล์ PNG เท่านั้น/.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดรูปภาพเฉพาะไฟล์นามสกุล .png เท่านั้น' });
+        }
+        if (/Missing product image/.test(error.message)) {
+            return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดรูปภาพปกแว่นตา (ช่องที่ 1)' });
+        }
         if (/Invalid product image|Invalid try-on image/.test(error.message)) {
             return res.status(400).json({ success: false, message: 'รูปสินค้าไม่ถูกต้องหรือมีขนาดเกิน 5 MB' });
         }

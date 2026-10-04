@@ -20,9 +20,6 @@
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <!-- Three.js for 3D Auto-Snapshot feature (Method B) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <!-- Chart.js for Admin Analytics Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -169,17 +166,76 @@
                         <label for="prod-stock">จำนวนสต็อกสินค้า</label>
                         <input type="number" id="prod-stock" required placeholder="เช่น 15">
                     </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="prod-image">รูปภาพกรอบแว่นตา (.jpg, .png)</label>
-                        <input type="file" id="prod-image" accept="image/*" required style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                    <!-- 5 Image Upload Slots (.png only) -->
+                    <div class="form-group" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                        <label style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <ion-icon name="images-outline" style="color: var(--accent); font-size: 1.2rem;"></ion-icon>
+                            รูปภาพกรอบแว่นตา 5 มุมมอง (เฉพาะไฟล์ .png เท่านั้น)
+                        </label>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            * รูปภาพจะถูกส่งไปยังหน้ารายละเอียดสินค้า (Product Details) อัตโนมัติ โดยช่องที่ 1 จะใช้เป็นภาพปกหลักของแว่นตา
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem;">
+                            <!-- ช่องที่ 1: ปกแว่นตา (สำคัญมาก) -->
+                            <div style="background: var(--bg-primary); border: 2px solid #3b82f6; border-radius: 12px; padding: 0.85rem; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-weight: 600; font-size: 0.85rem; color: #3b82f6;">⭐ ช่องที่ 1: ภาพปกแว่นตา</span>
+                                    <span style="font-size: 0.7rem; background: #3b82f6; color: white; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 500;">จำเป็น</span>
+                                </div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ภาพด้านหน้า (ใช้เป็นปกหน้าแรก, แคตตาล็อก และรูปตะกร้า)</p>
+                                <input type="file" id="prod-image-1" accept=".png,image/png" required style="width: 100%; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); font-size: 0.8rem; font-family: inherit;">
+                            </div>
+
+                            <!-- ช่องที่ 2: รายละเอียดแว่นตา -->
+                            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.85rem; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-weight: 600; font-size: 0.85rem;">ช่องที่ 2: รายละเอียดแว่นตา</span>
+                                    <span style="font-size: 0.7rem; background: var(--accent-light); color: var(--text-secondary); padding: 0.1rem 0.4rem; border-radius: 4px;">มุม 3/4</span>
+                                </div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">เจาะลึกดีเทลกรอบแว่นตาหรือข้อต่อ</p>
+                                <input type="file" id="prod-image-2" accept=".png,image/png" style="width: 100%; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); font-size: 0.8rem; font-family: inherit;">
+                            </div>
+
+                            <!-- ช่องที่ 3: มุมด้านข้าง -->
+                            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.85rem; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-weight: 600; font-size: 0.85rem;">ช่องที่ 3: มุมด้านข้าง</span>
+                                    <span style="font-size: 0.7rem; background: var(--accent-light); color: var(--text-secondary); padding: 0.1rem 0.4rem; border-radius: 4px;">ขาแว่นตา</span>
+                                </div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">แสดงขาแว่นตาและองศาด้านข้าง</p>
+                                <input type="file" id="prod-image-3" accept=".png,image/png" style="width: 100%; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); font-size: 0.8rem; font-family: inherit;">
+                            </div>
+
+                            <!-- ช่องที่ 4: มุมด้านหลัง -->
+                            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.85rem; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-weight: 600; font-size: 0.85rem;">ช่องที่ 4: มุมด้านหลัง</span>
+                                    <span style="font-size: 0.7rem; background: var(--accent-light); color: var(--text-secondary); padding: 0.1rem 0.4rem; border-radius: 4px;">ด้านหลัง</span>
+                                </div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">แสดงแป้นจมูกและทรงด้านหลัง</p>
+                                <input type="file" id="prod-image-4" accept=".png,image/png" style="width: 100%; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); font-size: 0.8rem; font-family: inherit;">
+                            </div>
+
+                            <!-- ช่องที่ 5: นางแบบ/นายแบบ สวมใส่จริง -->
+                            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.85rem; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-weight: 600; font-size: 0.85rem;">ช่องที่ 5: แบบสวมใส่จริง</span>
+                                    <span style="font-size: 0.7rem; background: var(--accent-light); color: var(--text-secondary); padding: 0.1rem 0.4rem; border-radius: 4px;">Lookbook</span>
+                                </div>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ภาพถ่ายขณะคนสวมใส่แว่นตาจริง</p>
+                                <input type="file" id="prod-image-5" accept=".png,image/png" style="width: 100%; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); font-size: 0.8rem; font-family: inherit;">
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- อัปโหลดโมเดล 3D (.glb เท่านั้น) -->
                     <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="prod-model-3d">อัปโหลดไฟล์โมเดล 3D (.glb - ทางเลือก)</label>
+                        <label for="prod-model-3d" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <ion-icon name="cube-outline" style="color: var(--accent); font-size: 1.15rem;"></ion-icon>
+                            อัปโหลดไฟล์โมเดล 3D สำหรับ Virtual Try-On (.glb เท่านั้น - ทางเลือก)
+                        </label>
                         <input type="file" id="prod-model-3d" accept=".glb" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
-                    </div>
-                    <div class="form-group" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; margin-top: -0.5rem; margin-bottom: 0.5rem;">
-                        <input type="checkbox" id="auto-snapshot" checked style="width: auto; cursor: pointer;">
-                        <label for="auto-snapshot" style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary);">ถ่ายภาพปก 2D จากโมเดล 3D อัตโนมัติ (ไม่จำเป็นต้องอัปโหลดรูปภาพ)</label>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
