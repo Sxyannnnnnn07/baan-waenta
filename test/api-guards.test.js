@@ -26,6 +26,7 @@ for (const route of [
     ['POST', '/api/products'],
     ['DELETE', '/api/products/1'],
     ['GET', '/api/admin/orders'],
+    ['DELETE', '/api/admin/orders/1'],
     ['GET', '/api/admin/analytics'],
     ['POST', '/api/reviews'],
     ['DELETE', '/api/reviews/1']

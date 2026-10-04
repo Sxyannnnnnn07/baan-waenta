@@ -1185,6 +1185,55 @@ app.put('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) => 
     }
 });
 
+// 10.1 Admin: Delete order
+app.delete('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) => {
+    const orderId = integerInRange(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+    if (!orderId) {
+        return res.status(400).json({ success: false, message: 'รหัสคำสั่งซื้อไม่ถูกต้อง' });
+    }
+    let conn = null;
+    try {
+        conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+
+        const [orders] = await conn.query('SELECT status, slip_image FROM orders WHERE id = ? FOR UPDATE', [orderId]);
+        if (!orders.length) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, message: 'ไม่พบคำสั่งซื้อ' });
+        }
+
+        const currentStatus = orders[0].status;
+        const slipImage = orders[0].slip_image;
+
+        // If order was active (not cancelled), restore reserved stock back to products
+        if (currentStatus !== 'cancelled') {
+            const [items] = await conn.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId]);
+            for (const item of items) {
+                await conn.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
+            }
+        }
+
+        // Delete order items first (resilient cascade) and then the order
+        await conn.query('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+        await conn.query('DELETE FROM orders WHERE id = ?', [orderId]);
+
+        await conn.commit();
+
+        if (slipImage) {
+            const safeName = path.basename(slipImage);
+            const slipPath = path.join(SLIP_STORAGE_DIR, safeName);
+            fs.promises.unlink(slipPath).catch(() => {});
+        }
+
+        res.json({ success: true, message: 'ลบรายการสั่งซื้อเรียบร้อยแล้ว' });
+    } catch (error) {
+        if (conn) await conn.rollback();
+        sendServerError(res, error, 'Delete order failed');
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
 // 11. Admin: Analytics (Top best sellers, lens popularity, page metrics)
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {

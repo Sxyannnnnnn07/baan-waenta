@@ -927,15 +927,26 @@ a {
     box-shadow: var(--shadow-sm);
 }
 
+.admin-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    margin-top: 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+
 .admin-table {
     width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-    font-size: 0.9rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.88rem;
+    min-width: 1080px;
 }
 
 .admin-table th, .admin-table td {
-    padding: 0.75rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border-color);
     text-align: left;
 }
@@ -943,18 +954,269 @@ a {
 .admin-table th {
     font-weight: 600;
     color: var(--text-secondary);
+    background-color: var(--bg-primary);
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap; /* ตัวอักษรหมวดหมู่ด้านบนบรรทัดเดียวพอ */
+    font-size: 0.82rem;
+    letter-spacing: 0.3px;
+    user-select: none;
 }
 
+.admin-table td {
+    vertical-align: top;
+    word-break: keep-all; /* ภาษาไทยขึ้นบรรทัดสองเป็นคำ ไม่ตัดกลางพยางค์ */
+    overflow-wrap: break-word;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.admin-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--accent-light);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badge System - Always keep-all and nowrap */
 .badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.32rem 0.65rem;
+    border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap; /* ห้ามตัดคำใน badge เด็ดขาด */
+    word-break: keep-all;
+    line-height: 1.2;
+    border: 1px solid transparent;
 }
 
-.badge-paid { background-color: #d1fae5; color: #065f46; }
-.badge-pending { background-color: #fef3c7; color: #92400e; }
-.badge-shipped { background-color: #dbeafe; color: #1e40af; }
+.badge-paid { background-color: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.badge-pending { background-color: #fef3c7; color: #92400e; border-color: #fde68a; }
+.badge-shipped { background-color: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.badge-completed { background-color: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.badge-cancelled { background-color: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+/* Custom elements for Orders Management Table */
+.order-id-badge {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+}
+
+.order-date-text {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-top: 0.3rem;
+    white-space: nowrap;
+}
+
+.order-customer-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.order-customer-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    word-break: keep-all;
+}
+
+.order-meta-info {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    background: var(--bg-primary);
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 0.25rem;
+    word-break: keep-all;
+}
+
+.order-payment-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.order-glasses-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.35rem 0;
+}
+
+.order-glasses-item:not(:last-child) {
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.45rem;
+}
+
+.order-glasses-thumb {
+    width: 44px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 2px;
+}
+
+.order-glasses-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.order-glasses-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+.order-glasses-qty {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    margin-top: 0.2rem;
+    white-space: nowrap;
+}
+
+.order-lens-item {
+    padding: 0.35rem 0;
+}
+
+.order-lens-item:not(:last-child) {
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.45rem;
+}
+
+.order-lens-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+.order-action-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: stretch;
+    min-width: 110px;
+}
+
+.btn-order-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+.btn-order-action:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-order-action.btn-confirm {
+    background: #3b82f6;
+    color: white;
+    border-color: #2563eb;
+}
+
+.btn-order-action.btn-confirm:hover {
+    background: #2563eb;
+}
+
+.btn-order-action.btn-ship {
+    background: #10b981;
+    color: white;
+    border-color: #059669;
+}
+
+.btn-order-action.btn-ship:hover {
+    background: #059669;
+}
+
+.btn-order-action.btn-cancel {
+    color: #e53e3e;
+    border-color: #fed7d7;
+    background: #fff5f5;
+}
+
+.btn-order-action.btn-cancel:hover {
+    background: #fed7d7;
+}
+
+.btn-order-action.btn-delete {
+    color: #dc2626;
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.btn-order-action.btn-delete:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
 
 /* VTO Showcase Section */
 .vto-showcase {
@@ -1605,6 +1867,35 @@ button[style*="#e53e3e"],
     background-color: rgba(59, 130, 246, 0.2) !important;
     color: #93c5fd !important;
     border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-completed {
+    background-color: rgba(139, 92, 246, 0.2) !important;
+    color: #c4b5fd !important;
+    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-cancelled {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="dark"] .btn-order-action.btn-cancel {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .btn-order-action.btn-delete {
+    background: rgba(220, 38, 38, 0.2) !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+    color: #f87171 !important;
+}
+
+[data-theme="dark"] .btn-order-action.btn-delete:hover {
+    background: #dc2626 !important;
+    color: white !important;
 }
 
 /* Luxury Dark Footer in Dark Mode (Unified dark styling for high legibility) */

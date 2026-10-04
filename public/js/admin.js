@@ -341,8 +341,8 @@ async function fetchOrdersList() {
         if (data.success) {
             tableBody.innerHTML = '';
             
-            if (data.orders.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">ยังไม่มีรายการสั่งซื้อในระบบ</td></tr>`;
+            if (!data.orders || data.orders.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 3rem;">ยังไม่มีรายการสั่งซื้อในระบบ</td></tr>`;
                 return;
             }
 
@@ -355,7 +355,7 @@ async function fetchOrdersList() {
                         customer: row.customer_name,
                         total: row.total_amount,
                         status: row.status,
-                        date: new Date(row.created_at).toLocaleDateString('th-TH'),
+                        date: new Date(row.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
                         shipping_name: row.shipping_name,
                         shipping_phone: row.shipping_phone,
                         shipping_address: row.shipping_address,
@@ -365,7 +365,15 @@ async function fetchOrdersList() {
                         items: []
                     };
                 }
-                grouped[row.order_id].items.push(`${row.product_name} x${row.quantity} (${row.lens_type})`);
+                if (row.product_name) {
+                    grouped[row.order_id].items.push({
+                        name: row.product_name,
+                        image: row.product_image,
+                        quantity: row.quantity,
+                        lens_type: row.lens_type,
+                        unit_price: row.unit_price
+                    });
+                }
             });
 
             Object.values(grouped).forEach(order => {
@@ -383,62 +391,135 @@ async function fetchOrdersList() {
                     badgeClass = 'badge-shipped';
                     statusText = 'จัดส่งเรียบร้อย';
                 } else if (order.status === 'completed') {
-                    badgeClass = 'badge-shipped';
+                    badgeClass = 'badge-completed';
                     statusText = 'สำเร็จ';
                 } else if (order.status === 'cancelled') {
-                    badgeClass = 'badge-pending';
+                    badgeClass = 'badge-cancelled';
                     statusText = 'ยกเลิกแล้ว';
                 }
 
-                let actionHtml = '';
+                let primaryActionHtml = '';
+                let cancelActionHtml = '';
+
                 if (order.status === 'pending' || order.status === 'payment_review') {
-                    actionHtml = `
-                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'paid')">ยืนยันชำระเงิน</button>
-                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;color:#c53030;" onclick="updateOrderStatus(${order.id}, 'cancelled')">ยกเลิก</button>`;
+                    primaryActionHtml = `<button class="btn-order-action btn-confirm" onclick="updateOrderStatus(${order.id}, 'paid')"><ion-icon name="checkmark-outline"></ion-icon> ยืนยันชำระเงิน</button>`;
+                    cancelActionHtml = `<button class="btn-order-action btn-cancel" onclick="updateOrderStatus(${order.id}, 'cancelled')"><ion-icon name="close-outline"></ion-icon> ยกเลิก</button>`;
                 } else if (order.status === 'paid') {
-                    actionHtml = `
-                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'shipped')">ส่งสินค้าแล้ว</button>
-                        <button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;color:#c53030;" onclick="updateOrderStatus(${order.id}, 'cancelled')">ยกเลิก</button>`;
+                    primaryActionHtml = `<button class="btn-order-action btn-ship" onclick="updateOrderStatus(${order.id}, 'shipped')"><ion-icon name="paper-plane-outline"></ion-icon> ส่งสินค้าแล้ว</button>`;
+                    cancelActionHtml = `<button class="btn-order-action btn-cancel" onclick="updateOrderStatus(${order.id}, 'cancelled')"><ion-icon name="close-outline"></ion-icon> ยกเลิก</button>`;
                 } else if (order.status === 'shipped') {
-                    actionHtml = `<button class="btn btn-outline" style="padding:0.3rem 0.6rem;font-size:0.75rem;" onclick="updateOrderStatus(${order.id}, 'completed')">ปิดงาน</button>`;
-                } else {
-                    actionHtml = `<span style="font-size:0.8rem;font-weight:600;">${statusText}</span>`;
+                    primaryActionHtml = `<button class="btn-order-action btn-confirm" onclick="updateOrderStatus(${order.id}, 'completed')"><ion-icon name="checkmark-done-outline"></ion-icon> ปิดงานสำเร็จ</button>`;
                 }
+
+                // Delete order button available for all orders (especially cancelled orders)
+                const deleteActionHtml = `<button class="btn-order-action btn-delete" onclick="deleteOrder(${order.id})" title="ลบคำสั่งซื้อ #${order.id} ออกจากระบบ"><ion-icon name="trash-outline"></ion-icon> ลบออเดอร์</button>`;
 
                 let slipAdminHtml = '';
                 if (order.slip_image) {
-                    slipAdminHtml = `<div style="margin-top:0.4rem;">
-                        <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" style="display:inline-flex; align-items:center; gap:0.25rem; background-color:#ebf8ff; border:1px solid #bee3f8; color:#2b6cb0; border-radius:4px; padding:0.2rem 0.5rem; font-size:0.7rem; font-weight:600; text-decoration:none; cursor:pointer;">
+                    slipAdminHtml = `
+                        <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" style="display:inline-flex; align-items:center; gap:0.25rem; background-color:#ebf8ff; border:1px solid #bee3f8; color:#2b6cb0; border-radius:6px; padding:0.2rem 0.5rem; font-size:0.75rem; font-weight:600; text-decoration:none; cursor:pointer; white-space:nowrap;">
                             <ion-icon name="image-outline"></ion-icon> ดูสลิปโอนเงิน
-                        </a>
-                    </div>`;
+                        </a>`;
                 }
 
                 let trackingAdminHtml = '';
                 if (order.tracking_number) {
-                    trackingAdminHtml = `<div style="margin-top:0.35rem; font-size:0.75rem; color:#2d3748; background:#edf2f7; border:1px solid var(--border-color); padding:0.2rem 0.5rem; border-radius:6px; display:inline-flex; align-items:center; gap:0.25rem; font-weight:600;">
-                        <ion-icon name="paper-plane-outline" style="color:#4a5568;"></ion-icon> เลขพัสดุ: ${escapeHtml(order.tracking_number)}
-                    </div>`;
+                    trackingAdminHtml = `
+                        <span style="font-size:0.75rem; color:#2d3748; background:#edf2f7; border:1px solid var(--border-color); padding:0.2rem 0.5rem; border-radius:6px; display:inline-flex; align-items:center; gap:0.25rem; font-weight:600; white-space:nowrap;">
+                            <ion-icon name="paper-plane-outline" style="color:#4a5568;"></ion-icon> เลขพัสดุ: ${escapeHtml(order.tracking_number)}
+                        </span>`;
                 }
 
+                let paymentText = 'เก็บเงินปลายทาง';
+                let paymentIcon = '💵';
+                if (order.payment_method === 'BankTransfer') {
+                    paymentText = 'โอนผ่านธนาคาร';
+                    paymentIcon = '🏦';
+                } else if (order.payment_method === 'QRCode') {
+                    paymentText = 'สแกน QR-code';
+                    paymentIcon = '📱';
+                } else if (order.payment_method === 'CreditCard') {
+                    paymentText = 'บัตรเครดิต / เดบิต';
+                    paymentIcon = '💳';
+                }
+
+                const glassesHtml = order.items.length > 0
+                    ? order.items.map(item => `
+                        <div class="order-glasses-item">
+                            <div class="order-glasses-thumb">
+                                <img src="${escapeHtml(item.image || '/assets/round.svg')}" alt="${escapeHtml(item.name)}">
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div class="order-glasses-name">${escapeHtml(item.name)}</div>
+                                <span class="order-glasses-qty">จำนวน: <strong>${item.quantity}</strong> ชิ้น</span>
+                            </div>
+                        </div>
+                    `).join('')
+                    : '<span style="color:var(--text-secondary); font-size:0.8rem;">- ไม่มีข้อมูลสินค้า -</span>';
+
+                const lensesHtml = order.items.length > 0
+                    ? order.items.map(item => `
+                        <div class="order-lens-item">
+                            <span class="order-lens-tag">
+                                <ion-icon name="sparkles-outline" style="color: #3b82f6;"></ion-icon>
+                                <span>${escapeHtml(item.lens_type || 'เลนส์ทั่วไป')}</span>
+                            </span>
+                        </div>
+                    `).join('')
+                    : '<span style="color:var(--text-secondary); font-size:0.8rem;">-</span>';
+
                 tr.innerHTML = `
-                    <td style="font-weight: 600;">#${order.id}</td>
-                    <td>
-                        <strong>${escapeHtml(order.customer)}</strong>
-                        ${order.shipping_name ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem; font-weight:normal; line-height:1.4;">
-                            ชื่อผู้รับ: ${escapeHtml(order.shipping_name)}<br>
-                            เบอร์โทร: ${escapeHtml(order.shipping_phone)}<br>
-                            ที่อยู่: ${escapeHtml(order.shipping_address)}<br>
-                            วิธีชำระเงิน: <span style="color:var(--accent); font-weight:600;">${order.payment_method === 'BankTransfer' ? 'โอนผ่านธนาคาร' : (order.payment_method === 'QRCode' ? 'สแกน QR-code' : (order.payment_method === 'CreditCard' ? 'บัตรเครดิต / เดบิต (จำลอง)' : 'เก็บเงินปลายทาง'))}</span>
-                            ${slipAdminHtml}
-                            ${trackingAdminHtml}
-                        </div>` : ''}
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <span class="order-id-badge">#${order.id}</span>
+                        <div class="order-date-text">${order.date}</div>
                     </td>
-                    <td>${order.items.map(escapeHtml).join('<br>')}</td>
-                    <td>เลนส์สั่งตัดพิเศษ</td>
-                    <td style="font-weight: 700; font-family: var(--font-heading);">${parseFloat(order.total).toLocaleString()} ฿</td>
-                    <td><span class="badge ${badgeClass}">${statusText}</span></td>
-                    <td>${actionHtml}</td>
+                    <td style="vertical-align: top;">
+                        <div class="order-customer-box">
+                            <div class="order-customer-title">
+                                <ion-icon name="person-circle-outline" style="font-size: 1.15rem; color: var(--accent); flex-shrink: 0;"></ion-icon>
+                                <span>${escapeHtml(order.customer)}</span>
+                            </div>
+                            ${order.shipping_name ? `
+                            <div class="order-meta-info">
+                                <div style="margin-bottom: 0.2rem;">
+                                    <strong style="color: var(--text-primary);">ผู้รับ:</strong> ${escapeHtml(order.shipping_name)} 
+                                    <span style="color: var(--text-secondary); margin-left: 0.35rem;">(${escapeHtml(order.shipping_phone)})</span>
+                                </div>
+                                <div style="margin-bottom: 0.35rem; color: var(--text-secondary); line-height: 1.4;">
+                                    <strong style="color: var(--text-primary);">ที่อยู่:</strong> ${escapeHtml(order.shipping_address)}
+                                </div>
+                                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.35rem;">
+                                    <span class="order-payment-pill">
+                                        <span>${paymentIcon}</span> <span>${paymentText}</span>
+                                    </span>
+                                    ${slipAdminHtml}
+                                    ${trackingAdminHtml}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </td>
+                    <td style="vertical-align: top;">
+                        ${glassesHtml}
+                    </td>
+                    <td style="vertical-align: top;">
+                        ${lensesHtml}
+                    </td>
+                    <td style="text-align: right; vertical-align: top; white-space: nowrap;">
+                        <div style="font-weight: 700; font-family: var(--font-heading); font-size: 1rem; color: var(--text-primary);">
+                            ${parseFloat(order.total).toLocaleString()} ฿
+                        </div>
+                    </td>
+                    <td style="text-align: center; vertical-align: top; white-space: nowrap;">
+                        <span class="badge ${badgeClass}">${statusText}</span>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <div class="order-action-btns">
+                            ${primaryActionHtml}
+                            ${cancelActionHtml}
+                            ${deleteActionHtml}
+                        </div>
+                    </td>
                 `;
                 tableBody.appendChild(tr);
             });
@@ -474,6 +555,28 @@ async function updateOrderStatus(orderId, status) {
         }
     } catch (error) {
         console.error('Error updating order:', error);
+    }
+}
+
+async function deleteOrder(orderId) {
+    if (!confirm(`คุณต้องการลบคำสั่งซื้อ #${orderId} ออกจากระบบอย่างถาวรใช่หรือไม่?\n\n* ข้อมูลจะถูกลบออกทั้งหมด และจะคืนสต็อกสินค้าอัตโนมัติหากออเดอร์ยังไม่ถูกยกเลิก`)) {
+        return;
+    }
+    try {
+        const res = await adminApiFetch(`/api/admin/orders/${orderId}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('ลบคำสั่งซื้อเรียบร้อยแล้ว');
+            fetchOrdersList();
+            fetchDashboardMetrics();
+        } else {
+            alert(data.message || 'ไม่สามารถลบคำสั่งซื้อได้');
+        }
+    } catch (error) {
+        console.error('Error deleting order:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
 
