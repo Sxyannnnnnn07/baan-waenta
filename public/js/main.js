@@ -651,6 +651,13 @@ async function openLensModal(productId) {
             btn3D.title = "หมุนดูสินค้า 360 องศา";
             if (modelViewer) {
                 modelViewer.src = activeLensProduct.model_3d_url;
+                const isModel4 = (activeLensProduct.model_3d_url && (activeLensProduct.model_3d_url.toLowerCase().includes('model4') || activeLensProduct.model_3d_url.toLowerCase().includes('glasses model4'))) ||
+                    activeLensProduct.id === 34 || (activeLensProduct.name && activeLensProduct.name.toLowerCase().includes('classic retro round gold'));
+                if (isModel4) {
+                    modelViewer.setAttribute('orientation', '0deg 90deg 0deg');
+                } else {
+                    modelViewer.removeAttribute('orientation');
+                }
             }
         } else {
             btn3D.style.display = 'none';

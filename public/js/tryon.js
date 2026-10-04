@@ -237,6 +237,13 @@ function load3DModel(prod) {
     loader.load(prod.model_3d_url, (gltf) => {
         const root = gltf.scene;
 
+        const isModel4 = (prod.model_3d_url && (prod.model_3d_url.toLowerCase().includes('model4') || prod.model_3d_url.toLowerCase().includes('glasses model4'))) ||
+            prod.id === 34 || (prod.name && prod.name.toLowerCase().includes('classic retro round gold'));
+        if (isModel4) {
+            root.rotation.set(0, Math.PI / 2, 0);
+            root.updateMatrixWorld(true);
+        }
+
         // Center model geometry at local origin
         const box = new THREE.Box3().setFromObject(root);
         const size = new THREE.Vector3();

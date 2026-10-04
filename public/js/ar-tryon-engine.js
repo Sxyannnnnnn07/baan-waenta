@@ -408,8 +408,19 @@
                 (gltf) => {
                     current3DModel = gltf.scene;
 
+                    const isModel4 = (modelUrl && (modelUrl.toLowerCase().includes('model4') || modelUrl.toLowerCase().includes('glasses model4'))) ||
+                        (currentProductData && (
+                            currentProductData.id === 34 ||
+                            (currentProductData.name && currentProductData.name.toLowerCase().includes('classic retro round gold')) ||
+                            (currentProductData.model_3d_url && currentProductData.model_3d_url.toLowerCase().includes('model4'))
+                        ));
+
                     current3DModel.position.set(0, 0, 0);
-                    current3DModel.rotation.set(0, 0, 0);
+                    if (isModel4) {
+                        current3DModel.rotation.set(0, Math.PI / 2, 0);
+                    } else {
+                        current3DModel.rotation.set(0, 0, 0);
+                    }
                     current3DModel.scale.set(1, 1, 1);
                     current3DModel.updateMatrixWorld(true);
 
@@ -434,7 +445,7 @@
                             (currentProductData.name && currentProductData.name.toLowerCase().includes('prada')) ||
                             (currentProductData.brand && currentProductData.brand.toLowerCase().includes('prada'))
                         ));
-                    const zInsetFactor = isPrada ? 0.015 : 0.05;
+                    const zInsetFactor = isPrada ? 0.015 : (isModel4 ? 0.06 : 0.05);
                     current3DModel.position.set(
                         -center.x * normScale,
                         -center.y * normScale,
