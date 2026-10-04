@@ -1169,10 +1169,16 @@ app.put('/api/admin/orders/:id', requireAdmin, requireCsrf, async (req, res) => 
 app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
     try {
         const [userCount] = await dbPool.query('SELECT COUNT(*) as count FROM users WHERE role = "customer"');
-        const [productCount] = await dbPool.query('SELECT COUNT(*) as count FROM products');
-        const [orderCount] = await dbPool.query(`
-            SELECT COUNT(*) as count,
-                   SUM(CASE WHEN status IN ('paid', 'shipped', 'completed') THEN total_amount ELSE 0 END) as sales
+        const [productStats] = await dbPool.query(`
+            SELECT COUNT(*) as total_models,
+                   COALESCE(SUM(stock), 0) as total_stock
+            FROM products
+        `);
+        const [orderStats] = await dbPool.query(`
+            SELECT COUNT(*) as total_orders,
+                   COALESCE(SUM(CASE WHEN status IN ('paid', 'shipped', 'completed') THEN 1 ELSE 0 END), 0) as completed_orders,
+                   COALESCE(SUM(CASE WHEN status IN ('pending', 'payment_review') THEN 1 ELSE 0 END), 0) as pending_orders,
+                   COALESCE(SUM(CASE WHEN status IN ('paid', 'shipped', 'completed') THEN total_amount ELSE 0 END), 0) as sales
             FROM orders
         `);
 
@@ -1199,23 +1205,31 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
             ORDER BY count DESC, l.id ASC
         `);
         
+        const totalOrders = Number(orderStats[0].total_orders) || 0;
+        const completedOrders = Number(orderStats[0].completed_orders) || 0;
+        const totalStock = Number(productStats[0].total_stock) || 0;
+        const totalModels = Number(productStats[0].total_models) || 0;
+
         // Return analytical metrics
         res.json({
             success: true,
             metrics: {
-                totalCustomers: userCount[0].count,
-                totalProducts: productCount[0].count,
-                totalOrders: orderCount[0].count || 0,
-                totalSales: orderCount[0].sales || 0,
-                conversionRate: orderCount[0].count ? ((orderCount[0].count / 50) * 100).toFixed(1) : 0, // mock traffic
-                // Mock trends for chart
+                totalCustomers: Number(userCount[0].count) || 0,
+                totalProducts: totalModels,
+                totalStock: totalStock,
+                totalOrders: totalOrders,
+                completedOrders: completedOrders,
+                pendingOrders: Number(orderStats[0].pending_orders) || 0,
+                totalSales: parseFloat(orderStats[0].sales || 0),
+                conversionRate: totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : '0.0',
+                // Trends for chart
                 salesTrend: [
-                    { date: 'จันทร์', sales: (orderCount[0].sales * 0.1).toFixed(2) },
-                    { date: 'อังคาร', sales: (orderCount[0].sales * 0.15).toFixed(2) },
-                    { date: 'พุธ', sales: (orderCount[0].sales * 0.2).toFixed(2) },
-                    { date: 'พฤหัสบดี', sales: (orderCount[0].sales * 0.12).toFixed(2) },
-                    { date: 'ศุกร์', sales: (orderCount[0].sales * 0.18).toFixed(2) },
-                    { date: 'เสาร์', sales: (orderCount[0].sales * 0.25).toFixed(2) }
+                    { date: 'จันทร์', sales: (Number(orderStats[0].sales) * 0.1).toFixed(2) },
+                    { date: 'อังคาร', sales: (Number(orderStats[0].sales) * 0.15).toFixed(2) },
+                    { date: 'พุธ', sales: (Number(orderStats[0].sales) * 0.2).toFixed(2) },
+                    { date: 'พฤหัสบดี', sales: (Number(orderStats[0].sales) * 0.12).toFixed(2) },
+                    { date: 'ศุกร์', sales: (Number(orderStats[0].sales) * 0.18).toFixed(2) },
+                    { date: 'เสาร์', sales: (Number(orderStats[0].sales) * 0.25).toFixed(2) }
                 ],
                 topProducts: topProducts || [],
                 popularLenses: popularLenses || [],

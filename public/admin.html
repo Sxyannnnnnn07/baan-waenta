@@ -70,17 +70,19 @@
             <div class="summary-card">
                 <span class="title">ยอดขายรวมทั้งหมด</span>
                 <span class="number" id="metric-sales">0 ฿</span>
-                <span style="font-size: 0.8rem; color: #48bb78;"><ion-icon name="trending-up-outline"></ion-icon> +12.5% สัปดาห์นี้</span>
+                <span id="metric-sales-subtext" style="font-size: 0.8rem; color: #48bb78; display: flex; align-items: center; gap: 0.25rem;">
+                    <ion-icon name="checkmark-done-circle-outline"></ion-icon> ยอดชำระเงินสำเร็จจริง
+                </span>
             </div>
             <div class="summary-card">
-                <span class="title">จำนวนคำสั่งซื้อ</span>
+                <span class="title">คำสั่งซื้อสำเร็จ</span>
                 <span class="number" id="metric-orders">0</span>
-                <span style="font-size: 0.8rem; color: var(--text-secondary);">ออเดอร์ตัดเลนส์สำเร็จ</span>
+                <span id="metric-orders-subtext" style="font-size: 0.8rem; color: var(--text-secondary);">ออเดอร์ตัดเลนส์สำเร็จ</span>
             </div>
             <div class="summary-card">
-                <span class="title">อัตราคอนเวอร์ชันการลองแว่น</span>
-                <span class="number" id="metric-conversion">0%</span>
-                <span style="font-size: 0.8rem; color: var(--text-secondary);">ผู้ลองแว่นตาและกดสั่งซื้อ</span>
+                <span class="title">สินค้าคงคลังพร้อมขาย</span>
+                <span class="number" id="metric-stock">0 ชิ้น</span>
+                <span id="metric-stock-subtext" style="font-size: 0.8rem; color: var(--text-secondary);">รวมสินค้าทุกรุ่นในระบบ</span>
             </div>
             <div class="summary-card">
                 <span class="title">จำนวนสมาชิกลูกค้า</span>

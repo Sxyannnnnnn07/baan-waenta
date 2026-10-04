@@ -94,8 +94,32 @@ async function fetchDashboardMetrics() {
             const m = data.metrics;
             cachedMetrics = m;
             document.getElementById('metric-sales').innerText = `${parseFloat(m.totalSales).toLocaleString()} ฿`;
-            document.getElementById('metric-orders').innerText = m.totalOrders;
-            document.getElementById('metric-conversion').innerText = `${m.conversionRate}%`;
+            
+            const ordersElem = document.getElementById('metric-orders');
+            if (ordersElem) {
+                ordersElem.innerText = m.completedOrders ?? m.totalOrders;
+            }
+            const ordersSub = document.getElementById('metric-orders-subtext');
+            if (ordersSub) {
+                ordersSub.innerText = m.totalOrders > 0 
+                    ? `สำเร็จ ${m.completedOrders} จาก ${m.totalOrders} รายการ`
+                    : 'ยังไม่มีคำสั่งซื้อ';
+            }
+
+            const stockElem = document.getElementById('metric-stock');
+            if (stockElem) {
+                stockElem.innerText = `${m.totalStock || 0} ชิ้น`;
+            }
+            const stockSub = document.getElementById('metric-stock-subtext');
+            if (stockSub) {
+                stockSub.innerText = `พร้อมจำหน่าย (รวม ${m.totalProducts || 0} รุ่น)`;
+            }
+
+            const convElem = document.getElementById('metric-conversion');
+            if (convElem) {
+                convElem.innerText = `${m.conversionRate}%`;
+            }
+
             document.getElementById('metric-customers').innerText = m.totalCustomers;
 
             // Render analytics charts
