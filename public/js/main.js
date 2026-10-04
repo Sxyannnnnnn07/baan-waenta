@@ -588,61 +588,88 @@ async function openLensModal(productId) {
     if (legacyName) legacyName.innerText = activeLensProduct.name;
     if (legacyPrice) legacyPrice.innerText = `ราคากรอบแว่น: ${parseFloat(activeLensProduct.price).toLocaleString()} บาท`;
 
-    // 2. Prepare Carousel Images (Front view, model view, sample view)
+    // 2. Prepare Carousel Images (Dynamic from gallery_images in DB, with fallback)
     const baseImg = activeLensProduct.image_url;
-    if (activeLensProduct.name && (activeLensProduct.name.includes('Prada') || activeLensProduct.brand === 'Prada')) {
-        qvCurrentImages = [
-            { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
-            { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
-            { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
-            { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
-            { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
-        ];
-    } else if (activeLensProduct.id === 35 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('5.1.png') || activeLensProduct.image_url.endsWith('/5.1.png'))) || (activeLensProduct.name && (activeLensProduct.name.includes('Viper') || activeLensProduct.name.includes('Sport Shield'))) || (activeLensProduct.model_3d_url && (activeLensProduct.model_3d_url.includes('model 5') || activeLensProduct.model_3d_url.includes('model5')))) {
-        qvCurrentImages = [
-            { src: '/assets/5.1.png', label: 'ด้านหน้า' },
-            { src: '/assets/5.2.png', label: 'รายละเอียดแว่นตา' },
-            { src: '/assets/5.3.png', label: 'ด้านข้าง' },
-            { src: '/assets/5.4.png', label: 'มุมด้านหลัง' },
-            { src: '/assets/5.5.png', label: 'นายแบบสวมใส่จริง' }
-        ];
-    } else if (activeLensProduct.id === 34 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('4.1.png') || activeLensProduct.image_url.endsWith('/4.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Classic Retro Round Gold')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses model4'))) {
-        qvCurrentImages = [
-            { src: '/assets/4.1.png', label: 'ด้านหน้า' },
-            { src: '/assets/4.2.png', label: 'มุม 3/4' },
-            { src: '/assets/4.3.png', label: 'ด้านข้าง' },
-            { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
-            { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
-        ];
-    } else if (activeLensProduct.id === 33 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.image_url.endsWith('/3.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Crystal Pantos')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3'))) {
-        qvCurrentImages = [
-            { src: '/assets/3.1.png', label: 'ด้านหน้า' },
-            { src: '/assets/3.2.png', label: 'มุม 3/4' },
-            { src: '/assets/3.3.png', label: 'ด้านข้าง' },
-            { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
-            { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
-        ];
-    } else if (activeLensProduct.id === 32 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('/1.png') || activeLensProduct.image_url.endsWith('/1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Modern Half-Rim')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 2'))) {
-        qvCurrentImages = [
-            { src: '/assets/1.png', label: 'ด้านหน้า' },
-            { src: '/assets/2.png', label: 'มุม 3/4' },
-            { src: '/assets/3.png', label: 'ด้านข้าง' },
-            { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
-            { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
-        ];
-    } else {
-        let modelImg = '/assets/model1.jpg';
-        if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
-        if (activeLensProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
+    qvCurrentImages = [];
+    if (activeLensProduct.gallery_images) {
+        let galleryList = [];
+        try {
+            galleryList = typeof activeLensProduct.gallery_images === 'string'
+                ? JSON.parse(activeLensProduct.gallery_images)
+                : activeLensProduct.gallery_images;
+        } catch (_) {
+            galleryList = [];
+        }
+        if (Array.isArray(galleryList) && galleryList.length > 0) {
+            const angleLabels = [
+                'ด้านหน้า (ภาพปก)',
+                'รายละเอียดแว่นตา',
+                'มุมด้านข้าง',
+                'มุมด้านหลัง',
+                'แบบสวมใส่จริง'
+            ];
+            qvCurrentImages = galleryList.map((imgSrc, idx) => ({
+                src: imgSrc,
+                label: angleLabels[idx] || `มุมที่ ${idx + 1}`
+            }));
+        }
+    }
 
-        let sideImg = '/assets/vto_model.jpg';
-        if (activeLensProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+    if (!qvCurrentImages || qvCurrentImages.length === 0) {
+        if (activeLensProduct.name && (activeLensProduct.name.includes('Prada') || activeLensProduct.brand === 'Prada')) {
+            qvCurrentImages = [
+                { src: '/assets/prada_front.jpg', label: 'ด้านหน้า' },
+                { src: '/assets/prada_angle1.jpg', label: 'มุม 1' },
+                { src: '/assets/prada_detail.jpg', label: 'รายละเอียด' },
+                { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
+                { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
+            ];
+        } else if (activeLensProduct.id === 35 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('5.1.png') || activeLensProduct.image_url.endsWith('/5.1.png'))) || (activeLensProduct.name && (activeLensProduct.name.includes('Viper') || activeLensProduct.name.includes('Sport Shield'))) || (activeLensProduct.model_3d_url && (activeLensProduct.model_3d_url.includes('model 5') || activeLensProduct.model_3d_url.includes('model5')))) {
+            qvCurrentImages = [
+                { src: '/assets/5.1.png', label: 'ด้านหน้า' },
+                { src: '/assets/5.2.png', label: 'รายละเอียดแว่นตา' },
+                { src: '/assets/5.3.png', label: 'ด้านข้าง' },
+                { src: '/assets/5.4.png', label: 'มุมด้านหลัง' },
+                { src: '/assets/5.5.png', label: 'นายแบบสวมใส่จริง' }
+            ];
+        } else if (activeLensProduct.id === 34 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('4.1.png') || activeLensProduct.image_url.endsWith('/4.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Classic Retro Round Gold')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses model4'))) {
+            qvCurrentImages = [
+                { src: '/assets/4.1.png', label: 'ด้านหน้า' },
+                { src: '/assets/4.2.png', label: 'มุม 3/4' },
+                { src: '/assets/4.3.png', label: 'ด้านข้าง' },
+                { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
+                { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
+            ];
+        } else if (activeLensProduct.id === 33 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.image_url.endsWith('/3.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Crystal Pantos')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3'))) {
+            qvCurrentImages = [
+                { src: '/assets/3.1.png', label: 'ด้านหน้า' },
+                { src: '/assets/3.2.png', label: 'มุม 3/4' },
+                { src: '/assets/3.3.png', label: 'ด้านข้าง' },
+                { src: '/assets/3.4.png', label: 'มุมด้านหลัง' },
+                { src: '/assets/3.5.png', label: 'นายแบบสวมใส่จริง' }
+            ];
+        } else if (activeLensProduct.id === 32 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('/1.png') || activeLensProduct.image_url.endsWith('/1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Modern Half-Rim')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 2'))) {
+            qvCurrentImages = [
+                { src: '/assets/1.png', label: 'ด้านหน้า' },
+                { src: '/assets/2.png', label: 'มุม 3/4' },
+                { src: '/assets/3.png', label: 'ด้านข้าง' },
+                { src: '/assets/4.png', label: 'มุมเฉียงหลัง' },
+                { src: '/assets/5.png', label: 'นางแบบสวมใส่จริง' }
+            ];
+        } else {
+            let modelImg = '/assets/model1.jpg';
+            if (activeLensProduct.id % 3 === 1) modelImg = '/assets/model2.jpg';
+            if (activeLensProduct.id % 3 === 2) modelImg = '/assets/model3.jpg';
 
-        qvCurrentImages = [
-            { src: baseImg, label: 'มุมตรง' },
-            { src: modelImg, label: 'ขณะสวมใส่' },
-            { src: sideImg, label: 'มุมเฉียง' }
-        ];
+            let sideImg = '/assets/vto_model.jpg';
+            if (activeLensProduct.id % 2 === 0) sideImg = '/assets/p1.jpg';
+
+            qvCurrentImages = [
+                { src: baseImg, label: 'มุมตรง' },
+                { src: modelImg, label: 'ขณะสวมใส่' },
+                { src: sideImg, label: 'มุมเฉียง' }
+            ];
+        }
     }
     qvCurrentIndex = 0;
     renderQuickViewCarousel();
