@@ -371,6 +371,43 @@
         </div>
     </div>
 
+    <!-- Product Upload Progress Modal (1% - 100%) -->
+    <div class="modal" id="product-upload-progress-modal" style="display: none; z-index: 10001; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);">
+        <div class="modal-content" style="max-width: 480px; text-align: center; position: relative; padding: 2.2rem 2rem; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid var(--border-color);">
+            <div id="upload-progress-icon-wrap" style="width: 72px; height: 72px; border-radius: 50%; background: rgba(99, 102, 241, 0.12); color: var(--accent); margin: 0 auto 1.25rem; display: flex; align-items: center; justify-content: center; font-size: 2.4rem; transition: all 0.3s ease;">
+                <ion-icon id="upload-progress-icon" name="cloud-upload-outline"></ion-icon>
+            </div>
+            
+            <h3 id="upload-progress-title" style="margin: 0 0 0.5rem; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">
+                กำลังเพิ่มสินค้าเข้าสู่ระบบ
+            </h3>
+            
+            <p id="upload-progress-desc" style="margin: 0 0 1.5rem; font-size: 0.9rem; color: var(--text-secondary); min-height: 2.4rem; display: flex; align-items: center; justify-content: center; line-height: 1.4;">
+                กำลังเตรียมข้อมูลรูปภาพและโมเดล 3D...
+            </p>
+
+            <!-- Progress Bar -->
+            <div style="background: var(--bg-primary); border-radius: 20px; height: 16px; overflow: hidden; position: relative; margin-bottom: 0.75rem; border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                <div id="upload-progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #6366f1, #38bdf8); border-radius: 20px; transition: width 0.25s ease-out; position: relative;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);"></div>
+                </div>
+            </div>
+
+            <!-- Percentage Display -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                <span id="upload-progress-status-label">ความคืบหน้า</span>
+                <span id="upload-progress-percent" style="font-size: 1.2rem; font-weight: 700; color: var(--accent);">0%</span>
+            </div>
+
+            <!-- Action Button (Shown on completion or error) -->
+            <div id="upload-progress-actions" style="display: none; justify-content: center;">
+                <button type="button" id="upload-progress-done-btn" class="btn btn-primary" onclick="closeModal('product-upload-progress-modal')" style="border-radius: 30px; padding: 0.65rem 2.5rem; font-weight: 600; font-size: 0.95rem;">
+                    ตกลง
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/toast.js"></script>
     <script src="/js/admin.js"></script>
 </body>

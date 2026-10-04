@@ -543,36 +543,23 @@ async function seedData() {
         }
     ];
 
-    let seededCount = 0;
-    let updatedCount = 0;
-    for (const prod of defaultProducts) {
-        const [existing] = await dbPool.query('SELECT id, image_url, tryon_image_url FROM products WHERE name = ?', [prod.name]);
-        if (existing.length === 0) {
+    // Seed Products (only if products table is empty)
+    const [existingProducts] = await dbPool.query('SELECT id FROM products LIMIT 1');
+    if (existingProducts.length === 0) {
+        console.log('Seeding initial products database...');
+        for (const prod of defaultProducts) {
             await dbPool.query(
                 `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, scale_x, scale_y, scale_z, offset_y, price, stock) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                  [prod.name, prod.brand, prod.category, prod.frame_shape, prod.image_url, prod.tryon_image_url, prod.model_3d_url, prod.scale_x, prod.scale_y, prod.scale_z, prod.offset_y, prod.price, prod.stock]
             );
-            seededCount++;
-        } else {
-            // Update product fields if they changed
-            await dbPool.query(
-                'UPDATE products SET brand = ?, category = ?, frame_shape = ?, image_url = ?, tryon_image_url = ?, model_3d_url = ?, price = ?, stock = ? WHERE id = ?',
-                [prod.brand, prod.category, prod.frame_shape, prod.image_url, prod.tryon_image_url, prod.model_3d_url, prod.price, prod.stock, existing[0].id]
-            );
-            updatedCount++;
         }
     }
-    // Also explicitly ensure any Prada products are set to prada_front.jpg
-    try {
-        await dbPool.query("UPDATE products SET image_url = '/assets/prada_front.jpg', tryon_image_url = '/assets/prada_front.jpg' WHERE name LIKE '%Prada%' OR brand = 'Prada' OR id = 23");
-    } catch (e) {
-        console.error('Failed to sync Prada image paths:', e.message);
-    }
 
-    if (seededCount > 0 || updatedCount > 0) {
-        console.log(`Products seeding complete. Seeded: ${seededCount}, Updated Image Paths: ${updatedCount}`);
-    }
+    // Clean up any accidental duplicates created by legacy seeding
+    try {
+        await dbPool.query("DELETE FROM products WHERE id >= 37 AND name LIKE '%(3D AR Edition)%'");
+    } catch (_) {}
 }
 
 function publicUser(user) {

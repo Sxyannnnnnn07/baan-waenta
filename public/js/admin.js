@@ -708,10 +708,63 @@ async function editProductStock(productId, currentStock, productName) {
 }
 window.editProductStock = editProductStock;
 
-// 5. Add New Product
+// Helper to update upload progress modal (0 - 100%)
+function setProductUploadProgress(percent, desc, state = 'uploading') {
+    const modal = document.getElementById('product-upload-progress-modal');
+    const fill = document.getElementById('upload-progress-fill');
+    const percentEl = document.getElementById('upload-progress-percent');
+    const descEl = document.getElementById('upload-progress-desc');
+    const titleEl = document.getElementById('upload-progress-title');
+    const iconEl = document.getElementById('upload-progress-icon');
+    const iconWrap = document.getElementById('upload-progress-icon-wrap');
+    const actions = document.getElementById('upload-progress-actions');
+
+    if (modal && modal.style.display !== 'flex') {
+        modal.style.display = 'flex';
+    }
+
+    const safePercent = Math.min(100, Math.max(0, Math.round(percent)));
+    if (fill) fill.style.width = `${safePercent}%`;
+    if (percentEl) percentEl.textContent = `${safePercent}%`;
+    if (descEl) descEl.innerHTML = desc;
+
+    if (state === 'success') {
+        if (titleEl) titleEl.textContent = 'เพิ่มสินค้าสำเร็จเรียบร้อย!';
+        if (iconEl) iconEl.setAttribute('name', 'checkmark-circle-outline');
+        if (iconWrap) {
+            iconWrap.style.background = 'rgba(16, 185, 129, 0.15)';
+            iconWrap.style.color = '#10b981';
+        }
+        if (fill) fill.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+        if (actions) actions.style.display = 'flex';
+    } else if (state === 'error') {
+        if (titleEl) titleEl.textContent = 'เกิดข้อผิดพลาดในการเพิ่มสินค้า';
+        if (iconEl) iconEl.setAttribute('name', 'alert-circle-outline');
+        if (iconWrap) {
+            iconWrap.style.background = 'rgba(239, 68, 68, 0.15)';
+            iconWrap.style.color = '#ef4444';
+        }
+        if (fill) fill.style.background = '#ef4444';
+        if (actions) actions.style.display = 'flex';
+    } else {
+        if (titleEl) titleEl.textContent = 'กำลังเพิ่มสินค้าเข้าสู่ระบบ';
+        if (iconEl) iconEl.setAttribute('name', 'cloud-upload-outline');
+        if (iconWrap) {
+            iconWrap.style.background = 'rgba(99, 102, 241, 0.12)';
+            iconWrap.style.color = 'var(--accent)';
+        }
+        if (fill) fill.style.background = 'linear-gradient(90deg, #6366f1, #38bdf8)';
+        if (actions) actions.style.display = 'none';
+    }
+}
+window.setProductUploadProgress = setProductUploadProgress;
+
+// 5. Add New Product with 1-100% Real-Time Progress Notification
 async function addNewProduct(e) {
     e.preventDefault();
-    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+
     const name = document.getElementById('prod-name').value.trim();
     const brand = document.getElementById('prod-brand').value.trim();
     const category = document.getElementById('prod-category').value;
@@ -725,58 +778,79 @@ async function addNewProduct(e) {
         return;
     }
 
-    // Helper to read file as Data URL
-    const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    // Collect all files to measure total reading progress
+    const modelFileInput = document.getElementById('prod-model-3d');
+    const imageInputs = [];
+    for (let i = 1; i <= 5; i++) {
+        const inp = document.getElementById(`prod-image-${i}`);
+        if (inp && inp.files.length > 0) imageInputs.push({ index: i, file: inp.files[0] });
+    }
+
+    const hasModel = modelFileInput && modelFileInput.files.length > 0;
+    const totalFilesToRead = imageInputs.length + (hasModel ? 1 : 0);
+    let filesReadSoFar = 0;
+
+    // Helper to read file as Data URL with incremental progress
+    const readFileAsDataUrl = (file, label) => new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target.result);
+        reader.onload = (event) => {
+            filesReadSoFar++;
+            const pct = Math.round((filesReadSoFar / totalFilesToRead) * 20); // 0% -> 20%
+            setProductUploadProgress(pct, `กำลังแปลงไฟล์: ${label} (${filesReadSoFar}/${totalFilesToRead})...`);
+            resolve(event.target.result);
+        };
         reader.onerror = (err) => reject(err);
         reader.readAsDataURL(file);
     });
 
+    // Start Progress Notification
+    setProductUploadProgress(3, 'กำลังเริ่มเตรียมไฟล์รูปภาพและโมเดล 3D...');
+    if (submitBtn) submitBtn.disabled = true;
+
     // 1. Process 3D Model if provided (.glb only)
-    const modelFileInput = document.getElementById('prod-model-3d');
     let model3dBase64 = null;
-    if (modelFileInput && modelFileInput.files.length > 0) {
+    if (hasModel) {
         const file = modelFileInput.files[0];
         if (!file.name.toLowerCase().endsWith('.glb')) {
-            alert('กรุณาเลือกเฉพาะไฟล์โมเดล .glb เท่านั้นครับ');
+            if (submitBtn) submitBtn.disabled = false;
+            setProductUploadProgress(0, 'กรุณาเลือกเฉพาะไฟล์โมเดล .glb เท่านั้นครับ', 'error');
             return;
         }
         try {
-            model3dBase64 = await readFileAsDataUrl(file);
+            model3dBase64 = await readFileAsDataUrl(file, 'โมเดล 3D (.glb)');
         } catch (err) {
-            alert('ไม่สามารถอ่านไฟล์โมเดล 3D ได้: ' + err.message);
+            if (submitBtn) submitBtn.disabled = false;
+            setProductUploadProgress(0, 'ไม่สามารถอ่านไฟล์โมเดล 3D ได้: ' + err.message, 'error');
             return;
         }
     }
 
-    // 2. Process all 5 image inputs (.png only)
+    // 2. Process all image inputs (.png only)
     const galleryBase64 = [];
-    for (let i = 1; i <= 5; i++) {
-        const input = document.getElementById(`prod-image-${i}`);
-        if (input && input.files.length > 0) {
-            const file = input.files[0];
-            if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
-                alert(`ช่องที่ ${i}: กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .png เท่านั้นครับ`);
-                return;
-            }
-            try {
-                const dataUrl = await readFileAsDataUrl(file);
-                galleryBase64.push(dataUrl);
-            } catch (err) {
-                alert(`เกิดข้อผิดพลาดในการอ่านไฟล์รูปช่องที่ ${i}: ` + err.message);
-                return;
-            }
+    for (const item of imageInputs) {
+        const file = item.file;
+        if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
+            if (submitBtn) submitBtn.disabled = false;
+            setProductUploadProgress(0, `ช่องที่ ${item.index}: กรุณาอัปโหลดเฉพาะไฟล์ .png เท่านั้น`, 'error');
+            return;
+        }
+        try {
+            const dataUrl = await readFileAsDataUrl(file, `รูปภาพมุมที่ ${item.index}`);
+            galleryBase64.push(dataUrl);
+        } catch (err) {
+            if (submitBtn) submitBtn.disabled = false;
+            setProductUploadProgress(0, `อ่านไฟล์รูปช่องที่ ${item.index} ไม่สำเร็จ: ` + err.message, 'error');
+            return;
         }
     }
 
     if (galleryBase64.length === 0) {
-        alert('กรุณาอัปโหลดรูปภาพปกแว่นตา (ช่องที่ 1) ครับ');
+        if (submitBtn) submitBtn.disabled = false;
+        setProductUploadProgress(0, 'กรุณาอัปโหลดรูปภาพปกแว่นตา (ช่องที่ 1)', 'error');
         return;
     }
 
-    // Show loading indicator
-    if (typeof showToast === 'function') showToast('กำลังประมวลผลและอัปโหลดรูปภาพสินค้า...', 'info');
+    setProductUploadProgress(22, 'จัดเตรียมข้อมูลเสร็จแล้ว กำลังเชื่อมต่อเซิร์ฟเวอร์...');
 
     const payload = {
         name,
@@ -791,26 +865,68 @@ async function addNewProduct(e) {
         model_3d: model3dBase64
     };
 
-    try {
-        const res = await adminApiFetch('/api/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+    const payloadJson = JSON.stringify(payload);
+    const totalBytes = payloadJson.length;
+    const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+
+    // 3. Upload via XMLHttpRequest to get real-time upload progress (22% -> 88%)
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/products');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+
+    xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+            const uploadPart = (event.loaded / event.total) * 65; // 65% of overall progress
+            const currentPct = Math.round(22 + uploadPart);
+            const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
+            setProductUploadProgress(currentPct, `กำลังอัปโหลดข้อมูลเข้าเซิร์ฟเวอร์ (${loadedMb} MB / ${totalMb} MB)...`);
+        }
+    };
+
+    let tickTimer = null;
+    xhr.upload.onload = () => {
+        // Upload finished, server is now storing files into MySQL
+        setProductUploadProgress(88, 'เซิร์ฟเวอร์ได้รับข้อมูลแล้ว กำลังประมวลผล...');
         
-        if (data.success) {
-            alert('ลงขายแว่นตารุ่นใหม่เรียบร้อยแล้ว! รูปภาพทั้ง 5 มุมจะแสดงในหน้ารายละเอียดสินค้าอัตโนมัติ');
-            document.getElementById('add-product-form').reset();
+        let fakeCurrent = 88;
+        tickTimer = setInterval(() => {
+            if (fakeCurrent < 97) {
+                fakeCurrent += 1;
+                setProductUploadProgress(fakeCurrent, 'กำลังบันทึกเนื้อไฟล์รูปภาพและโมเดล 3D ลงฐานข้อมูล MySQL ถาวร...');
+            }
+        }, 500);
+    };
+
+    xhr.onload = () => {
+        if (tickTimer) clearInterval(tickTimer);
+        if (submitBtn) submitBtn.disabled = false;
+
+        let data = {};
+        try {
+            data = JSON.parse(xhr.responseText);
+        } catch (_) {
+            data = { success: false, message: 'เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง' };
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+            setProductUploadProgress(100, `เพิ่มสินค้า <b>"${escapeHtml(name)}"</b> และบันทึกรูป+โมเดล 3D ลงฐานข้อมูลถาวรสำเร็จแล้ว!`, 'success');
+            form.reset();
             fetchStockProducts();
             fetchDashboardMetrics();
+            if (typeof showToast === 'function') showToast('เพิ่มสินค้าและโมเดล 3D สำเร็จ!', 'success');
         } else {
-            alert('ไม่สามารถเพิ่มแว่นตาได้: ' + (data.message || data.error));
+            setProductUploadProgress(100, data.message || 'ไม่สามารถเพิ่มสินค้าได้', 'error');
         }
-    } catch (error) {
-        console.error('Error adding product:', error);
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
-    }
+    };
+
+    xhr.onerror = () => {
+        if (tickTimer) clearInterval(tickTimer);
+        if (submitBtn) submitBtn.disabled = false;
+        setProductUploadProgress(100, 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย', 'error');
+    };
+
+    xhr.send(payloadJson);
 }
 
 // 6. Delete Product
