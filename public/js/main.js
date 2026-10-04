@@ -565,6 +565,14 @@ async function openLensModal(productId) {
             { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
             { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
         ];
+    } else if (activeLensProduct.id === 34 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('4.1.png') || activeLensProduct.image_url.endsWith('/4.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Classic Retro Round Gold')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses model4'))) {
+        qvCurrentImages = [
+            { src: '/assets/4.1.png', label: 'ด้านหน้า' },
+            { src: '/assets/4.2.png', label: 'มุม 3/4' },
+            { src: '/assets/4.3.png', label: 'ด้านข้าง' },
+            { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
+            { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
+        ];
     } else if (activeLensProduct.id === 33 || (activeLensProduct.image_url && (activeLensProduct.image_url.includes('3.1.png') || activeLensProduct.image_url.endsWith('/3.1.png'))) || (activeLensProduct.name && activeLensProduct.name.includes('Crystal Pantos')) || (activeLensProduct.model_3d_url && activeLensProduct.model_3d_url.includes('glasses 3'))) {
         qvCurrentImages = [
             { src: '/assets/3.1.png', label: 'ด้านหน้า' },

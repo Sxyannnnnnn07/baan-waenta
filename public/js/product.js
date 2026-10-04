@@ -97,6 +97,14 @@ async function loadProductPageData(productId) {
                 { src: '/assets/prada_angle2.jpg', label: 'ด้านข้าง' },
                 { src: '/assets/prada_model.jpg', label: 'นายแบบสวมใส่จริง' }
             ];
+        } else if (currentProduct.id === 34 || (currentProduct.image_url && (currentProduct.image_url.includes('4.1.png') || currentProduct.image_url.endsWith('/4.1.png'))) || (currentProduct.name && currentProduct.name.includes('Classic Retro Round Gold')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses model4'))) {
+            currentProductGallery = [
+                { src: '/assets/4.1.png', label: 'ด้านหน้า' },
+                { src: '/assets/4.2.png', label: 'มุม 3/4' },
+                { src: '/assets/4.3.png', label: 'ด้านข้าง' },
+                { src: '/assets/4.4.png', label: 'มุมด้านหลัง' },
+                { src: '/assets/4.5.png', label: 'นางแบบสวมใส่จริง' }
+            ];
         } else if (currentProduct.id === 33 || (currentProduct.image_url && (currentProduct.image_url.includes('3.1.png') || currentProduct.image_url.endsWith('/3.1.png'))) || (currentProduct.name && currentProduct.name.includes('Crystal Pantos')) || (currentProduct.model_3d_url && currentProduct.model_3d_url.includes('glasses 3'))) {
             currentProductGallery = [
                 { src: '/assets/3.1.png', label: 'ด้านหน้า' },
