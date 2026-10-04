@@ -438,7 +438,7 @@ async function seedData() {
         {
             name: "Viper Sport Shield Rainbow (3D AR Edition)",
             brand: "Baan Waenta",
-            category: "Optical",
+            category: "Sunglasses",
             frame_shape: "Square",
             image_url: "/assets/5.1.png",
             tryon_image_url: "/assets/5.1.png",
