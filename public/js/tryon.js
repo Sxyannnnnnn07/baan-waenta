@@ -212,24 +212,6 @@ function initThreeJS() {
     hemiLight.position.set(0, 20, 0);
     threeScene.add(hemiLight);
 
-    const frontLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    frontLight.position.set(0, 0, 50);
-    threeScene.add(frontLight);
-
-    try {
-        if (typeof THREE.PMREMGenerator !== 'undefined') {
-            const pmremGen = new THREE.PMREMGenerator(threeRenderer);
-            pmremGen.compileEquirectangularShader();
-            const envScene = new THREE.Scene();
-            const envHemi = new THREE.HemisphereLight(0xffffff, 0x64748b, 2.0);
-            envScene.add(envHemi);
-            const envTarget = pmremGen.fromScene(envScene);
-            threeScene.environment = envTarget.texture;
-        }
-    } catch (envErr) {
-        console.warn("Could not setup PMREM environment:", envErr);
-    }
-
     // Render loop integration
     animateThreeJS();
 }
@@ -269,29 +251,6 @@ function load3DModel(prod) {
         const center = new THREE.Vector3();
         box.getCenter(center);
         root.position.set(-center.x, -center.y, -center.z);
-
-        // Enhance material colors and specular sheen under VTO camera lighting
-        root.traverse((child) => {
-            if (child.isMesh && child.material) {
-                const mats = Array.isArray(child.material) ? child.material : [child.material];
-                mats.forEach((mat) => {
-                    const matName = (mat.name || '').toLowerCase();
-                    if (matName.includes('polarized') || matName.includes('lens') || matName.includes('glass')) {
-                        mat.metalness = 0.05;
-                        mat.roughness = 0.12;
-                        if (mat.map) {
-                            mat.map.encoding = THREE.sRGBEncoding;
-                            mat.map.needsUpdate = true;
-                        }
-                        mat.needsUpdate = true;
-                    } else if (mat.metalness > 0.6 && mat.map) {
-                        mat.metalness = 0.1;
-                        mat.roughness = 0.2;
-                        mat.needsUpdate = true;
-                    }
-                });
-            }
-        });
 
         // Wrap in parent group for tracking transforms
         current3DModel = new THREE.Group();

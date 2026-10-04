@@ -353,26 +353,6 @@
         hemiLight.position.set(0, 30, 0);
         threeScene.add(hemiLight);
 
-        // Frontal light for vivid lens and frame colors directly from camera perspective
-        const frontalLight = new THREE.DirectionalLight(0xffffff, 1.3);
-        frontalLight.position.set(0, 0, 40);
-        threeScene.add(frontalLight);
-
-        // Procedural Neutral Studio Environment for realistic reflections on polarized/mirror lenses
-        try {
-            if (typeof THREE.PMREMGenerator !== 'undefined') {
-                const pmremGen = new THREE.PMREMGenerator(threeRenderer);
-                pmremGen.compileEquirectangularShader();
-                const envScene = new THREE.Scene();
-                const envHemi = new THREE.HemisphereLight(0xffffff, 0x64748b, 2.0);
-                envScene.add(envHemi);
-                const envTarget = pmremGen.fromScene(envScene);
-                threeScene.environment = envTarget.texture;
-            }
-        } catch (envErr) {
-            console.warn("Could not setup PMREM environment:", envErr);
-        }
-
         // Anatomical Head Occluder (Composite depth mask to hide temples in front view and behind head like Owndays)
         const occluderMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true });
         headOccluder = new THREE.Group();
@@ -471,29 +451,6 @@
                         -center.y * normScale,
                         -(frontZ - size.z * zInsetFactor) * normScale
                     );
-
-                    // Enhance material colors and specular sheen under AR camera lighting
-                    current3DModel.traverse((child) => {
-                        if (child.isMesh && child.material) {
-                            const mats = Array.isArray(child.material) ? child.material : [child.material];
-                            mats.forEach((mat) => {
-                                const matName = (mat.name || '').toLowerCase();
-                                if (matName.includes('polarized') || matName.includes('lens') || matName.includes('glass')) {
-                                    mat.metalness = 0.05;
-                                    mat.roughness = 0.12;
-                                    if (mat.map) {
-                                        mat.map.encoding = THREE.sRGBEncoding;
-                                        mat.map.needsUpdate = true;
-                                    }
-                                    mat.needsUpdate = true;
-                                } else if (mat.metalness > 0.6 && mat.map) {
-                                    mat.metalness = 0.1;
-                                    mat.roughness = 0.2;
-                                    mat.needsUpdate = true;
-                                }
-                            });
-                        }
-                    });
 
                     // Wrap in parent group for 6-DOF transform control
                     modelWrapperGroup = new THREE.Group();
