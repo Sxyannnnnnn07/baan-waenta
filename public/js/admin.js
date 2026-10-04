@@ -199,7 +199,7 @@ async function fetchOrdersList() {
                 let slipAdminHtml = '';
                 if (order.slip_image) {
                     slipAdminHtml = `<div style="margin-top:0.4rem;">
-                        <a href="${order.slip_image}" target="_blank" style="display:inline-flex; align-items:center; gap:0.25rem; background-color:#ebf8ff; border:1px solid #bee3f8; color:#2b6cb0; border-radius:4px; padding:0.2rem 0.5rem; font-size:0.7rem; font-weight:600; text-decoration:none;">
+                        <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" style="display:inline-flex; align-items:center; gap:0.25rem; background-color:#ebf8ff; border:1px solid #bee3f8; color:#2b6cb0; border-radius:4px; padding:0.2rem 0.5rem; font-size:0.7rem; font-weight:600; text-decoration:none; cursor:pointer;">
                             <ion-icon name="image-outline"></ion-icon> ดูสลิปโอนเงิน
                         </a>
                     </div>`;
@@ -571,3 +571,20 @@ async function deleteReview(id) {
         alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
     }
 }
+
+function viewOrderSlip(slipUrl) {
+    const modal = document.getElementById('view-slip-modal');
+    if (!modal) return;
+    const img = document.getElementById('view-slip-modal-img');
+    const dl = document.getElementById('view-slip-modal-download');
+    if (img) img.src = slipUrl;
+    if (dl) dl.href = slipUrl;
+    modal.style.display = 'flex';
+}
+window.viewOrderSlip = viewOrderSlip;
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+window.closeModal = closeModal;

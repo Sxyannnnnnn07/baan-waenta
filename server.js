@@ -1295,6 +1295,38 @@ app.get('/api/orders/:id/slip', requireAuth, async (req, res) => {
             : path.join(SLIP_STORAGE_DIR, safeName);
         if (!fs.existsSync(filePath)) return res.status(404).end();
         res.setHeader('Cache-Control', 'private, no-store');
+
+        // If accessed directly from browser navigation (text/html) and not raw image request, render with close button
+        if (req.headers.accept && req.headers.accept.includes('text/html') && req.query.raw !== '1') {
+            return res.send(`<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สลิปหลักฐานการโอนเงิน #${orderId}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; background: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+        .topbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .topbar-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 8px; }
+        .close-btn { background: #e53e3e; color: #fff; border: none; padding: 8px 18px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(229,62,62,0.4); }
+        .close-btn:hover { background: #c53030; }
+        .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .slip-img { max-width: 100%; max-height: 82vh; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); object-fit: contain; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span class="topbar-title">📄 สลิปหลักฐานการโอนเงิน (คำสั่งซื้อ #${orderId})</span>
+        <button type="button" class="close-btn" onclick="if (window.opener) { window.close(); } else if (history.length > 1) { history.back(); } else { window.location.href='/'; }">✕ ปิดหน้านี้</button>
+    </div>
+    <div class="container">
+        <img class="slip-img" src="/api/orders/${orderId}/slip?raw=1" alt="สลิปหลักฐานการโอนเงิน">
+    </div>
+</body>
+</html>`);
+        }
+
         res.sendFile(filePath);
     } catch (error) {
         sendServerError(res, error, 'Read payment slip failed');

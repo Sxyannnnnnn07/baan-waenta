@@ -1222,7 +1222,7 @@ async function openOrdersModal() {
 
                 let slipHtml = '';
                 if (order.slip_image) {
-                    slipHtml = `<br><strong>หลักฐานการโอนเงิน:</strong> <a href="${order.slip_image}" target="_blank" style="color: #2b6cb0; text-decoration: underline; font-weight: 600;">เปิดดูสลิปโอนเงิน</a>`;
+                    slipHtml = `<br><strong>หลักฐานการโอนเงิน:</strong> <a href="javascript:void(0)" onclick="viewOrderSlip('${order.slip_image}')" style="color: #2b6cb0; text-decoration: underline; font-weight: 600; cursor: pointer;">เปิดดูสลิปโอนเงิน</a>`;
                 }
 
                 let trackingHtml = '';
@@ -1321,24 +1321,31 @@ function togglePaymentDetails() {
 window.togglePaymentDetails = togglePaymentDetails;
 
 function previewSlipImage(event) {
-    const file = event.target.files[0];
+    const file = event.target.files && event.target.files[0];
     const previewContainer = document.getElementById('slip-preview-container');
     const previewImg = document.getElementById('slip-preview');
     
     if (!file) {
         uploadedSlipBase64 = null;
-        previewContainer.style.display = 'none';
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (previewImg) previewImg.src = '';
         return;
     }
     
     const reader = new FileReader();
     reader.onload = function(e) {
         uploadedSlipBase64 = e.target.result;
-        previewImg.src = uploadedSlipBase64;
-        previewContainer.style.display = 'block';
+        if (previewImg) previewImg.src = uploadedSlipBase64;
+        if (previewContainer) previewContainer.style.display = 'block';
     };
     reader.readAsDataURL(file);
 }
+window.previewSlipImage = previewSlipImage;
+
+function handleSlipUpload(event) {
+    previewSlipImage(event);
+}
+window.handleSlipUpload = handleSlipUpload;
 
 // Helper: Modal Scroll Locking
 function lockModalScroll() {
@@ -2046,6 +2053,17 @@ function openPaymentModal(paymentMethod, totalAmount) {
     if (!modal) return;
     modal.style.display = 'flex';
     
+    // Reset any previous slip uploads
+    uploadedSlipBase64 = null;
+    const slipInput1 = document.getElementById('payment-slip');
+    if (slipInput1) slipInput1.value = '';
+    const slipInput2 = document.getElementById('slip-file-input');
+    if (slipInput2) slipInput2.value = '';
+    const previewContainer = document.getElementById('slip-preview-container');
+    if (previewContainer) previewContainer.style.display = 'none';
+    const previewImg = document.getElementById('slip-preview');
+    if (previewImg) previewImg.src = '';
+
     const amountLabel = document.getElementById('pay-amount-label');
     if (amountLabel) amountLabel.innerText = Number(totalAmount).toLocaleString();
     
@@ -2065,13 +2083,6 @@ function openPaymentModal(paymentMethod, totalAmount) {
     if (qrImg) {
         qrImg.src = `https://promptpay.io/${MERCHANT_PROMPTPAY_ID}/${totalAmount}.png`;
     }
-
-    // Detect device: mobile vs desktop/tablet
-    const isMobileDevice = /Android|iPhone|iPod/i.test(navigator.userAgent) && !/iPad/i.test(navigator.userAgent);
-    const mobileHint = document.getElementById('pay-mobile-guide');
-    const desktopHint = document.getElementById('pay-desktop-guide');
-    if (mobileHint) mobileHint.style.display = isMobileDevice ? 'block' : 'none';
-    if (desktopHint) desktopHint.style.display = isMobileDevice ? 'none' : 'block';
 }
 window.openPaymentModal = openPaymentModal;
 
@@ -2088,45 +2099,14 @@ function copyPromptPayNumber() {
 }
 window.copyPromptPayNumber = copyPromptPayNumber;
 
-function downloadPromptPayQR() {
-    const qrImg = document.getElementById('pay-promptpay-qr');
-    if (!qrImg || !qrImg.src) return;
-    
-    fetch(qrImg.src)
-        .then(res => res.blob())
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            const amtStr = pendingCheckoutDetails ? pendingCheckoutDetails.totalAmount : 'order';
-            a.download = `PromptPay_0989687435_${amtStr}.png`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            if (typeof showToast === 'function') {
-                showToast('บันทึกรูป QR Code ลงเครื่องแล้ว กรุณาเปิดแอปธนาคารเพื่อสแกนชำระเงินครับ', 'success');
-            } else {
-                alert('บันทึกรูป QR Code แล้ว กรุณาเปิดแอปธนาคารและเลือกสแกนจากอัลบั้มรูปภาพครับ');
-            }
-        })
-        .catch(() => {
-            window.open(qrImg.src, '_blank');
-        });
-}
-window.downloadPromptPayQR = downloadPromptPayQR;
-
-function openBankApp(scheme, name) {
-    window.location.href = scheme;
-    setTimeout(() => {
-        console.log(`Open bank app attempted: ${name}`);
-    }, 1500);
-}
-window.openBankApp = openBankApp;
-
 async function confirmQRPayment() {
     if (!pendingCheckoutDetails) return;
+
+    // Enforce that customer has attached real slip image
+    if (!uploadedSlipBase64) {
+        alert('กรุณาแนบรูปภาพสลิปหลักฐานการโอนเงินก่อนยืนยันคำสั่งซื้อครับ');
+        return;
+    }
 
     const gatewayContent = document.getElementById('pay-gateway-content');
     const processingScreen = document.getElementById('pay-processing');
@@ -2135,15 +2115,13 @@ async function confirmQRPayment() {
     if (gatewayContent) gatewayContent.style.display = 'none';
     if (processingScreen) processingScreen.style.display = 'block';
 
-    const slipBase64 = uploadedSlipBase64 || generateMockSlip(pendingCheckoutDetails.totalAmount);
-
     setTimeout(async () => {
         const success = await checkoutOrder(
             pendingCheckoutDetails.shipName,
             pendingCheckoutDetails.shipPhone,
             pendingCheckoutDetails.shipAddress,
             'QRCode',
-            slipBase64
+            uploadedSlipBase64
         );
 
         if (success) {
@@ -2159,10 +2137,21 @@ async function confirmQRPayment() {
             if (processingScreen) processingScreen.style.display = 'none';
             if (gatewayContent) gatewayContent.style.display = 'block';
         }
-    }, 1200);
+    }, 800);
 }
 window.confirmQRPayment = confirmQRPayment;
 window.simulateQRSuccess = confirmQRPayment;
+
+function viewOrderSlip(slipUrl) {
+    const modal = document.getElementById('view-slip-modal');
+    if (!modal) return;
+    const img = document.getElementById('view-slip-modal-img');
+    const dl = document.getElementById('view-slip-modal-download');
+    if (img) img.src = slipUrl;
+    if (dl) dl.href = slipUrl;
+    modal.style.display = 'flex';
+}
+window.viewOrderSlip = viewOrderSlip;
 
 function formatCardNumber(input) {
     let value = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');

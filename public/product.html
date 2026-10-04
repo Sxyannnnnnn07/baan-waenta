@@ -436,56 +436,18 @@
                     <div>ชื่อบัญชี: <strong>นายซาฮีรัม เจ๊ะหะ</strong> (ธ.กสิกรไทย)</div>
                 </div>
 
-                <!-- Desktop / iPad Guide -->
-                <div id="pay-desktop-guide" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5; background: rgba(49, 130, 206, 0.08); padding: 0.6rem 0.8rem; border-radius: 8px; border-left: 3px solid #3182ce; text-align: left;">
-                    💻 <strong>สำหรับคอมพิวเตอร์ / iPad:</strong> เปิดแอปธนาคารบนโทรศัพท์มือถือของคุณ แล้วสแกน QR Code ด้านบนเพื่อชำระเงิน ยอดเงินจะแสดงในแอปอัตโนมัติ
+                <!-- Payment Instructions -->
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.2rem; line-height: 1.5; background: rgba(49, 130, 206, 0.08); padding: 0.75rem 1rem; border-radius: 10px; border-left: 3px solid #3182ce; text-align: left;">
+                    💡 <strong>ขั้นตอนการชำระเงิน:</strong> สแกน QR Code หรือโอนเงินผ่านพร้อมเพย์ตามยอดที่ระบุ จากนั้นแนบรูปภาพสลิปหลักฐานการโอนเงินด้านล่างนี้เพื่อยืนยันคำสั่งซื้อ
                 </div>
 
-                <!-- Mobile Guide & Bank Apps Launcher -->
-                <div id="pay-mobile-guide" style="display: none; margin-bottom: 1rem;">
-                    <button type="button" class="btn btn-outline" onclick="downloadPromptPayQR()" style="width: 100%; border-radius: 30px; padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-color: var(--accent); color: var(--accent);">
-                        <ion-icon name="download-outline" style="font-size: 1.1rem;"></ion-icon>
-                        📥 บันทึกรูป QR Code ลงเครื่อง (สำหรับสแกนในแอปธนาคาร)
-                    </button>
-
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-align: left;">
-                        📱 <strong>กดเปิดแอปธนาคารของคุณเพื่อสแกนรูปภาพ:</strong>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.8rem;">
-                        <button type="button" onclick="openBankApp('kplus://', 'K PLUS')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #138f2d;"></span>
-                            K PLUS
-                        </button>
-                        <button type="button" onclick="openBankApp('scbeasy://', 'SCB EASY')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #4e2a84;"></span>
-                            SCB EASY
-                        </button>
-                        <button type="button" onclick="openBankApp('ktbnext://', 'Krungthai NEXT')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #00a5e5;"></span>
-                            KTB NEXT
-                        </button>
-                        <button type="button" onclick="openBankApp('bualuangmbanking://', 'Bangkok Bank')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #1e3a8a;"></span>
-                            BualuangM
-                        </button>
-                        <button type="button" onclick="openBankApp('kma://', 'Krungsri KMA')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></span>
-                            KMA
-                        </button>
-                        <button type="button" onclick="openBankApp('ttbtouch://', 'ttb touch')" style="padding: 0.5rem 0.3rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #0284c7;"></span>
-                            ttb touch
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Slip Upload (Optional) -->
-                <div style="border-top: 1px dashed var(--border-color); padding-top: 0.8rem; margin-bottom: 1.2rem; text-align: left;">
-                    <label for="payment-slip" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.3rem; color: var(--text-primary);">
-                        <ion-icon name="image-outline"></ion-icon> แนบสลิปหลักฐานการโอนเงิน (หากมี)
+                <!-- Slip Upload (Mandatory) -->
+                <div style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.2rem; text-align: left; background: var(--bg-primary);">
+                    <label for="payment-slip" style="font-size: 0.9rem; font-weight: 700; display: block; margin-bottom: 0.4rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                        <ion-icon name="cloud-upload-outline" style="color: var(--accent); font-size: 1.2rem;"></ion-icon> แนบสลิปหลักฐานการโอนเงิน <span style="color: #e53e3e;">* (จำเป็นต้องแนบ)</span>
                     </label>
-                    <input type="file" id="payment-slip" accept="image/*" onchange="handleSlipUpload(event)" style="font-family: inherit; font-size: 0.8rem; width: 100%;">
-                    <div id="slip-preview-container" style="display: none; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; max-width: 120px;">
+                    <input type="file" id="payment-slip" accept="image/*" onchange="handleSlipUpload(event)" style="font-family: inherit; font-size: 0.85rem; width: 100%; margin-top: 0.4rem;">
+                    <div id="slip-preview-container" style="display: none; margin-top: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; max-width: 180px;">
                         <img id="slip-preview" src="" alt="Slip Preview" style="width: 100%; display: block; height: auto;">
                     </div>
                 </div>
@@ -498,6 +460,28 @@
                         ยืนยันการชำระเงินเรียบร้อย
                     </button>
                 </div>
+            </div>
+    </div>
+
+    <!-- Slip Viewer Modal with Close Button -->
+    <div class="modal" id="view-slip-modal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 480px; text-align: center; position: relative; padding: 1.5rem;">
+            <span class="modal-close" onclick="closeModal('view-slip-modal')">&times;</span>
+            <h3 style="margin-bottom: 1rem; color: var(--text-primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                <ion-icon name="receipt-outline" style="color: var(--accent);"></ion-icon> สลิปหลักฐานการโอนเงิน
+            </h3>
+            
+            <div style="background: #1a202c; border-radius: 12px; overflow: hidden; margin-bottom: 1.2rem; max-height: 65vh; display: flex; align-items: center; justify-content: center; padding: 0.5rem;">
+                <img id="view-slip-modal-img" src="" alt="สลิปโอนเงิน" style="max-width: 100%; max-height: 62vh; object-fit: contain; display: block; border-radius: 6px;">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+                <a id="view-slip-modal-download" href="" target="_blank" class="btn btn-outline" style="flex: 1; border-radius: 30px; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                    <ion-icon name="open-outline"></ion-icon> เปิดรูปเต็ม
+                </a>
+                <button type="button" class="btn btn-primary" onclick="closeModal('view-slip-modal')" style="flex: 1; border-radius: 30px; font-size: 0.85rem; background-color: #e53e3e; border-color: #e53e3e; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                    <ion-icon name="close-circle-outline"></ion-icon> ปิดหน้าต่าง
+                </button>
             </div>
         </div>
     </div>
