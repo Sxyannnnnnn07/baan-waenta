@@ -601,17 +601,17 @@
                 <span id="forgot-modal-alert-msg"></span>
             </div>
 
-            <!-- Step 1: Request OTP by entering Email -->
+            <!-- Step 1: Request Reset by entering Email and Name -->
             <div id="forgot-step-1">
                 <div style="text-align: center; margin-bottom: 1.5rem;">
                     <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-light); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 0.8rem;">
                         <ion-icon name="key-outline"></ion-icon>
                     </div>
                     <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">ลืมรหัสผ่านใช่ไหม?</h3>
-                    <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5;">กรุณากรอกอีเมลที่ใช้ลงทะเบียนไว้ในระบบ เราจะส่งรหัสความปลอดภัย OTP 6 หลักไปให้ท่าน</p>
+                    <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5;">กรุณากรอกอีเมลและชื่อ-นามสกุลที่ใช้ลงทะเบียน เพื่อยืนยันตัวตน</p>
                 </div>
 
-                <form id="forgot-form-step-1" onsubmit="handleRequestOtp(event)">
+                <form id="forgot-form-step-1" onsubmit="handleVerifyIdentity(event)">
                     <div class="form-floating-group">
                         <label for="forgot-email-input">อีเมลที่ลงทะเบียน</label>
                         <div class="input-with-icon">
@@ -620,34 +620,32 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="forgot-request-otp-btn" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; border-radius: 12px; margin-top: 1rem; justify-content: center;">
-                        <ion-icon name="paper-plane-outline"></ion-icon> ขอรหัส OTP ยืนยัน
+                    <div class="form-floating-group">
+                        <label for="forgot-name-input">ชื่อ-นามสกุลที่ลงทะเบียน</label>
+                        <div class="input-with-icon">
+                            <ion-icon name="person-outline"></ion-icon>
+                            <input type="text" id="forgot-name-input" required placeholder="เช่น คุณ สมชาย ใจดี" autocomplete="name">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="forgot-verify-btn" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; border-radius: 12px; margin-top: 1rem; justify-content: center;">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon> ยืนยันข้อมูล
                     </button>
                 </form>
             </div>
 
-            <!-- Step 2: Enter OTP & New Password -->
+            <!-- Step 2: Enter New Password -->
             <div id="forgot-step-2" style="display: none;">
                 <div style="text-align: center; margin-bottom: 1.2rem;">
                     <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-light); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 0.8rem;">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <ion-icon name="lock-open-outline"></ion-icon>
                     </div>
-                    <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem;">ยืนยัน OTP และตั้งรหัสผ่านใหม่</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">ส่งรหัส 6 หลักไปยัง <strong id="forgot-target-email-display" style="color: var(--text-primary);"></strong> แล้ว</p>
+                    <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem;">ตั้งรหัสผ่านใหม่</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">ยืนยันตัวตนสำเร็จสำหรับ <strong id="forgot-target-email-display" style="color: var(--text-primary);"></strong></p>
                 </div>
 
                 <form id="forgot-form-step-2" onsubmit="handleResetPasswordSubmit(event)">
-                    <!-- OTP Input -->
-                    <div class="form-floating-group" style="margin-bottom: 0.8rem;">
-                        <label for="forgot-otp-input" style="text-align: center; display: block;">รหัสยืนยัน OTP 6 หลัก</label>
-                        <input type="text" id="forgot-otp-input" class="otp-input-field" required inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width: 100%; border: 2px solid var(--border-color); border-radius: 12px; background: var(--bg-primary); color: var(--text-primary); outline: none;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.82rem;">
-                            <span class="otp-countdown-badge">
-                                <ion-icon name="time-outline"></ion-icon> หมดอายุใน: <strong id="forgot-countdown-display">15:00</strong>
-                            </span>
-                            <button type="button" id="forgot-resend-otp-btn" onclick="handleResendOtp()" style="background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.82rem; font-weight: 600; padding: 0;" disabled>ส่งรหัสอีกครั้ง (60s)</button>
-                        </div>
-                    </div>
+                    <input type="hidden" id="forgot-token-input">
 
                     <!-- New Password -->
                     <div class="form-floating-group" style="margin-bottom: 0.8rem;">

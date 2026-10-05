@@ -426,11 +426,10 @@ function allowGuestMode(event) {
 }
 
 // ==========================================
-// 12. Forgot Password (Email OTP) Flow
+// 12. Forgot Password (Name Verification) Flow
 // ==========================================
 let forgotPasswordEmail = '';
-let forgotOtpExpiryTimer = null;
-let forgotResendCooldownTimer = null;
+let forgotResetToken = '';
 
 function initForgotPasswordListeners() {
     const newPassInput = document.getElementById('forgot-new-password');
@@ -456,10 +455,12 @@ function openForgotPasswordModal() {
 
     // Reset inputs
     const emailInput = document.getElementById('forgot-email-input');
-    const otpInput = document.getElementById('forgot-otp-input');
+    const nameInput = document.getElementById('forgot-name-input');
+    const tokenInput = document.getElementById('forgot-token-input');
     const newPass = document.getElementById('forgot-new-password');
     const confirmPass = document.getElementById('forgot-confirm-password');
-    if (otpInput) otpInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (tokenInput) tokenInput.value = '';
     if (newPass) newPass.value = '';
     if (confirmPass) confirmPass.value = '';
 
@@ -482,7 +483,11 @@ function openForgotPasswordModal() {
     });
 
     setTimeout(() => {
-        if (emailInput && !emailInput.value) emailInput.focus();
+        if (emailInput && !emailInput.value) {
+            emailInput.focus();
+        } else if (nameInput) {
+            nameInput.focus();
+        }
     }, 100);
 }
 
@@ -494,15 +499,6 @@ function closeForgotPasswordModal() {
     setTimeout(() => {
         backdrop.style.display = 'none';
     }, 250);
-
-    if (forgotOtpExpiryTimer) {
-        clearInterval(forgotOtpExpiryTimer);
-        forgotOtpExpiryTimer = null;
-    }
-    if (forgotResendCooldownTimer) {
-        clearInterval(forgotResendCooldownTimer);
-        forgotResendCooldownTimer = null;
-    }
 }
 
 function handleBackdropClick(event) {
@@ -530,20 +526,27 @@ function hideForgotModalAlert() {
     if (box) box.style.display = 'none';
 }
 
-async function handleRequestOtp(e) {
+async function handleVerifyIdentity(e) {
     if (e) e.preventDefault();
     const emailInput = document.getElementById('forgot-email-input');
+    const nameInput = document.getElementById('forgot-name-input');
     const email = emailInput?.value.trim().toLowerCase();
+    const name = nameInput?.value.trim();
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         showForgotModalAlert('error', 'กรุณากรอกรูปแบบอีเมลให้ถูกต้อง');
         return;
     }
+    
+    if (!name) {
+        showForgotModalAlert('error', 'กรุณากรอกชื่อ-นามสกุลของคุณ');
+        return;
+    }
 
-    const btn = document.getElementById('forgot-request-otp-btn');
+    const btn = document.getElementById('forgot-verify-btn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังส่งรหัส OTP...';
+    btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังตรวจสอบ...';
     hideForgotModalAlert();
 
     const controller = new AbortController();
@@ -555,134 +558,41 @@ async function handleRequestOtp(e) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             signal: controller.signal,
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, name })
         });
         clearTimeout(timeoutTimer);
         const data = await response.json();
 
         if (data.success) {
             forgotPasswordEmail = email;
+            forgotResetToken = data.resetToken;
+            
+            const tokenInput = document.getElementById('forgot-token-input');
+            if (tokenInput) tokenInput.value = data.resetToken;
+
             document.getElementById('forgot-step-1').style.display = 'none';
             document.getElementById('forgot-step-2').style.display = 'block';
             document.getElementById('forgot-target-email-display').innerText = email;
 
-            startOtpCountdown(15 * 60);
-            startResendCooldown(60);
-
-            if (data.devOtp) {
-                console.log('%c[DEV MODE] Password Reset OTP: ' + data.devOtp, 'background: #2563eb; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 4px;');
-                showForgotModalAlert('success', `ส่งรหัส OTP เรียบร้อยแล้ว (โหมดทดสอบ Dev OTP: ${data.devOtp})`);
-                const otpInput = document.getElementById('forgot-otp-input');
-                if (otpInput) otpInput.value = data.devOtp;
-            } else {
-                showForgotModalAlert('success', 'เราได้ส่งรหัส OTP 6 หลักไปยังอีเมลของคุณเรียบร้อยแล้ว');
-            }
+            showForgotModalAlert('success', 'ยืนยันตัวตนสำเร็จ กรุณาตั้งรหัสผ่านใหม่');
 
             setTimeout(() => {
-                document.getElementById('forgot-otp-input')?.focus();
+                document.getElementById('forgot-new-password')?.focus();
             }, 100);
         } else {
-            showForgotModalAlert('error', data.message || 'ไม่สามารถส่งรหัส OTP ได้');
+            showForgotModalAlert('error', data.message || 'ข้อมูลไม่ถูกต้อง');
         }
     } catch (err) {
         clearTimeout(timeoutTimer);
-        console.error('Request OTP error:', err);
+        console.error('Verify identity error:', err);
         if (err.name === 'AbortError') {
-            showForgotModalAlert('error', 'การส่งรหัสใช้เวลานานเกินไป กรุณากดลองใหม่อีกครั้ง');
+            showForgotModalAlert('error', 'การตรวจสอบใช้เวลานานเกินไป กรุณากดลองใหม่อีกครั้ง');
         } else {
             showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
         }
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
-    }
-}
-
-function startOtpCountdown(durationSeconds) {
-    if (forgotOtpExpiryTimer) clearInterval(forgotOtpExpiryTimer);
-    let remaining = durationSeconds;
-    const display = document.getElementById('forgot-countdown-display');
-
-    function update() {
-        const minutes = Math.floor(remaining / 60);
-        const seconds = remaining % 60;
-        if (display) {
-            display.innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-        if (remaining <= 0) {
-            clearInterval(forgotOtpExpiryTimer);
-            forgotOtpExpiryTimer = null;
-            if (display) display.innerText = 'หมดอายุแล้ว';
-            showForgotModalAlert('error', 'รหัส OTP หมดอายุแล้ว กรุณากดขอรหัสใหม่อีกครั้ง');
-        }
-        remaining--;
-    }
-
-    update();
-    forgotOtpExpiryTimer = setInterval(update, 1000);
-}
-
-function startResendCooldown(cooldownSeconds) {
-    if (forgotResendCooldownTimer) clearInterval(forgotResendCooldownTimer);
-    let remaining = cooldownSeconds;
-    const resendBtn = document.getElementById('forgot-resend-otp-btn');
-    if (!resendBtn) return;
-
-    resendBtn.disabled = true;
-
-    function update() {
-        if (remaining <= 0) {
-            clearInterval(forgotResendCooldownTimer);
-            forgotResendCooldownTimer = null;
-            resendBtn.disabled = false;
-            resendBtn.innerText = 'ส่งรหัสอีกครั้ง';
-        } else {
-            resendBtn.innerText = `ส่งรหัสอีกครั้ง (${remaining}s)`;
-            remaining--;
-        }
-    }
-
-    update();
-    forgotResendCooldownTimer = setInterval(update, 1000);
-}
-
-async function handleResendOtp() {
-    if (!forgotPasswordEmail) return;
-    const resendBtn = document.getElementById('forgot-resend-otp-btn');
-    if (resendBtn) resendBtn.disabled = true;
-
-    const controller = new AbortController();
-    const timeoutTimer = setTimeout(() => controller.abort(), 20000);
-
-    try {
-        const response = await fetch('/api/auth/forgot-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            signal: controller.signal,
-            body: JSON.stringify({ email: forgotPasswordEmail })
-        });
-        clearTimeout(timeoutTimer);
-        const data = await response.json();
-        if (data.success) {
-            startOtpCountdown(15 * 60);
-            startResendCooldown(60);
-            if (data.devOtp) {
-                console.log('%c[DEV MODE] Resent Password Reset OTP: ' + data.devOtp, 'background: #2563eb; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 4px;');
-                showForgotModalAlert('success', `ส่งรหัส OTP ใหม่เรียบร้อยแล้ว (Dev OTP: ${data.devOtp})`);
-                const otpInput = document.getElementById('forgot-otp-input');
-                if (otpInput) otpInput.value = data.devOtp;
-            } else {
-                showForgotModalAlert('success', 'ส่งรหัส OTP ใหม่อีกครั้งแล้ว กรุณาตรวจสอบอีเมล');
-            }
-        } else {
-            showForgotModalAlert('error', data.message || 'ไม่สามารถส่งรหัสใหม่ได้');
-            if (resendBtn) resendBtn.disabled = false;
-        }
-    } catch (err) {
-        clearTimeout(timeoutTimer);
-        showForgotModalAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ หรือการขอรหัสใช้เวลานานเกินไป');
-        if (resendBtn) resendBtn.disabled = false;
     }
 }
 
@@ -746,12 +656,12 @@ function resetForgotStrengthUI() {
 
 async function handleResetPasswordSubmit(e) {
     if (e) e.preventDefault();
-    const otp = document.getElementById('forgot-otp-input')?.value.trim() || '';
+    const resetToken = document.getElementById('forgot-token-input')?.value.trim() || forgotResetToken;
     const newPassword = document.getElementById('forgot-new-password')?.value || '';
     const confirmPassword = document.getElementById('forgot-confirm-password')?.value || '';
 
-    if (!/^\d{6}$/.test(otp)) {
-        showForgotModalAlert('error', 'กรุณากรอกรหัส OTP เป็นตัวเลข 6 หลัก');
+    if (!resetToken) {
+        showForgotModalAlert('error', 'ข้อมูลยืนยันตัวตนไม่ถูกต้อง กรุณาเริ่มใหม่');
         return;
     }
 
@@ -792,7 +702,7 @@ async function handleResetPasswordSubmit(e) {
             signal: controller.signal,
             body: JSON.stringify({
                 email: forgotPasswordEmail,
-                otp,
+                resetToken,
                 newPassword
             })
         });

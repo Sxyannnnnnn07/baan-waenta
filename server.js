@@ -963,107 +963,57 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
 // 2.51 Authentication: Request Password Reset OTP
 app.post('/api/auth/forgot-password', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    if (!isEmail(email)) {
-        return res.status(400).json({ success: false, message: 'รูปแบบอีเมลไม่ถูกต้อง' });
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+
+    if (!isEmail(email) || !name) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลและชื่อ-นามสกุลให้ครบถ้วน' });
     }
 
     try {
         const [users] = await dbPool.query('SELECT id, email, name FROM users WHERE email = ? LIMIT 1', [email]);
+        
         if (users.length === 0) {
-            return res.json({
-                success: true,
-                message: 'หากอีเมลนี้ลงทะเบียนไว้ในระบบ เราได้จัดส่งรหัส OTP ไปยังอีเมลของท่านแล้ว'
-            });
+            // Anti-enumeration delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้งานที่ตรงกับข้อมูลนี้ในระบบ' });
         }
 
         const user = users[0];
-        const otp = crypto.randomInt(100000, 1000000).toString();
-        const otpHash = hashToken(otp);
+        
+        // Strict case-insensitive and space-insensitive comparison
+        if (user.name.toLowerCase().replace(/\s+/g, '') !== name.toLowerCase().replace(/\s+/g, '')) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return res.status(400).json({ success: false, message: 'ข้อมูลชื่อ-นามสกุลไม่ตรงกับในระบบ' });
+        }
+
+        // Generate a temporary reset token (instead of OTP)
+        const resetToken = randomToken(32);
+        const tokenHash = hashToken(resetToken);
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         await dbPool.query('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0', [email]);
         await dbPool.query(
             'INSERT INTO password_resets (user_id, email, otp_hash, expires_at) VALUES (?, ?, ?, ?)',
-            [user.id, email, otpHash, expiresAt]
+            [user.id, email, tokenHash, expiresAt]
         );
 
-        let emailResult;
-        try {
-            emailResult = await sendResetOtpEmail(user.email, otp);
-        } catch (mailError) {
-            logServerError('Failed to send reset email', mailError);
-            return res.status(502).json({
-                success: false,
-                message: mailError.message || 'ไม่สามารถส่งอีเมลรหัส OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
-            });
-        }
-
-        const responsePayload = {
+        res.json({
             success: true,
-            message: 'หากอีเมลนี้ลงทะเบียนไว้ในระบบ เราได้จัดส่งรหัส OTP ไปยังอีเมลของท่านแล้ว'
-        };
-
-        if (emailResult.devFallback && !IS_PRODUCTION) {
-            responsePayload.devOtp = otp;
-            responsePayload.message += ' (โหมดทดสอบ: ดูรหัส OTP ได้ในคอนโซลเซิร์ฟเวอร์)';
-        }
-
-        res.json(responsePayload);
+            message: 'ยืนยันตัวตนสำเร็จ',
+            resetToken: resetToken
+        });
     } catch (error) {
         sendServerError(res, error, 'Forgot password request failed');
     }
 });
 
-// 2.52 Authentication: Verify Password Reset OTP
-app.post('/api/auth/verify-reset-otp', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
-    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
-
-    if (!isEmail(email) || !/^\d{6}$/.test(otp)) {
-        return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลและรหัส OTP 6 หลักให้ถูกต้อง' });
-    }
-
-    try {
-        const [records] = await dbPool.query(
-            'SELECT * FROM password_resets WHERE email = ? AND used = 0 ORDER BY id DESC LIMIT 1',
-            [email]
-        );
-
-        if (records.length === 0) {
-            return res.status(400).json({ success: false, message: 'ไม่พบคำขอรีเซ็ตรหัสผ่าน หรือรหัสถูกใช้งานไปแล้ว กรุณาขอรหัสใหม่' });
-        }
-
-        const record = records[0];
-        if (new Date(record.expires_at) < new Date()) {
-            return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว (เกิน 15 นาที) กรุณาขอรหัสใหม่' });
-        }
-
-        if (record.attempts >= 5) {
-            return res.status(400).json({ success: false, message: 'คุณกรอกรหัส OTP ผิดเกิน 5 ครั้ง กรุณาขอรหัสใหม่' });
-        }
-
-        if (hashToken(otp) !== record.otp_hash) {
-            await dbPool.query('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [record.id]);
-            const remaining = 4 - record.attempts;
-            return res.status(400).json({
-                success: false,
-                message: `รหัส OTP ไม่ถูกต้อง ${remaining > 0 ? `(เหลือโอกาสอีก ${remaining} ครั้ง)` : '(สิทธิ์การกรอกหมดแล้ว กรุณาขอใหม่)'}`
-            });
-        }
-
-        res.json({ success: true, message: 'รหัส OTP ถูกต้อง' });
-    } catch (error) {
-        sendServerError(res, error, 'Verify reset OTP failed');
-    }
-});
-
-// 2.53 Authentication: Reset Password with Verified OTP
+// 2.53 Authentication: Reset Password with Verified Token
 app.post('/api/auth/reset-password', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+    const resetToken = typeof req.body.resetToken === 'string' ? req.body.resetToken.trim() : '';
     const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
 
-    if (!isEmail(email) || !/^\d{6}$/.test(otp)) {
+    if (!isEmail(email) || !resetToken) {
         return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วนหรือไม่ถูกต้อง' });
     }
 
@@ -1081,21 +1031,16 @@ app.post('/api/auth/reset-password', requireTrustedOrigin, forgotPasswordRateLim
         );
 
         if (records.length === 0) {
-            return res.status(400).json({ success: false, message: 'ไม่พบคำขอรีเซ็ตรหัสผ่าน หรือรหัสถูกใช้งานไปแล้ว' });
+            return res.status(400).json({ success: false, message: 'ไม่พบคำขอรีเซ็ตรหัสผ่าน หรือคำขอถูกใช้งานไปแล้ว' });
         }
 
         const record = records[0];
         if (new Date(record.expires_at) < new Date()) {
-            return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่' });
+            return res.status(400).json({ success: false, message: 'เซสชั่นการตั้งรหัสผ่านหมดอายุแล้ว กรุณาเริ่มใหม่' });
         }
 
-        if (record.attempts >= 5) {
-            return res.status(400).json({ success: false, message: 'คุณกรอกรหัส OTP ผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่' });
-        }
-
-        if (hashToken(otp) !== record.otp_hash) {
-            await dbPool.query('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [record.id]);
-            return res.status(400).json({ success: false, message: 'รหัส OTP ไม่ถูกต้อง' });
+        if (hashToken(resetToken) !== record.otp_hash) {
+            return res.status(400).json({ success: false, message: 'ข้อมูลยืนยันตัวตนไม่ถูกต้อง' });
         }
 
         const passwordHash = await bcrypt.hash(newPassword, 12);
