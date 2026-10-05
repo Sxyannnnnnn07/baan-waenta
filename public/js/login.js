@@ -8,6 +8,7 @@ let googleTokenClient = null;
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initPasswordStrengthListener();
+    initForgotPasswordListeners();
     loadRememberedCredentials();
     await checkInitialSession();
     initGoogleAuth();
@@ -102,6 +103,8 @@ function setAuthTab(mode) {
         submitBtn.innerHTML = '<ion-icon name="log-in-outline"></ion-icon> เข้าสู่ระบบ';
         if (googleBtnText) googleBtnText.innerText = 'เข้าสู่ระบบด้วย Google';
         if (strengthContainer) strengthContainer.style.display = 'none';
+        const rememberContainer = document.getElementById('remember-me-container');
+        if (rememberContainer) rememberContainer.style.display = 'flex';
     } else {
         tabRegister.classList.add('active');
         tabLogin.classList.remove('active');
@@ -114,6 +117,8 @@ function setAuthTab(mode) {
             strengthContainer.style.display = 'block';
             resetStrengthUI();
         }
+        const rememberContainer = document.getElementById('remember-me-container');
+        if (rememberContainer) rememberContainer.style.display = 'none';
     }
 }
 
@@ -418,5 +423,395 @@ function allowGuestMode(event) {
     if (event) event.preventDefault();
     sessionStorage.setItem('baan_waenta_guest', 'true');
     window.location.href = '/';
+}
+
+// ==========================================
+// 12. Forgot Password (Email OTP) Flow
+// ==========================================
+let forgotPasswordEmail = '';
+let forgotOtpExpiryTimer = null;
+let forgotResendCooldownTimer = null;
+
+function initForgotPasswordListeners() {
+    const newPassInput = document.getElementById('forgot-new-password');
+    const confirmPassInput = document.getElementById('forgot-confirm-password');
+
+    if (newPassInput) {
+        newPassInput.addEventListener('input', updateForgotStrengthUI);
+    }
+    if (confirmPassInput) {
+        confirmPassInput.addEventListener('input', updateForgotStrengthUI);
+    }
+}
+
+function openForgotPasswordModal() {
+    const backdrop = document.getElementById('forgot-modal-backdrop');
+    if (!backdrop) return;
+
+    // Reset steps
+    document.getElementById('forgot-step-1').style.display = 'block';
+    document.getElementById('forgot-step-2').style.display = 'none';
+    document.getElementById('forgot-step-3').style.display = 'none';
+    hideForgotModalAlert();
+
+    // Reset inputs
+    const emailInput = document.getElementById('forgot-email-input');
+    const otpInput = document.getElementById('forgot-otp-input');
+    const newPass = document.getElementById('forgot-new-password');
+    const confirmPass = document.getElementById('forgot-confirm-password');
+    if (otpInput) otpInput.value = '';
+    if (newPass) newPass.value = '';
+    if (confirmPass) confirmPass.value = '';
+
+    // If login input has an email, pre-fill it
+    const loginUserVal = document.getElementById('auth-username')?.value.trim() || '';
+    if (emailInput) {
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginUserVal)) {
+            emailInput.value = loginUserVal;
+        } else {
+            emailInput.value = '';
+        }
+    }
+
+    // Reset strength UI
+    resetForgotStrengthUI();
+
+    backdrop.style.display = 'flex';
+    requestAnimationFrame(() => {
+        backdrop.classList.add('show');
+    });
+
+    setTimeout(() => {
+        if (emailInput && !emailInput.value) emailInput.focus();
+    }, 100);
+}
+
+function closeForgotPasswordModal() {
+    const backdrop = document.getElementById('forgot-modal-backdrop');
+    if (!backdrop) return;
+
+    backdrop.classList.remove('show');
+    setTimeout(() => {
+        backdrop.style.display = 'none';
+    }, 250);
+
+    if (forgotOtpExpiryTimer) {
+        clearInterval(forgotOtpExpiryTimer);
+        forgotOtpExpiryTimer = null;
+    }
+    if (forgotResendCooldownTimer) {
+        clearInterval(forgotResendCooldownTimer);
+        forgotResendCooldownTimer = null;
+    }
+}
+
+function handleBackdropClick(event) {
+    if (event.target && event.target.id === 'forgot-modal-backdrop') {
+        closeForgotPasswordModal();
+    }
+}
+
+function showForgotModalAlert(type, message) {
+    const box = document.getElementById('forgot-modal-alert');
+    const msg = document.getElementById('forgot-modal-alert-msg');
+    const icon = document.getElementById('forgot-modal-alert-icon');
+    if (!box || !msg) return;
+
+    box.className = `auth-alert ${type}`;
+    msg.innerText = message;
+    if (icon) {
+        icon.setAttribute('name', type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline');
+    }
+    box.style.display = 'flex';
+}
+
+function hideForgotModalAlert() {
+    const box = document.getElementById('forgot-modal-alert');
+    if (box) box.style.display = 'none';
+}
+
+async function handleRequestOtp(e) {
+    if (e) e.preventDefault();
+    const emailInput = document.getElementById('forgot-email-input');
+    const email = emailInput?.value.trim().toLowerCase();
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showForgotModalAlert('error', 'กรุณากรอกรูปแบบอีเมลให้ถูกต้อง');
+        return;
+    }
+
+    const btn = document.getElementById('forgot-request-otp-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังส่งรหัส OTP...';
+    hideForgotModalAlert();
+
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            forgotPasswordEmail = email;
+            document.getElementById('forgot-step-1').style.display = 'none';
+            document.getElementById('forgot-step-2').style.display = 'block';
+            document.getElementById('forgot-target-email-display').innerText = email;
+
+            startOtpCountdown(15 * 60);
+            startResendCooldown(60);
+
+            if (data.devOtp) {
+                console.log('%c[DEV MODE] Password Reset OTP: ' + data.devOtp, 'background: #2563eb; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 4px;');
+                showForgotModalAlert('success', `ส่งรหัส OTP เรียบร้อยแล้ว (โหมดทดสอบ Dev OTP: ${data.devOtp})`);
+                const otpInput = document.getElementById('forgot-otp-input');
+                if (otpInput) otpInput.value = data.devOtp;
+            } else {
+                showForgotModalAlert('success', 'เราได้ส่งรหัส OTP 6 หลักไปยังอีเมลของคุณเรียบร้อยแล้ว');
+            }
+
+            setTimeout(() => {
+                document.getElementById('forgot-otp-input')?.focus();
+            }, 100);
+        } else {
+            showForgotModalAlert('error', data.message || 'ไม่สามารถส่งรหัส OTP ได้');
+        }
+    } catch (err) {
+        console.error('Request OTP error:', err);
+        showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function startOtpCountdown(durationSeconds) {
+    if (forgotOtpExpiryTimer) clearInterval(forgotOtpExpiryTimer);
+    let remaining = durationSeconds;
+    const display = document.getElementById('forgot-countdown-display');
+
+    function update() {
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        if (display) {
+            display.innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        if (remaining <= 0) {
+            clearInterval(forgotOtpExpiryTimer);
+            forgotOtpExpiryTimer = null;
+            if (display) display.innerText = 'หมดอายุแล้ว';
+            showForgotModalAlert('error', 'รหัส OTP หมดอายุแล้ว กรุณากดขอรหัสใหม่อีกครั้ง');
+        }
+        remaining--;
+    }
+
+    update();
+    forgotOtpExpiryTimer = setInterval(update, 1000);
+}
+
+function startResendCooldown(cooldownSeconds) {
+    if (forgotResendCooldownTimer) clearInterval(forgotResendCooldownTimer);
+    let remaining = cooldownSeconds;
+    const resendBtn = document.getElementById('forgot-resend-otp-btn');
+    if (!resendBtn) return;
+
+    resendBtn.disabled = true;
+
+    function update() {
+        if (remaining <= 0) {
+            clearInterval(forgotResendCooldownTimer);
+            forgotResendCooldownTimer = null;
+            resendBtn.disabled = false;
+            resendBtn.innerText = 'ส่งรหัสอีกครั้ง';
+        } else {
+            resendBtn.innerText = `ส่งรหัสอีกครั้ง (${remaining}s)`;
+            remaining--;
+        }
+    }
+
+    update();
+    forgotResendCooldownTimer = setInterval(update, 1000);
+}
+
+async function handleResendOtp() {
+    if (!forgotPasswordEmail) return;
+    const resendBtn = document.getElementById('forgot-resend-otp-btn');
+    if (resendBtn) resendBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email: forgotPasswordEmail })
+        });
+        const data = await response.json();
+        if (data.success) {
+            startOtpCountdown(15 * 60);
+            startResendCooldown(60);
+            if (data.devOtp) {
+                console.log('%c[DEV MODE] Resent Password Reset OTP: ' + data.devOtp, 'background: #2563eb; color: #fff; font-size: 14px; padding: 4px 8px; border-radius: 4px;');
+                showForgotModalAlert('success', `ส่งรหัส OTP ใหม่เรียบร้อยแล้ว (Dev OTP: ${data.devOtp})`);
+                const otpInput = document.getElementById('forgot-otp-input');
+                if (otpInput) otpInput.value = data.devOtp;
+            } else {
+                showForgotModalAlert('success', 'ส่งรหัส OTP ใหม่อีกครั้งแล้ว กรุณาตรวจสอบอีเมล');
+            }
+        } else {
+            showForgotModalAlert('error', data.message || 'ไม่สามารถส่งรหัสใหม่ได้');
+            if (resendBtn) resendBtn.disabled = false;
+        }
+    } catch (err) {
+        showForgotModalAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        if (resendBtn) resendBtn.disabled = false;
+    }
+}
+
+function updateForgotStrengthUI() {
+    const password = document.getElementById('forgot-new-password')?.value || '';
+    const confirm = document.getElementById('forgot-confirm-password')?.value || '';
+
+    const rules = {
+        length: password.length >= 8,
+        hasCase: /[a-z]/.test(password) && /[A-Z]/.test(password),
+        hasDigitOrSymbol: /\d/.test(password) || /[!-/:-@[-`{-~]/.test(password),
+        match: password.length > 0 && password === confirm
+    };
+
+    let score = 0;
+    if (rules.length) score += 1;
+    if (rules.hasCase) score += 1;
+    if (rules.hasDigitOrSymbol) score += 1;
+    if (password.length >= 12 && rules.hasCase && rules.hasDigitOrSymbol) score += 1;
+
+    const label = document.getElementById('forgot-strength-label');
+    const bars = document.querySelectorAll('.forgot-strength-bar');
+
+    updateRuleItem(document.getElementById('forgot-rule-length'), rules.length);
+    updateRuleItem(document.getElementById('forgot-rule-case'), rules.hasCase);
+    updateRuleItem(document.getElementById('forgot-rule-digit-symbol'), rules.hasDigitOrSymbol);
+    updateRuleItem(document.getElementById('forgot-rule-match'), rules.match);
+
+    const labels = ['ว่างเปล่า', 'ง่ายมาก', 'ปานกลาง', 'ปลอดภัย', 'แข็งแรงมาก'];
+    const colors = ['var(--border-color)', '#ef4444', '#f59e0b', '#10b981', '#059669'];
+
+    if (label) {
+        label.innerText = labels[score] || 'ว่างเปล่า';
+        label.style.color = colors[score] || 'var(--text-secondary)';
+    }
+
+    bars.forEach((bar, idx) => {
+        if (idx < score) {
+            bar.style.backgroundColor = colors[score];
+        } else {
+            bar.style.backgroundColor = 'var(--border-color)';
+        }
+    });
+}
+
+function resetForgotStrengthUI() {
+    const label = document.getElementById('forgot-strength-label');
+    const bars = document.querySelectorAll('.forgot-strength-bar');
+    if (label) {
+        label.innerText = 'ว่างเปล่า';
+        label.style.color = 'var(--text-secondary)';
+    }
+    bars.forEach(bar => {
+        bar.style.backgroundColor = 'var(--border-color)';
+    });
+    updateRuleItem(document.getElementById('forgot-rule-length'), false);
+    updateRuleItem(document.getElementById('forgot-rule-case'), false);
+    updateRuleItem(document.getElementById('forgot-rule-digit-symbol'), false);
+    updateRuleItem(document.getElementById('forgot-rule-match'), false);
+}
+
+async function handleResetPasswordSubmit(e) {
+    if (e) e.preventDefault();
+    const otp = document.getElementById('forgot-otp-input')?.value.trim() || '';
+    const newPassword = document.getElementById('forgot-new-password')?.value || '';
+    const confirmPassword = document.getElementById('forgot-confirm-password')?.value || '';
+
+    if (!/^\d{6}$/.test(otp)) {
+        showForgotModalAlert('error', 'กรุณากรอกรหัส OTP เป็นตัวเลข 6 หลัก');
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        showForgotModalAlert('error', 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 8 ตัวอักษรขึ้นไป');
+        return;
+    }
+
+    if (!(/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword))) {
+        showForgotModalAlert('error', 'รหัสผ่านต้องมีทั้งตัวพิมพ์ใหญ่ (A-Z) และพิมพ์เล็ก (a-z)');
+        return;
+    }
+
+    if (!(/\d/.test(newPassword) || /[!-/:-@[-`{-~]/.test(newPassword))) {
+        showForgotModalAlert('error', 'รหัสผ่านต้องมีตัวเลขหรือสัญลักษณ์พิเศษอย่างน้อย 1 ตัว');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showForgotModalAlert('error', 'รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน');
+        return;
+    }
+
+    const btn = document.getElementById('forgot-reset-submit-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังตั้งรหัสผ่านใหม่...';
+    hideForgotModalAlert();
+
+    try {
+        const response = await fetch('/api/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                email: forgotPasswordEmail,
+                otp,
+                newPassword
+            })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            if (forgotOtpExpiryTimer) clearInterval(forgotOtpExpiryTimer);
+            if (forgotResendCooldownTimer) clearInterval(forgotResendCooldownTimer);
+
+            // Switch to Step 3: Success
+            document.getElementById('forgot-step-2').style.display = 'none';
+            document.getElementById('forgot-step-3').style.display = 'block';
+            hideForgotModalAlert();
+        } else {
+            showForgotModalAlert('error', data.message || 'ไม่สามารถตั้งรหัสผ่านใหม่ได้');
+        }
+    } catch (err) {
+        console.error('Reset password error:', err);
+        showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อเปลี่ยนรหัสผ่านได้');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function finishForgotPasswordAndLogin() {
+    closeForgotPasswordModal();
+    setAuthTab('login');
+
+    const usernameInput = document.getElementById('auth-username');
+    const passwordInput = document.getElementById('auth-password');
+    if (usernameInput && forgotPasswordEmail) {
+        usernameInput.value = forgotPasswordEmail;
+    }
+    if (passwordInput) {
+        passwordInput.value = '';
+        setTimeout(() => passwordInput.focus(), 300);
+    }
+
+    showAlert('success', 'เปลี่ยนรหัสผ่านใหม่เรียบร้อยแล้ว กรุณากรอกรหัสผ่านใหม่เพื่อเข้าสู่ระบบ');
 }
 

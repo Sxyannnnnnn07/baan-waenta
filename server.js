@@ -10,6 +10,8 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const {
     SESSION_COOKIE,
     SESSION_MAX_AGE_MS,
@@ -411,6 +413,23 @@ async function setupTables() {
             INDEX idx_path_chunk (file_path, chunk_index)
         ) ENGINE=InnoDB
     `);
+
+    // 7. Password Resets Table (Email OTP)
+    await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            otp_hash CHAR(64) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            attempts INT NOT NULL DEFAULT 0,
+            used TINYINT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_email (email),
+            INDEX idx_expires (expires_at),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB
+    `);
 }
 
 async function seedData() {
@@ -704,7 +723,77 @@ async function savePublicModelData(dataUrl, prefix, executor = dbPool) {
     return webPath;
 }
 
+function getEmailTransporter() {
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const port = parseInt(process.env.SMTP_PORT || '465', 10);
+    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!user || !pass || pass === 'your_gmail_app_password_here') {
+        return null;
+    }
+
+    return nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass }
+    });
+}
+
+async function sendResetOtpEmail(toEmail, otp) {
+    const transporter = getEmailTransporter();
+    if (!transporter) {
+        console.log('========================================================');
+        console.log('[DEV FALLBACK] FORGOT PASSWORD OTP:');
+        console.log(`To: ${toEmail}`);
+        console.log(`OTP: ${otp} (Valid for 15 minutes)`);
+        console.log('Configure SMTP_USER and SMTP_PASS in .env to deliver real emails.');
+        console.log('========================================================');
+        return { delivered: false, devFallback: true };
+    }
+
+    const fromAddress = process.env.SMTP_FROM || `"Baan Waenta Store" <${process.env.SMTP_USER}>`;
+    const mailOptions = {
+        from: fromAddress,
+        to: toEmail,
+        subject: `[บ้านแว่นตา] รหัสยืนยันการตั้งรหัสผ่านใหม่: ${otp}`,
+        text: `สวัสดีครับ/ค่ะ,\n\nรหัส OTP สำหรับตั้งรหัสผ่านใหม่ของคุณคือ: ${otp}\nรหัสนี้จะหมดอายุภายใน 15 นาที\n\nหากคุณไม่ได้ร้องขอ โปรดเพิกเฉยต่ออีเมลนี้`,
+        html: `
+        <div style="font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #0f172a; margin: 0; font-size: 24px;">บ้านแว่นตา<span style="color: #2563eb;">.store</span></h2>
+                <p style="color: #64748b; font-size: 14px; margin-top: 4px;">ระบบตั้งรหัสผ่านใหม่</p>
+            </div>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                สวัสดีครับ/ค่ะ,<br>
+                เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีที่ผูกกับอีเมลนี้ กรุณาใช้รหัส OTP 6 หลักด้านล่างนี้เพื่อตั้งรหัสผ่านใหม่:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+                <span style="display: inline-block; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #1e40af; background: #eff6ff; padding: 14px 28px; border-radius: 10px; border: 1px dashed #3b82f6;">
+                    ${otp}
+                </span>
+            </div>
+            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+                ⏱️ รหัส OTP นี้จะหมดอายุภายใน <strong>15 นาที</strong><br>
+                🔒 หากท่านไม่ได้ทำการขอรีเซ็ตรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้ บัญชีของท่านยังคงปลอดภัย
+            </p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+            <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">
+                ทีมงาน บ้านแว่นตา (Baan Waenta Store)<br>
+                อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติ กรุณาอย่าตอบกลับ
+            </p>
+        </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { delivered: true, devFallback: false };
+}
+
 const authRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
+const forgotPasswordRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 app.use('/api', loadSession);
 
 // ==========================================
@@ -838,6 +927,149 @@ app.post('/api/auth/google', requireTrustedOrigin, authRateLimit, async (req, re
         res.json({ success: true, user: publicUser(user), csrfToken });
     } catch (error) {
         sendServerError(res, error, 'Google authentication failed');
+    }
+});
+
+// 2.51 Authentication: Request Password Reset OTP
+app.post('/api/auth/forgot-password', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!isEmail(email)) {
+        return res.status(400).json({ success: false, message: 'รูปแบบอีเมลไม่ถูกต้อง' });
+    }
+
+    try {
+        const [users] = await dbPool.query('SELECT id, email, name FROM users WHERE email = ? LIMIT 1', [email]);
+        if (users.length === 0) {
+            return res.json({
+                success: true,
+                message: 'หากอีเมลนี้ลงทะเบียนไว้ในระบบ เราได้จัดส่งรหัส OTP ไปยังอีเมลของท่านแล้ว'
+            });
+        }
+
+        const user = users[0];
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        const otpHash = hashToken(otp);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        await dbPool.query('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0', [email]);
+        await dbPool.query(
+            'INSERT INTO password_resets (user_id, email, otp_hash, expires_at) VALUES (?, ?, ?, ?)',
+            [user.id, email, otpHash, expiresAt]
+        );
+
+        const emailResult = await sendResetOtpEmail(user.email, otp);
+
+        const responsePayload = {
+            success: true,
+            message: 'หากอีเมลนี้ลงทะเบียนไว้ในระบบ เราได้จัดส่งรหัส OTP ไปยังอีเมลของท่านแล้ว'
+        };
+
+        if (emailResult.devFallback && !IS_PRODUCTION) {
+            responsePayload.devOtp = otp;
+            responsePayload.message += ' (โหมดทดสอบ: ดูรหัส OTP ได้ในคอนโซลเซิร์ฟเวอร์)';
+        }
+
+        res.json(responsePayload);
+    } catch (error) {
+        sendServerError(res, error, 'Forgot password request failed');
+    }
+});
+
+// 2.52 Authentication: Verify Password Reset OTP
+app.post('/api/auth/verify-reset-otp', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+
+    if (!isEmail(email) || !/^\d{6}$/.test(otp)) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลและรหัส OTP 6 หลักให้ถูกต้อง' });
+    }
+
+    try {
+        const [records] = await dbPool.query(
+            'SELECT * FROM password_resets WHERE email = ? AND used = 0 ORDER BY id DESC LIMIT 1',
+            [email]
+        );
+
+        if (records.length === 0) {
+            return res.status(400).json({ success: false, message: 'ไม่พบคำขอรีเซ็ตรหัสผ่าน หรือรหัสถูกใช้งานไปแล้ว กรุณาขอรหัสใหม่' });
+        }
+
+        const record = records[0];
+        if (new Date(record.expires_at) < new Date()) {
+            return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว (เกิน 15 นาที) กรุณาขอรหัสใหม่' });
+        }
+
+        if (record.attempts >= 5) {
+            return res.status(400).json({ success: false, message: 'คุณกรอกรหัส OTP ผิดเกิน 5 ครั้ง กรุณาขอรหัสใหม่' });
+        }
+
+        if (hashToken(otp) !== record.otp_hash) {
+            await dbPool.query('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [record.id]);
+            const remaining = 4 - record.attempts;
+            return res.status(400).json({
+                success: false,
+                message: `รหัส OTP ไม่ถูกต้อง ${remaining > 0 ? `(เหลือโอกาสอีก ${remaining} ครั้ง)` : '(สิทธิ์การกรอกหมดแล้ว กรุณาขอใหม่)'}`
+            });
+        }
+
+        res.json({ success: true, message: 'รหัส OTP ถูกต้อง' });
+    } catch (error) {
+        sendServerError(res, error, 'Verify reset OTP failed');
+    }
+});
+
+// 2.53 Authentication: Reset Password with Verified OTP
+app.post('/api/auth/reset-password', requireTrustedOrigin, forgotPasswordRateLimit, async (req, res) => {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+
+    if (!isEmail(email) || !/^\d{6}$/.test(otp)) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วนหรือไม่ถูกต้อง' });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+        return res.status(400).json({
+            success: false,
+            message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 8 ตัวอักษร และมีทั้งตัวอักษรและตัวเลขหรือสัญลักษณ์พิเศษ'
+        });
+    }
+
+    try {
+        const [records] = await dbPool.query(
+            'SELECT * FROM password_resets WHERE email = ? AND used = 0 ORDER BY id DESC LIMIT 1',
+            [email]
+        );
+
+        if (records.length === 0) {
+            return res.status(400).json({ success: false, message: 'ไม่พบคำขอรีเซ็ตรหัสผ่าน หรือรหัสถูกใช้งานไปแล้ว' });
+        }
+
+        const record = records[0];
+        if (new Date(record.expires_at) < new Date()) {
+            return res.status(400).json({ success: false, message: 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่' });
+        }
+
+        if (record.attempts >= 5) {
+            return res.status(400).json({ success: false, message: 'คุณกรอกรหัส OTP ผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่' });
+        }
+
+        if (hashToken(otp) !== record.otp_hash) {
+            await dbPool.query('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [record.id]);
+            return res.status(400).json({ success: false, message: 'รหัส OTP ไม่ถูกต้อง' });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 12);
+        await dbPool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, record.user_id]);
+        await dbPool.query('UPDATE password_resets SET used = 1 WHERE id = ?', [record.id]);
+        await dbPool.query('DELETE FROM sessions WHERE user_id = ?', [record.user_id]);
+
+        res.json({
+            success: true,
+            message: 'ตั้งรหัสผ่านใหม่สำเร็จแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่'
+        });
+    } catch (error) {
+        sendServerError(res, error, 'Reset password failed');
     }
 });
 
@@ -1715,7 +1947,7 @@ initialization.then(() => {
 
 module.exports = app;
 module.exports.initialization = initialization;
-module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser, dbPool };
+module.exports._test = { requireAuth, requireAdmin, requireCsrf, requireTrustedOrigin, publicUser, dbPool, sendResetOtpEmail, getEmailTransporter };
 
 // Graceful shutdown for Serverless environments (e.g. Vercel)
 // This ensures that when Vercel tears down the instance (especially on new deployments),
