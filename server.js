@@ -727,8 +727,8 @@ function getEmailTransporter() {
     const host = process.env.SMTP_HOST || 'smtp.gmail.com';
     const port = parseInt(process.env.SMTP_PORT || '465', 10);
     const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : '';
+    const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
 
     if (!user || !pass || pass === 'your_gmail_app_password_here') {
         return null;
@@ -754,7 +754,8 @@ async function sendResetOtpEmail(toEmail, otp) {
         return { delivered: false, devFallback: true };
     }
 
-    const fromAddress = process.env.SMTP_FROM || `"Baan Waenta Store" <${process.env.SMTP_USER}>`;
+    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : '';
+    const fromAddress = `"บ้านแว่นตา (Baan Waenta)" <${user}>`;
     const mailOptions = {
         from: fromAddress,
         to: toEmail,
