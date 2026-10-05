@@ -98,9 +98,9 @@ const DB_CONFIG = {
     database: process.env.DB_NAME || 'baan_waenta',
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
-    connectionLimit: 10,
-    maxIdle: 10,
-    idleTimeout: 60000,
+    connectionLimit: 3,
+    maxIdle: 2,
+    idleTimeout: 15000,
     queueLimit: 0,
     ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1')) ? { rejectUnauthorized: false } : undefined
 };
@@ -184,39 +184,48 @@ app.get(['/uploads/*', '/assets/products/*'], async (req, res, next) => {
 
 let isDbInitialized = false;
 
-// Connect to MySQL and initialize tables/data
-async function initDB() {
+// Connect to MySQL and initialize tables/data with auto-retry
+async function initDB(retries = 5) {
     if (isDbInitialized) return;
-    isDbInitialized = true;
 
-    try {
-        const isLocal = DB_CONFIG.host === 'localhost' || DB_CONFIG.host === '127.0.0.1';
-        
-        if (isLocal) {
-            // First connect without specifying DB to ensure it exists (local development only)
-            const initConnection = await mysql.createConnection({
-                host: DB_CONFIG.host,
-                user: DB_CONFIG.user,
-                password: DB_CONFIG.password,
-                port: DB_CONFIG.port
-            });
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const isLocal = DB_CONFIG.host === 'localhost' || DB_CONFIG.host === '127.0.0.1';
             
-            await initConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-            await initConnection.end();
+            if (isLocal) {
+                // First connect without specifying DB to ensure it exists (local development only)
+                const initConnection = await mysql.createConnection({
+                    host: DB_CONFIG.host,
+                    user: DB_CONFIG.user,
+                    password: DB_CONFIG.password,
+                    port: DB_CONFIG.port
+                });
+                
+                await initConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+                await initConnection.end();
+            }
 
+            // Idempotent schema migrations must also run against hosted databases.
+            await setupTables();
+            await seedData();
+
+            isDbInitialized = true;
+            console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
+            return;
+
+        } catch (error) {
+            console.error(`DATABASE CONNECTION ATTEMPT ${attempt}/${retries} FAILED:`, error.message);
+            if (attempt < retries) {
+                const waitSec = attempt * 2;
+                console.log(`Retrying DB connection in ${waitSec}s (waiting for existing connections to release)...`);
+                await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
+            } else {
+                console.error('========================================================');
+                console.error('DATABASE CONNECTION ERROR:');
+                console.error(error.message);
+                console.error('========================================================');
+            }
         }
-
-        // Idempotent schema migrations must also run against hosted databases.
-        await setupTables();
-        await seedData();
-
-        console.log(`Connected to MySQL database: ${DB_CONFIG.database}`);
-
-    } catch (error) {
-        console.error('========================================================');
-        console.error('DATABASE CONNECTION ERROR:');
-        console.error(error.message);
-        console.error('========================================================');
     }
 }
 
