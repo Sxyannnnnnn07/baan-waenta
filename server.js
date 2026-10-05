@@ -732,10 +732,7 @@ async function savePublicModelData(dataUrl, prefix, executor = dbPool) {
     return webPath;
 }
 
-function getEmailTransporter() {
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '465', 10);
-    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+function getEmailTransporter(overridePort = null) {
     const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : '';
     const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
 
@@ -743,16 +740,24 @@ function getEmailTransporter() {
         return null;
     }
 
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+    // Port 587 (STARTTLS) is officially required by Render, AWS and cloud firewalls
+    const port = overridePort || parseInt(process.env.SMTP_PORT || '587', 10);
+    const secure = port === 465;
+
     return nodemailer.createTransport({
         host,
         port,
         secure,
-        auth: { user, pass }
+        auth: { user, pass },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 12000
     });
 }
 
 async function sendResetOtpEmail(toEmail, otp) {
-    const transporter = getEmailTransporter();
+    let transporter = getEmailTransporter();
     if (!transporter) {
         console.log('========================================================');
         console.log('[DEV FALLBACK] FORGOT PASSWORD OTP:');
@@ -798,8 +803,23 @@ async function sendResetOtpEmail(toEmail, otp) {
         `
     };
 
-    await transporter.sendMail(mailOptions);
-    return { delivered: true, devFallback: false };
+    try {
+        await transporter.sendMail(mailOptions);
+        return { delivered: true, devFallback: false };
+    } catch (primaryErr) {
+        logServerError('Primary SMTP port delivery failed, attempting fallback port', primaryErr);
+        const altPort = (transporter.options && transporter.options.port === 587) ? 465 : 587;
+        const fallbackTransporter = getEmailTransporter(altPort);
+        if (fallbackTransporter) {
+            try {
+                await fallbackTransporter.sendMail(mailOptions);
+                return { delivered: true, devFallback: false };
+            } catch (fallbackErr) {
+                logServerError('Fallback SMTP delivery also failed', fallbackErr);
+            }
+        }
+        throw new Error(`ไม่สามารถส่งอีเมล OTP ได้ (${primaryErr.message}) กรุณาลองใหม่อีกครั้ง`);
+    }
 }
 
 const authRateLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
@@ -967,7 +987,16 @@ app.post('/api/auth/forgot-password', requireTrustedOrigin, forgotPasswordRateLi
             [user.id, email, otpHash, expiresAt]
         );
 
-        const emailResult = await sendResetOtpEmail(user.email, otp);
+        let emailResult;
+        try {
+            emailResult = await sendResetOtpEmail(user.email, otp);
+        } catch (mailError) {
+            logServerError('Failed to send reset email', mailError);
+            return res.status(502).json({
+                success: false,
+                message: mailError.message || 'ไม่สามารถส่งอีเมลรหัส OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+            });
+        }
 
         const responsePayload = {
             success: true,

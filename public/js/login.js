@@ -546,13 +546,18 @@ async function handleRequestOtp(e) {
     btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังส่งรหัส OTP...';
     hideForgotModalAlert();
 
+    const controller = new AbortController();
+    const timeoutTimer = setTimeout(() => controller.abort(), 20000);
+
     try {
         const response = await fetch('/api/auth/forgot-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
+            signal: controller.signal,
             body: JSON.stringify({ email })
         });
+        clearTimeout(timeoutTimer);
         const data = await response.json();
 
         if (data.success) {
@@ -580,8 +585,13 @@ async function handleRequestOtp(e) {
             showForgotModalAlert('error', data.message || 'ไม่สามารถส่งรหัส OTP ได้');
         }
     } catch (err) {
+        clearTimeout(timeoutTimer);
         console.error('Request OTP error:', err);
-        showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+        if (err.name === 'AbortError') {
+            showForgotModalAlert('error', 'การส่งรหัสใช้เวลานานเกินไป กรุณากดลองใหม่อีกครั้ง');
+        } else {
+            showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
@@ -641,13 +651,18 @@ async function handleResendOtp() {
     const resendBtn = document.getElementById('forgot-resend-otp-btn');
     if (resendBtn) resendBtn.disabled = true;
 
+    const controller = new AbortController();
+    const timeoutTimer = setTimeout(() => controller.abort(), 20000);
+
     try {
         const response = await fetch('/api/auth/forgot-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
+            signal: controller.signal,
             body: JSON.stringify({ email: forgotPasswordEmail })
         });
+        clearTimeout(timeoutTimer);
         const data = await response.json();
         if (data.success) {
             startOtpCountdown(15 * 60);
@@ -665,7 +680,8 @@ async function handleResendOtp() {
             if (resendBtn) resendBtn.disabled = false;
         }
     } catch (err) {
-        showForgotModalAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        clearTimeout(timeoutTimer);
+        showForgotModalAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ หรือการขอรหัสใช้เวลานานเกินไป');
         if (resendBtn) resendBtn.disabled = false;
     }
 }
@@ -765,17 +781,22 @@ async function handleResetPasswordSubmit(e) {
     btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> กำลังตั้งรหัสผ่านใหม่...';
     hideForgotModalAlert();
 
+    const controller = new AbortController();
+    const timeoutTimer = setTimeout(() => controller.abort(), 20000);
+
     try {
         const response = await fetch('/api/auth/reset-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
+            signal: controller.signal,
             body: JSON.stringify({
                 email: forgotPasswordEmail,
                 otp,
                 newPassword
             })
         });
+        clearTimeout(timeoutTimer);
         const data = await response.json();
 
         if (data.success) {
@@ -790,8 +811,13 @@ async function handleResetPasswordSubmit(e) {
             showForgotModalAlert('error', data.message || 'ไม่สามารถตั้งรหัสผ่านใหม่ได้');
         }
     } catch (err) {
+        clearTimeout(timeoutTimer);
         console.error('Reset password error:', err);
-        showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อเปลี่ยนรหัสผ่านได้');
+        if (err.name === 'AbortError') {
+            showForgotModalAlert('error', 'การตั้งรหัสผ่านใช้เวลานานเกินไป กรุณากดลองใหม่อีกครั้ง');
+        } else {
+            showForgotModalAlert('error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อเปลี่ยนรหัสผ่านได้');
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
