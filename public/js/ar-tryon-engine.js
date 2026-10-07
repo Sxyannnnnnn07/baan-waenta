@@ -424,6 +424,30 @@
                     current3DModel.scale.set(1, 1, 1);
                     current3DModel.updateMatrixWorld(true);
 
+                    // Material Override for Aviator Sunglasses in AR to prevent "solid white" issue
+                    const isAviator = (currentProductData && currentProductData.name && currentProductData.name.toLowerCase().includes('aviator'));
+                    if (isAviator) {
+                        current3DModel.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                const mName = (child.material.name || '').toLowerCase();
+                                if (mName.includes('lens') || mName.includes('glass') || mName.includes('เลนส์')) {
+                                    child.material.transparent = true;
+                                    child.material.opacity = 0.6;
+                                    child.material.color.setHex(0x222222);
+                                    child.material.metalness = 0.2;
+                                    child.material.roughness = 0.1;
+                                    child.material.depthWrite = false; // Crucial for AR transparency overlay
+                                    child.material.needsUpdate = true;
+                                } else {
+                                    child.material.color.setHex(0x444444); // Dark gunmetal
+                                    child.material.metalness = 0.8;
+                                    child.material.roughness = 0.3;
+                                    child.material.needsUpdate = true;
+                                }
+                            }
+                        });
+                    }
+
                     const box = new THREE.Box3().setFromObject(current3DModel);
                     const size = new THREE.Vector3();
                     box.getSize(size);

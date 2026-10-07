@@ -258,6 +258,31 @@ function load3DModel(prod) {
 
         // Wrap in parent group for tracking transforms
         current3DModel = new THREE.Group();
+        
+        // Material Override for Aviator Sunglasses in AR to prevent "solid white" issue
+        const isAviator = (prod && prod.name && prod.name.toLowerCase().includes('aviator'));
+        if (isAviator) {
+            root.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const mName = (child.material.name || '').toLowerCase();
+                    if (mName.includes('lens') || mName.includes('glass') || mName.includes('เลนส์')) {
+                        child.material.transparent = true;
+                        child.material.opacity = 0.6;
+                        child.material.color.setHex(0x222222);
+                        child.material.metalness = 0.2;
+                        child.material.roughness = 0.1;
+                        child.material.depthWrite = false; // Crucial for AR overlay
+                        child.material.needsUpdate = true;
+                    } else {
+                        child.material.color.setHex(0x444444);
+                        child.material.metalness = 0.8;
+                        child.material.roughness = 0.3;
+                        child.material.needsUpdate = true;
+                    }
+                }
+            });
+        }
+        
         current3DModel.add(root);
 
         // Normalize raw width to standard 7.0 units
