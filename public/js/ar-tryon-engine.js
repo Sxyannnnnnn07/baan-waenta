@@ -431,13 +431,12 @@
                             if (child.isMesh && child.material) {
                                 const mName = (child.material.name || '').toLowerCase();
                                 if (mName.includes('lens') || mName.includes('glass') || mName.includes('เลนส์')) {
-                                    child.material.transparent = true;
-                                    child.material.opacity = 0.6;
-                                    child.material.color.setHex(0x222222);
-                                    child.material.metalness = 0.2;
-                                    child.material.roughness = 0.1;
-                                    child.material.depthWrite = false; // Crucial for AR transparency overlay
-                                    child.material.needsUpdate = true;
+                                    child.material = new THREE.MeshBasicMaterial({
+                                        color: 0x111111,
+                                        transparent: true,
+                                        opacity: 0.5,
+                                        depthWrite: false
+                                    });
                                 } else {
                                     child.material.color.setHex(0x444444); // Dark gunmetal
                                     child.material.metalness = 0.8;
