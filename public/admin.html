@@ -233,12 +233,25 @@
                     </div>
 
                     <!-- อัปโหลดโมเดล 3D (.glb เท่านั้น) -->
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="prod-model-3d" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="form-group" style="grid-column: 1 / -1; background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <label for="prod-model-3d" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <ion-icon name="cube-outline" style="color: var(--accent); font-size: 1.15rem;"></ion-icon>
-                            อัปโหลดไฟล์โมเดล 3D สำหรับ Virtual Try-On (.glb เท่านั้น - ทางเลือก)
+                            ไฟล์โมเดล 3D สำหรับ Virtual Try-On (.glb เท่านั้น - ทางเลือก)
                         </label>
-                        <input type="file" id="prod-model-3d" accept=".glb" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                        <input type="file" id="prod-model-3d" accept=".glb" style="width: 100%; padding: 0.4rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit; margin-bottom: 1rem;">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label for="prod-model-scale" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem;">ขนาดโมเดล 3D (Scale)</label>
+                                <p style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ปรับให้เข้ากับใบหน้า (ค่าเริ่มต้น 1.0)</p>
+                                <input type="number" id="prod-model-scale" step="0.01" min="0.1" value="1.0" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                            </div>
+                            <div>
+                                <label for="prod-model-offset-y" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem;">ตำแหน่งดั้งจมูก (Offset Y)</label>
+                                <p style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ปรับระดับความสูงแว่น (ค่าเริ่มต้น 0.0)</p>
+                                <input type="number" id="prod-model-offset-y" step="0.01" value="0.0" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit;">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">

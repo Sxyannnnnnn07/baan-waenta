@@ -1142,11 +1142,14 @@ app.post('/api/products', requireAdmin, requireCsrf, async (req, res) => {
         await conn.beginTransaction();
 
         try {
+            const scale = parseFloat(req.body.scale_x) || 1.0;
+            const offsetY = parseFloat(req.body.offset_y) || 0.0;
+
             // Insert product with temporary empty image values to get insertId
             const [result] = await conn.query(
-                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, price, stock) 
-                 VALUES (?, ?, ?, ?, '', '', NULL, ?, ?)`,
-                [name, brand, category, frameShape, price, stock]
+                `INSERT INTO products (name, brand, category, frame_shape, image_url, tryon_image_url, model_3d_url, price, stock, scale_x, scale_y, scale_z, offset_y) 
+                 VALUES (?, ?, ?, ?, '', '', NULL, ?, ?, ?, ?, ?, ?)`,
+                [name, brand, category, frameShape, price, stock, scale, scale, scale, offsetY]
             );
             const productId = result.insertId;
 
@@ -1276,8 +1279,11 @@ app.put('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
     const name = req.body.name !== undefined ? cleanText(req.body.name, 255) : undefined;
     const stock = req.body.stock !== undefined ? integerInRange(req.body.stock, 0, 1000000) : undefined;
     const price = req.body.price !== undefined ? numberInRange(req.body.price, 0, 1000000) : undefined;
+    const scale = req.body.scale_x !== undefined ? parseFloat(req.body.scale_x) : undefined;
+    const offsetY = req.body.offset_y !== undefined ? parseFloat(req.body.offset_y) : undefined;
+    const model3d = req.body.model_3d; // Optional new 3D model
 
-    if (name === undefined && stock === undefined && price === undefined) {
+    if (name === undefined && stock === undefined && price === undefined && scale === undefined && offsetY === undefined && !model3d) {
         return res.status(400).json({ success: false, message: 'กรุณาระบุข้อมูลที่ต้องการแก้ไข' });
     }
     if (name !== undefined && !name) {
@@ -1287,9 +1293,14 @@ app.put('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
         return res.status(400).json({ success: false, message: 'จำนวนสต็อกไม่ถูกต้อง' });
     }
 
+    let conn;
     try {
-        const [existing] = await dbPool.query('SELECT id FROM products WHERE id = ?', [productId]);
+        conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+        const [existing] = await conn.query('SELECT id, model_3d_url FROM products WHERE id = ? FOR UPDATE', [productId]);
         if (!existing.length) {
+            await conn.rollback();
+            conn.release();
             return res.status(404).json({ success: false, message: 'ไม่พบสินค้าในระบบ' });
         }
 
@@ -1308,12 +1319,34 @@ app.put('/api/products/:id', requireAdmin, requireCsrf, async (req, res) => {
             updates.push('price = ?');
             values.push(price);
         }
+        if (scale !== undefined && !isNaN(scale)) {
+            updates.push('scale_x = ?', 'scale_y = ?', 'scale_z = ?');
+            values.push(scale, scale, scale);
+        }
+        if (offsetY !== undefined && !isNaN(offsetY)) {
+            updates.push('offset_y = ?');
+            values.push(offsetY);
+        }
+
+        if (model3d) {
+            try {
+                const finalModelUrl = await savePublicModelData(model3d, `model_${productId}`, conn);
+                updates.push('model_3d_url = ?');
+                values.push(finalModelUrl);
+            } catch (modelErr) {
+                await conn.rollback();
+                conn.release();
+                return res.status(400).json({ success: false, message: `Invalid 3D model: ${modelErr.message}` });
+            }
+        }
 
         if (updates.length > 0) {
             values.push(productId);
-            await dbPool.query(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`, values);
+            await conn.query(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`, values);
         }
 
+        await conn.commit();
+        conn.release();
         res.json({ success: true, message: 'อัปเดตข้อมูลสินค้าสำเร็จ' });
     } catch (error) {
         sendServerError(res, error, 'Update product failed');

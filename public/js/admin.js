@@ -852,6 +852,9 @@ async function addNewProduct(e) {
 
     setProductUploadProgress(22, 'จัดเตรียมข้อมูลเสร็จแล้ว กำลังเชื่อมต่อเซิร์ฟเวอร์...');
 
+    const scaleX = parseFloat(document.getElementById('prod-model-scale')?.value) || 1.0;
+    const offsetY = parseFloat(document.getElementById('prod-model-offset-y')?.value) || 0.0;
+
     const payload = {
         name,
         brand,
@@ -862,7 +865,9 @@ async function addNewProduct(e) {
         image_url: galleryBase64[0],
         tryon_image_url: galleryBase64[0],
         gallery_images: galleryBase64,
-        model_3d: model3dBase64
+        model_3d: model3dBase64,
+        scale_x: scaleX,
+        offset_y: offsetY
     };
 
     const payloadJson = JSON.stringify(payload);
