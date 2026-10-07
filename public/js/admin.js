@@ -633,6 +633,11 @@ async function fetchStockProducts() {
                         </div>
                     </td>
                     <td style="vertical-align: top; text-align: center; white-space: nowrap;">
+                        <button class="btn-stock-edit" onclick="editProductScale(${p.id}, ${p.scale_x || 1.0}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" title="ปรับขนาดโมเดล 3D" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+                            <ion-icon name="resize-outline"></ion-icon> แก้สเกล
+                        </button>
+                    </td>
+                    <td style="vertical-align: top; text-align: center; white-space: nowrap;">
                         <button class="btn-order-action btn-delete" onclick="deleteProduct(${p.id})" title="ลบสินค้าออกจากระบบ">
                             <ion-icon name="trash-outline"></ion-icon> ลบออก
                         </button>
@@ -675,7 +680,38 @@ async function editProductName(productId, currentName) {
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
+async function editProductScale(productId, currentScale, productName) {
+    const input = prompt(`ตั้งค่า Scale สำหรับแว่นตารุ่น ${productName} (รหัส #${productId})\nเช่น: 1.0 (ปกติ), 2.5 (ขยายใหญ่ขึ้น):`, currentScale);
+    if (input === null) return;
+    
+    const newScale = parseFloat(input);
+    if (isNaN(newScale) || newScale <= 0) {
+        alert('กรุณากรอกตัวเลขที่ถูกต้อง (ต้องมากกว่า 0)');
+        return;
+    }
+    if (newScale === currentScale) return;
+
+    try {
+        const res = await adminApiFetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scale_x: newScale })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('ปรับสเกลสำเร็จ! ลองเข้าหน้าเว็บเพื่อทดสอบขนาดแว่นได้เลยครับ');
+            fetchStockProducts();
+        } else {
+            alert(data.message || 'ไม่สามารถแก้ไขสเกลได้');
+        }
+    } catch (error) {
+        console.error('Error editing product scale:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+}
+
 window.editProductName = editProductName;
+window.editProductScale = editProductScale;
 
 async function editProductStock(productId, currentStock, productName) {
     const newStockStr = prompt(`แก้ไขจำนวนคงเหลือในสต็อกของ "${productName}" (รหัส #${productId}):`, currentStock);
